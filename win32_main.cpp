@@ -1,5 +1,5 @@
 /*
- *  #ERROR# : instantaneous dynamic live code loading is not working
+ *  #ERROR001# : instantaneous dynamic live code loading is not working
  *            maybe because of some fail in CopyFile
  */
 
@@ -114,12 +114,11 @@ inline FILETIME Win32GetFileLastWriteTime(char *FileName) {
   return Result;
 }
 
-internal win32_game_code Win32LoadGameCode(char *GameDLLName) {
+internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName) {
     win32_game_code Result = {0};
 
-    char *GameTempDLLName = "game_temp.dll";
-    //#ERROR#Result.LastDLLWriteTime = Win32GetLastFileWriteTime(GameDLLName);
-    CopyFile(GameDLLName, GameTempDLLName, FALSE);
+    //#ERROR001#Result.LastDLLWriteTime = Win32GetLastFileWriteTime(GameDLLName);
+    CopyFile(SourceDLLName, TempDLLName, FALSE);
     Result.CodeDLL = LoadLibraryA("game_temp.dll");
     if (Result.CodeDLL) {
         Result.UpdateAndRender = (game_update_and_render *)
@@ -148,12 +147,52 @@ internal void Win32UnLoadGameCode(win32_game_code *GameCode) {
         //... other functions
 }
 
+void StrCat(
+  size_t SourceACount, char *SourceA,
+  size_t SourceBCount, char *SourceB,
+  size_t DestCount   , char *Dest
+) {
+    for (size_t Index = 0; Index < SourceACount; Index++) {
+        *Dest++ = *SourceA++;
+    }
+    for (size_t Index = 0; Index < SourceBCount; Index++) {
+        *Dest++ = *SourceB++;
+    }
+
+    *Dest++ = '\0';
+}
+
 int CALLBACK WinMain (
   HINSTANCE instance,
   HINSTANCE prevInstance,
   LPSTR     cmdLine,
   int       cmdShow
 ) {
+    char EXEFileName[MAX_PATH];
+    DWORD SizeofFileName = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
+    char *OnePastLastSlash = EXEFileName;
+    for (char *Scan = EXEFileName; *Scan; ++Scan) {
+        if (*Scan == '\\') {
+            OnePastLastSlash = Scan + 1;
+        }
+    }
+    
+    char SourceGameCodeDLLFileName[] = "game.dll";
+    char SourceGameCodeDLLFullPath[MAX_PATH];
+    StrCat(
+        OnePastLastSlash - EXEFileName, EXEFileName,
+        sizeof(SourceGameCodeDLLFileName) - 1, SourceGameCodeDLLFileName,
+        sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath
+    );
+
+    char TempGameCodeDLLFileName[] = "game_temp.dll";
+    char TempGameCodeDLLFullPath[MAX_PATH];
+    StrCat(
+        OnePastLastSlash - EXEFileName, EXEFileName,
+        sizeof(TempGameCodeDLLFileName) - 1, TempGameCodeDLLFileName,
+        sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath
+    );
+
     const int ScreenWidth  = 1280;
     const int ScreenHeight = 720;
 
@@ -179,17 +218,16 @@ int CALLBACK WinMain (
     if (GameMem.PermaStorageBytes && GameMem.TransStorageBytes) {
         InitWindow(ScreenWidth, ScreenHeight, "window");
         SetTargetFPS(60);
-            char *SourceDLLName = "game.dll";
-            win32_game_code Game = Win32LoadGameCode(SourceDLLName);
+            win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
             uint32 GameCodeLoadCount = 0;
 
             while (!WindowShouldClose()) {
                 if (GameCodeLoadCount++ < 240) {
-                    //#ERROR#FILETIME NewDLLWriteTime = Win32GetLastFileWriteTime(SourceDLLName);
-                    //#ERROR#if (CompareFileTime(&Game.LastDLLWriteTime, &NewDLLWriteTime)) {
+                    //#ERROR001#FILETIME NewDLLWriteTime = Win32GetLastFileWriteTime(SourceGameCodeDLLFullPath);
+                    //#ERROR001#if (CompareFileTime(&Game.LastDLLWriteTime, &NewDLLWriteTime)) {
                         Win32UnLoadGameCode(&Game);
-                        Game = Win32LoadGameCode(SourceDLLName);
-                    //#ERROR#}
+                        Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+                    //#ERROR001#}
                     GameCodeLoadCount = 0;
                 }
 
