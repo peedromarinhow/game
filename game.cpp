@@ -33,6 +33,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     if (IsKeyDown(KEY_D) && (GameState->Rect.x < GameState->ScreenWidth))
         GameState->Rect.x += GetFrameTime()*750.0f;
 
-    DrawRectanglePro(GameState->Rect, { GameState->Rect.width/2, GameState->Rect.height/2 }, 0.0f, YELLOW);
-    DrawCircle(GameState->ScreenWidth/2, GameState->ScreenHeight/2, 100.0f, RED);
+    DrawRectanglePro(GameState->Rect, { GameState->Rect.width/2, GameState->Rect.height/2 }, 0.0f, BLUE);
+    DrawCircle(GameState->ScreenWidth/2, GameState->ScreenHeight/2, 100.0f, GREEN);
 }
