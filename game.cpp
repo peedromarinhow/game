@@ -24,15 +24,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         GameMem->IsInitialized = true;
     }
 
-    if (IsKeyDown(KEY_W) && (GameState->Rect.y > 0))
-        GameState->Rect.y -= GetFrameTime()*750.0f;
-    if (IsKeyDown(KEY_S) && (GameState->Rect.y < GameState->ScreenHeight))
-        GameState->Rect.y += GetFrameTime()*750.0f;
-    if (IsKeyDown(KEY_A) && (GameState->Rect.x > 0))
-        GameState->Rect.x -= GetFrameTime()*750.0f;
-    if (IsKeyDown(KEY_D) && (GameState->Rect.x < GameState->ScreenWidth))
-        GameState->Rect.x += GetFrameTime()*750.0f;
-
     DrawRectanglePro(GameState->Rect, { GameState->Rect.width/2, GameState->Rect.height/2 }, 0.0f, BLUE);
-    DrawCircle(GameState->ScreenWidth/2, GameState->ScreenHeight/2, 100.0f, GREEN);
+    DrawCircle(GameState->ScreenWidth/2, GameState->ScreenHeight/2, 100.0f, YELLOW);
 }

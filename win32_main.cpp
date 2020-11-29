@@ -8,6 +8,14 @@
 #include "game.h"
 #include "Windows.h"
 
+typedef struct _win32_game_code {
+    HMODULE CodeDLL;
+    FILETIME LastDLLWriteTime;
+    game_update_and_render *UpdateAndRender;
+        // ... other functions
+    bool IsValid;
+} win32_game_code;
+
 DEBUG_PLATFORM_FREE_WHOLE_FILE(DEBUGPlatformFreeWholeFile) {
     if (Mem) {
         VirtualFree(Mem, 0, MEM_RELEASE);
@@ -84,14 +92,6 @@ DEBUG_PLATFORM_WRITE_WHOLE_FILE(DEBUGPlatformWriteWholeFile) {
     return Res;
 }
 
-typedef struct _win32_game_code {
-    HMODULE CodeDLL;
-    FILETIME LastDLLWriteTime;
-    game_update_and_render *UpdateAndRender;
-        // ... other functions
-    bool IsValid;
-} win32_game_code;
-
 inline FILETIME Win32GetLastFileWriteTime(char *FileName) {
     FILETIME LastWriteTime = {0};
     WIN32_FIND_DATA FindData;
@@ -117,8 +117,13 @@ inline FILETIME Win32GetFileLastWriteTime(char *FileName) {
 internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName) {
     win32_game_code Result = {0};
 
-    //#ERROR001#Result.LastDLLWriteTime = Win32GetLastFileWriteTime(GameDLLName);
-    CopyFile(SourceDLLName, TempDLLName, FALSE);
+    Result.LastDLLWriteTime = Win32GetLastFileWriteTime(SourceDLLName);
+
+    while(1) {
+        if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break;
+        if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
+    }
+    
     Result.CodeDLL = LoadLibraryA("game_temp.dll");
     if (Result.CodeDLL) {
         Result.UpdateAndRender = (game_update_and_render *)
@@ -147,6 +152,21 @@ internal void Win32UnLoadGameCode(win32_game_code *GameCode) {
         //... other functions
 }
 
+internal void ProcessKeyPress(/*game_state *State*/game_mem *GameMem) {
+    assert(sizeof(game_state) <= GameMem->PermaStorageSize);
+    game_state *State = (game_state *)GameMem->PermaStorageBytes;
+    float Increment = 1500.0f;
+    if (IsKeyDown(KEY_W) && (State->Rect.y > 0))
+        State->Rect.y -= GetFrameTime()*Increment;
+    if (IsKeyDown(KEY_S) && (State->Rect.y < State->ScreenHeight))
+        State->Rect.y += GetFrameTime()*Increment;
+    if (IsKeyDown(KEY_A) && (State->Rect.x > 0))
+        State->Rect.x -= GetFrameTime()*Increment;
+    if (IsKeyDown(KEY_D) && (State->Rect.x < State->ScreenWidth))
+        State->Rect.x += GetFrameTime()*Increment;
+}
+
+// absolute trash this is
 void StrCat(
   size_t SourceACount, char *SourceA,
   size_t SourceBCount, char *SourceB,
@@ -218,22 +238,22 @@ int CALLBACK WinMain (
     if (GameMem.PermaStorageBytes && GameMem.TransStorageBytes) {
         InitWindow(ScreenWidth, ScreenHeight, "window");
         SetTargetFPS(60);
+        int InputRecordingIndex = 0;
+        int InputPlayingIndex = 0;
+
             win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
-            uint32 GameCodeLoadCount = 0;
 
             while (!WindowShouldClose()) {
-                if (GameCodeLoadCount++ < 240) {
-                    //#ERROR001#FILETIME NewDLLWriteTime = Win32GetLastFileWriteTime(SourceGameCodeDLLFullPath);
-                    //#ERROR001#if (CompareFileTime(&Game.LastDLLWriteTime, &NewDLLWriteTime)) {
-                        Win32UnLoadGameCode(&Game);
-                        Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
-                    //#ERROR001#}
-                    GameCodeLoadCount = 0;
+                FILETIME NewDLLWriteTime = Win32GetLastFileWriteTime(SourceGameCodeDLLFullPath);
+                if (CompareFileTime(&Game.LastDLLWriteTime, &NewDLLWriteTime)) {
+                    Win32UnLoadGameCode(&Game);
+                    Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
                 }
 
                 BeginDrawing();
                     ClearBackground(BLACK);
                     Game.UpdateAndRender(&GameMem);
+                    ProcessKeyPress(&GameMem);
                 EndDrawing();
             }
         CloseWindow();

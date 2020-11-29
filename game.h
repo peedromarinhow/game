@@ -1,6 +1,8 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include "win32_main.h"
+
 
 
 typedef struct _game_mem {
