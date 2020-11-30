@@ -1,7 +1,5 @@
 #include "raylib.h"
-#include "win32_main.h"
 #include "game.h"
-#include "Windows.h"
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     assert(sizeof(game_state) <= GameMem->PermaStorageSize);

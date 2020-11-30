@@ -1,20 +1,10 @@
-/*
- *  #ERROR001# : instantaneous dynamic live code loading is not working
- *            maybe because of some fail in CopyFile
- */
+#include "windows_and_its_defines.h"
+#include <raylib.h>
 
-#include "raylib.h"
-#include "win32_main.h"
 #include "game.h"
-#include "Windows.h"
+#include "win32_main.h"
 
-typedef struct _win32_game_code {
-    HMODULE CodeDLL;
-    FILETIME LastDLLWriteTime;
-    game_update_and_render *UpdateAndRender;
-        // ... other functions
-    bool IsValid;
-} win32_game_code;
+
 
 DEBUG_PLATFORM_FREE_WHOLE_FILE(DEBUGPlatformFreeWholeFile) {
     if (Mem) {
