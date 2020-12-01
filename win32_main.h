@@ -11,6 +11,10 @@ typedef struct _win32_game_code {
     bool IsValid;
 } win32_game_code;
 
+typedef struct _win32_state {
+
+} win32_state;
+
 
 
 #endif // MAIN_H

@@ -142,7 +142,7 @@ internal void Win32UnLoadGameCode(win32_game_code *GameCode) {
         //... other functions
 }
 
-internal void ProcessKeyPress(/*game_state *State*/game_mem *GameMem) {
+internal void ProcessKeyPress(win32_state *State) {
     assert(sizeof(game_state) <= GameMem->PermaStorageSize);
     game_state *State = (game_state *)GameMem->PermaStorageBytes;
     float Increment = 1500.0f;
@@ -225,6 +225,9 @@ int CALLBACK WinMain (
     GameMem.TransStorageBytes = ((uint8*)GameMem.PermaStorageBytes + GameMem.PermaStorageSize);
     GameMem.IsInitialized = false;
 
+    int InputRecordingIndex = 0;
+    int InputPlaybackIndex = 0;
+
     if (GameMem.PermaStorageBytes && GameMem.TransStorageBytes) {
         InitWindow(ScreenWidth, ScreenHeight, "window");
         SetTargetFPS(60);
@@ -243,7 +246,6 @@ int CALLBACK WinMain (
                 BeginDrawing();
                     ClearBackground(BLACK);
                     Game.UpdateAndRender(&GameMem);
-                    ProcessKeyPress(&GameMem);
                 EndDrawing();
             }
         CloseWindow();
