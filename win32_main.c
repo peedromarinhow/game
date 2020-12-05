@@ -142,19 +142,19 @@ internal void Win32UnLoadGameCode(win32_game_code *GameCode) {
         //... other functions
 }
 
-internal void ProcessKeyPress(win32_state *State) {
-    assert(sizeof(game_state) <= GameMem->PermaStorageSize);
-    game_state *State = (game_state *)GameMem->PermaStorageBytes;
-    float Increment = 1500.0f;
-    if (IsKeyDown(KEY_W) && (State->Rect.y > 0))
-        State->Rect.y -= GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_S) && (State->Rect.y < State->ScreenHeight))
-        State->Rect.y += GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_A) && (State->Rect.x > 0))
-        State->Rect.x -= GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_D) && (State->Rect.x < State->ScreenWidth))
-        State->Rect.x += GetFrameTime()*Increment;
-}
+//internal void ProcessKeyPress(win32_state *State) {
+//    assert(sizeof(game_state) <= GameMem->PermaStorageSize);
+//    game_state *State = (game_state *)GameMem->PermaStorageBytes;
+//    float Increment = 1500.0f;
+//    if (IsKeyDown(KEY_W) && (State->Rect.y > 0))
+//        State->Rect.y -= GetFrameTime()*Increment;
+//    if (IsKeyDown(KEY_S) && (State->Rect.y < State->ScreenHeight))
+//        State->Rect.y += GetFrameTime()*Increment;
+//    if (IsKeyDown(KEY_A) && (State->Rect.x > 0))
+//        State->Rect.x -= GetFrameTime()*Increment;
+//    if (IsKeyDown(KEY_D) && (State->Rect.x < State->ScreenWidth))
+//        State->Rect.x += GetFrameTime()*Increment;
+//}
 
 // absolute trash this is
 void StrCat(
@@ -231,8 +231,6 @@ int CALLBACK WinMain (
     if (GameMem.PermaStorageBytes && GameMem.TransStorageBytes) {
         InitWindow(ScreenWidth, ScreenHeight, "window");
         SetTargetFPS(60);
-        int InputRecordingIndex = 0;
-        int InputPlayingIndex = 0;
 
             win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
 
