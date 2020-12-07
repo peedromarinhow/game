@@ -1,1 +1,1 @@
-none
+Implement a controller struct like casey

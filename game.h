@@ -13,7 +13,7 @@ typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
-typedef int32 bool32;
+// typedef int32 bool32;
 typedef float real32;
 typedef double real64;
 
@@ -89,10 +89,50 @@ typedef struct _game_state {
 
 
 
-#define GAME_UPDATE_AND_RENDER(name) void name(game_mem *GameMem)
+#define GAME_UPDATE_AND_RENDER(name) void name(game_input *GameInput, game_mem *GameMem)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub) {
 }
+
+
+
+typedef struct _game_button_state {
+    int32 HalfTransitionNo;
+    bool  EndedDown;
+} game_button_state;
+
+typedef struct _game_controller_input {
+    bool IsAnalog;
+
+    real32 StartX;
+    real32 StartY;
+
+    real32 MinX;
+    real32 MinY;
+
+    real32 MaxX;
+    real32 MaxY;
+
+    real32 EndX;
+    real32 EndY;
+
+    union {
+        game_button_state Buttons[6];
+        struct {
+            game_button_state Up;
+            game_button_state Down;
+            game_button_state Left;
+            game_button_state Right;
+            game_button_state LeftShoulder;
+            game_button_state RightShoulder;
+        };
+    };
+} game_controller_input;
+
+typedef struct _game_input {
+    game_controller_input Controllers[4];
+} game_input;
+
 
 
 

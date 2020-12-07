@@ -5,7 +5,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     assert(sizeof(game_state) <= GameMem->PermaStorageSize);
     game_state *GameState = (game_state *)GameMem->PermaStorageBytes;
 
-    if(!GameMem->IsInitialized) {
+    if (!GameMem->IsInitialized) {
         GameState->Rect = { 100, 100, 100, 100 };
         GameState->ScreenHeight = GetScreenHeight();
         GameState->ScreenWidth  = GetScreenWidth();
@@ -21,6 +21,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
         GameMem->IsInitialized = true;
     }
+
+    game_controller_input *Input0 = GameInput->Controllers[0];
+    if (Input0->IsAnalog) {
+        // analog input movement tuning
+    }
+    else {
+        // digital input movement tuning
+    }
+
+    if (Input0->Down.EndedDown && (State->Rect.y < State->ScreenHeight))
+        State->Rect.y += GetFrameTime()*Increment;
 
     DrawRectanglePro(GameState->Rect, { GameState->Rect.width/2, GameState->Rect.height/2 }, 0.0f, BLUE);
     DrawCircle(GameState->ScreenWidth/2, GameState->ScreenHeight/2, 100.0f, YELLOW);
