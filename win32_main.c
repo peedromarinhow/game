@@ -1,254 +1,332 @@
-#include "windows_and_its_defines.h"
-#include <raylib.h>
+#include <Windows.h>
+#include <Xinput.h>
+#include <stdint.h>
 
-#include "game.h"
-#include "win32_main.h"
+#define internal   static
+#define global     static
+#define persistent static
 
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 
+typedef int8_t  int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
 
-DEBUG_PLATFORM_FREE_WHOLE_FILE(DEBUGPlatformFreeWholeFile) {
-    if (Mem) {
-        VirtualFree(Mem, 0, MEM_RELEASE);
+typedef struct _win32_offscreen_buffer {
+    BITMAPINFO Info;
+    void *Mem;
+    int Width;
+    int Height;
+    int Pitch;
+    int BytesPerPixel;
+} win32_offscreen_buffer;
+
+typedef struct _win32_window_dimentions {
+    int w;
+    int h;
+} win32_window_dimentions;
+
+// support for XInputGetState
+#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD DwUserIndex, XINPUT_STATE* PState)
+typedef X_INPUT_GET_STATE(_XInputGetState_);
+X_INPUT_GET_STATE(XInputGetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+global _XInputGetState_ *XInputGetState_ = XInputGetStateStub;
+#define XInputGetState XInputGetState_
+
+// support for XInputSetState
+#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD DwUserIndex, XINPUT_VIBRATION* PVibration)
+typedef X_INPUT_SET_STATE(_XInputSetState_);
+X_INPUT_SET_STATE(XInputSetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+global _XInputSetState_ *XInputSetState_ = XInputSetStateStub;
+#define XInputSetState XInputSetState_
+
+internal void Win32_LoadXInput(void) {
+    HMODULE XInputLibrary = LoadLibrary("xinput1_4.dll");
+    if (!XInputLibrary) {
+        XInputLibrary = LoadLibrary("xinput1_3.dll");
+    }
+    if (XInputLibrary) {
+        XInputGetState_ = (_XInputGetState_*)GetProcAddress(XInputLibrary, "XInputGetState");
+        XInputSetState_ = (_XInputSetState_*)GetProcAddress(XInputLibrary, "XInputSetState");
     }
 }
 
-DEBUG_PLATFORM_READ_WHOLE_FILE(DEBUGPlatformReadWholeFile) {
-    debug_read_file_result Res = {0};
-    HANDLE FileHandle = CreateFileA(
-        Filename,
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL
-    );
+global bool Running;
+global win32_offscreen_buffer GlobalBackBuff;
 
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        LARGE_INTEGER FileSize;
-        if (GetFileSizeEx(FileHandle, &FileSize)) {
-            Res.Contents = VirtualAlloc(0, (size_t)FileSize.QuadPart, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-            uint32 FileSize32 = SafeTruncateUint64(FileSize.QuadPart);
-            if (Res.Contents) {
-                DWORD bytesRead;
-                if (ReadFile(FileHandle, Res.Contents, FileSize32, &bytesRead, 0) && (FileSize32 == bytesRead)) {
-                    // sucess
-                    Res.ContentsSize = FileSize32;
-                } else {
-                    // TODO: logging
-                    //          DEBUGplatformFreeWholeFile(Res.Contents);
-                    Res.Contents = 0;
-                }
-            } else {
-                // TODO: logging
-            }
-        } else {
-            // TODO: logging
-        }
+internal win32_window_dimentions win32GetWindowDimentions (HWND Window) {
+    win32_window_dimentions Result;
 
-        CloseHandle(FileHandle);
-    } else {
-        // TODO: logging
-    }
-
-    return Res;
-}
-
-DEBUG_PLATFORM_WRITE_WHOLE_FILE(DEBUGPlatformWriteWholeFile) {
-    bool Res = false;
-    HANDLE FileHandle = CreateFileA(
-        Filename,
-        GENERIC_WRITE,
-        0,
-        NULL,
-        CREATE_ALWAYS,
-        0,
-        NULL
-    );
-
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        DWORD BytesWritten;
-        if (WriteFile(FileHandle, Mem, MemSize, &BytesWritten, 0)) {
-            // sucess
-            Res = (MemSize == BytesWritten);
-        } else {
-            // TODO: logging
-        }
-        CloseHandle(FileHandle);
-    } else {
-        // TODO: logging
-    }
-
-    return Res;
-}
-
-inline FILETIME Win32GetLastFileWriteTime(char *FileName) {
-    FILETIME LastWriteTime = {0};
-    WIN32_FIND_DATA FindData;
-    HANDLE FindHandle = FindFirstFileA(FileName, &FindData);
-    if (FindHandle != INVALID_HANDLE_VALUE) {
-        LastWriteTime = FindData.ftLastWriteTime;
-        FindClose(FindHandle);
-    }
-    return LastWriteTime;
-}
-
-inline FILETIME Win32GetFileLastWriteTime(char *FileName) {
-  FILETIME Result = {};
-  WIN32_FILE_ATTRIBUTE_DATA Data;
-
-  if(GetFileAttributesExA(FileName, GetFileExInfoStandard, &Data)) {
-    Result = Data.ftLastWriteTime;
-  }
-
-  return Result;
-}
-
-internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName) {
-    win32_game_code Result = {0};
-
-    Result.LastDLLWriteTime = Win32GetLastFileWriteTime(SourceDLLName);
-
-    while(1) {
-        if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break;
-        if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
-    }
-    
-    Result.CodeDLL = LoadLibraryA("game_temp.dll");
-    if (Result.CodeDLL) {
-        Result.UpdateAndRender = (game_update_and_render *)
-            GetProcAddress(Result.CodeDLL, "GameUpdateAndRender");
-                //... other functions
-
-        Result.IsValid = (Result.UpdateAndRender && 1);
-    }
-
-    if (!Result.IsValid) {
-        Result.UpdateAndRender = GameUpdateAndRenderStub;
-            //... other functions
-    }
+    HDC DeviceContext = GetDC(Window);
+    RECT ClientRect;
+    GetClientRect(Window, &ClientRect);
+    Result.w = ClientRect.right  - ClientRect.left;
+    Result.h = ClientRect.bottom - ClientRect.top;
 
     return Result;
 }
 
-internal void Win32UnLoadGameCode(win32_game_code *GameCode) {
-    if (GameCode->CodeDLL != INVALID_HANDLE_VALUE) {
-        FreeLibrary(GameCode->CodeDLL);
-        GameCode->CodeDLL = {0};
+internal void RenderWeirdGradient(win32_offscreen_buffer Buff, int XOff, int YOff) {
+    uint8 *row = (uint8 *)Buff.Mem;
+    for (int y = 0; y < Buff.Height; ++y) {
+        uint32 *pixel = (uint32 *)row;
+        for (int x = 0; x < Buff.Width; ++x) {
+            uint8 green = (uint8)(x + XOff);
+            uint8 blue  = (uint8)(y + YOff);
+
+            *pixel++ = (green << 8) | blue;
+        }
+
+        row += Buff.Pitch;
     }
-
-    GameCode->IsValid = false;
-    GameCode->UpdateAndRender = GameUpdateAndRenderStub;
-        //... other functions
 }
 
-internal void ProcessKeyPress(win32_state *State) {
-    assert(sizeof(game_state) <= GameMem->PermaStorageSize);
-    game_state *State = (game_state *)GameMem->PermaStorageBytes;
-    real32 Increment = 1500.0f;
-    if (IsKeyDown(KEY_W) && (State->Rect.y > 0))
-        State->Rect.y -= GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_S) && (State->Rect.y < State->ScreenHeight))
-        State->Rect.y += GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_A) && (State->Rect.x > 0))
-        State->Rect.x -= GetFrameTime()*Increment;
-    if (IsKeyDown(KEY_D) && (State->Rect.x < State->ScreenWidth))
-        State->Rect.x += GetFrameTime()*Increment;
-}
-
-// absolute trash this is
-void StrCat(
-  size_t SourceACount, char *SourceA,
-  size_t SourceBCount, char *SourceB,
-  size_t DestCount   , char *Dest
+internal void win32_ResizeDibSection (
+  win32_offscreen_buffer *Buff,
+  int W,
+  int H
 ) {
-    for (size_t Index = 0; Index < SourceACount; Index++) {
-        *Dest++ = *SourceA++;
-    }
-    for (size_t Index = 0; Index < SourceBCount; Index++) {
-        *Dest++ = *SourceB++;
+
+    if (Buff->Mem) {
+        VirtualFree(Buff->Mem, 0, MEM_RELEASE);
     }
 
-    *Dest++ = '\0';
+    Buff->Width = W;
+    Buff->Height = H;
+
+    Buff->Info.bmiHeader.biSize = sizeof(Buff->Info.bmiHeader);
+    Buff->Info.bmiHeader.biWidth = Buff->Width;
+    Buff->Info.bmiHeader.biHeight = -(Buff->Height);
+    Buff->Info.bmiHeader.biPlanes = 1;
+    Buff->Info.bmiHeader.biBitCount = 32;
+    Buff->Info.bmiHeader.biCompression = BI_RGB;
+
+    Buff->BytesPerPixel = 4;
+    int BitmapMemSize = (Buff->Width * Buff->Width) * Buff->BytesPerPixel;
+
+    Buff->Mem = VirtualAlloc(0, BitmapMemSize, MEM_COMMIT, PAGE_READWRITE);
+
+    Buff->Pitch = W * Buff->BytesPerPixel;
+
+    // todo
+    //  clear to black
+}
+
+internal void win32_DisplayBuffer(
+  win32_offscreen_buffer Buff,
+  HDC DeviceContext,
+  int WindowWidth,
+  int WindowHeight
+) {
+
+    // todo
+    //  aspect ratio correction
+
+    StretchDIBits (
+        DeviceContext,
+        0, 0, WindowWidth, WindowHeight,
+        0, 0, Buff.Width, Buff.Height,
+        Buff.Mem,
+        &Buff.Info,
+        DIB_RGB_COLORS,
+        SRCCOPY
+    );
+}
+
+internal LRESULT CALLBACK win32MainWindowCallback (
+  HWND Window,
+  UINT Message,
+  WPARAM WParam,
+  LPARAM LParam
+) {
+    LRESULT Result = 0;
+
+    switch (Message) {
+        case WM_SIZE: {
+        } break;
+        case WM_ACTIVATEAPP: {
+            OutputDebugStringA("WM_ACTIVATEAPP\n");
+        } break;
+        case WM_CLOSE: {
+            Running = false;
+        } break;
+        case WM_DESTROY: {
+            Running = false;
+        } break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP: {
+            uint32 VKCode = (uint32)WParam;
+            bool wasDown = ((LParam & (1 << 30)) != 0);
+            bool isDown  = ((LParam & (1 << 31)) == 0);
+
+            if (VKCode == 'W') {
+            }
+            else if (VKCode == 'A') {
+            }
+            else if (VKCode == 'S') {
+            }
+            else if (VKCode == 'D') {
+            }
+            else if (VKCode == 'Q') {
+            }
+            else if (VKCode == 'E') {
+            }
+            else if (VKCode == VK_UP) {
+            }
+            else if (VKCode == VK_DOWN) {
+            }
+            else if (VKCode == VK_LEFT) {
+            }
+            else if (VKCode == VK_RIGHT) {
+            }
+            else if (VKCode == VK_ESCAPE) {
+            }
+            else if (VKCode == VK_SPACE) {
+            }
+
+            bool AltKeyWasDown = (LParam & (1 << 29)) != 0;
+            if ((VKCode == VK_F4) && AltKeyWasDown) {
+                Running = false;
+            }
+        } break;
+
+        case WM_PAINT: {
+            PAINTSTRUCT Paint;
+            HDC DeviceContext = BeginPaint(Window, &Paint);
+
+            int X = Paint.rcPaint.left;
+            int Y = Paint.rcPaint.top;
+            int W = Paint.rcPaint.right  - Paint.rcPaint.left;
+            int H = Paint.rcPaint.bottom - Paint.rcPaint.top;
+
+            win32_window_dimentions Dimentions = win32GetWindowDimentions(Window);
+            win32_DisplayBuffer (
+                GlobalBackBuff,
+                DeviceContext,
+                Dimentions.w,
+                Dimentions.h
+            );
+            EndPaint(Window, &Paint);
+        } break;
+        default: {
+            Result = DefWindowProcA(Window, Message, WParam, LParam);
+        } break;
+    }
+    return Result;
 }
 
 int CALLBACK WinMain (
-  HINSTANCE instance,
-  HINSTANCE prevInstance,
-  LPSTR     cmdLine,
-  int       cmdShow
+  HINSTANCE Instance,
+  HINSTANCE PrevInstance,
+  LPSTR     CmdLine,
+  int       CmdShow
 ) {
-    char EXEFileName[MAX_PATH];
-    DWORD SizeofFileName = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
-    char *OnePastLastSlash = EXEFileName;
-    for (char *Scan = EXEFileName; *Scan; ++Scan) {
-        if (*Scan == '\\') {
-            OnePastLastSlash = Scan + 1;
-        }
-    }
+    Win32_LoadXInput();
+
+    WNDCLASSA WindowClass = {};
+
+    win32_ResizeDibSection(&GlobalBackBuff, 1280, 720);
+
+    WindowClass.style = CS_HREDRAW | CS_VREDRAW;
+    WindowClass.lpfnWndProc   = win32MainWindowCallback;
+    WindowClass.hInstance     = Instance;
+    WindowClass.lpszClassName = "game";
     
-    char SourceGameCodeDLLFileName[] = "game.dll";
-    char SourceGameCodeDLLFullPath[MAX_PATH];
-    StrCat(
-        OnePastLastSlash - EXEFileName, EXEFileName,
-        sizeof(SourceGameCodeDLLFileName) - 1, SourceGameCodeDLLFileName,
-        sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath
-    );
+    if (RegisterClassA(&WindowClass)) {
+        HWND Window =
+            CreateWindowExA (
+                0,
+                WindowClass.lpszClassName,
+                "game",
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                0,
+                0,
+                Instance,
+                0
+            );
 
-    char TempGameCodeDLLFileName[] = "game_temp.dll";
-    char TempGameCodeDLLFullPath[MAX_PATH];
-    StrCat(
-        OnePastLastSlash - EXEFileName, EXEFileName,
-        sizeof(TempGameCodeDLLFileName) - 1, TempGameCodeDLLFileName,
-        sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath
-    );
+        if (Window) {
+            int XOffset = 0;
+            int YOffset = 0;
 
-    const int ScreenWidth  = 1280;
-    const int ScreenHeight = 720;
+            Running = true;
+            while (Running) {
+                MSG Message;
 
-#if BUILD_INTERNAL
-    LPVOID BaseAddRess = (LPVOID)terabytes((uint64)1);
-#else
-    LPVOID BaseAddRess = 0;
-#endif
+                while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+                    if (Message.message == WM_QUIT) {
+                        Running = false;
+                    }
 
-    game_input GameInput = {0};
-
-    game_mem GameMem = {0};
-    GameMem.PermaStorageSize = megabytes(64);
-    GameMem.TransStorageSize = gigabytes(1);
-
-    GameMem.DEBUGPlatformFreeWholeFile = DEBUGPlatformFreeWholeFile;    
-    GameMem.DEBUGPlatformReadWholeFile = DEBUGPlatformReadWholeFile;
-    GameMem.DEBUGPlatformWriteWholeFile = DEBUGPlatformWriteWholeFile;
-
-    uint64 totalSize = GameMem.PermaStorageSize + GameMem.TransStorageSize;
-    GameMem.PermaStorageBytes = VirtualAlloc(BaseAddRess, (size_t)totalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    GameMem.TransStorageBytes = ((uint8*)GameMem.PermaStorageBytes + GameMem.PermaStorageSize);
-    GameMem.IsInitialized = false;
-
-    int InputRecordingIndex = 0;
-    int InputPlaybackIndex = 0;
-
-    if (GameMem.PermaStorageBytes && GameMem.TransStorageBytes) {
-        InitWindow(ScreenWidth, ScreenHeight, "window");
-        SetTargetFPS(60);
-
-            win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
-
-            while (!WindowShouldClose()) {
-                FILETIME NewDLLWriteTime = Win32GetLastFileWriteTime(SourceGameCodeDLLFullPath);
-                if (CompareFileTime(&Game.LastDLLWriteTime, &NewDLLWriteTime)) {
-                    Win32UnLoadGameCode(&Game);
-                    Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+                    TranslateMessage(&Message);
+                    DispatchMessage (&Message);
                 }
 
-                BeginDrawing();
-                    ClearBackground(BLACK);
-                    Game.UpdateAndRender(&GameInput, &GameMem);
-                EndDrawing();
+                for (
+                  DWORD ControllerIndex = 0;
+                  ControllerIndex < XUSER_MAX_COUNT;
+                  ControllerIndex++
+                ) {
+                    XINPUT_STATE ControllerState;
+                    if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
+                        // the controller is plugged in
+                        XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
+
+                        bool Up   = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+                        bool Down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+                        bool Left  = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+                        bool Right = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+                        bool Start = (Pad->wButtons & XINPUT_GAMEPAD_START);
+                        bool Back  = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
+                        bool LeftShoulder  = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+                        bool Rightshoulder = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+                        bool AButton = (Pad->wButtons & XINPUT_GAMEPAD_A);
+                        bool BButton = (Pad->wButtons & XINPUT_GAMEPAD_B);
+                        bool XButton = (Pad->wButtons & XINPUT_GAMEPAD_X);
+                        bool YButton = (Pad->wButtons & XINPUT_GAMEPAD_Y);
+
+                        int16 StickX = Pad->sThumbLX;
+                        int16 StickY = Pad->sThumbLY;
+
+                        if (AButton) {
+                            YOffset += 2;
+                        }
+                    }
+                    else {   // controller unavaliable
+                    }
+                }
+                
+                RenderWeirdGradient(GlobalBackBuff, XOffset, YOffset);
+
+                HDC DeviceContext = GetDC(Window);
+                win32_window_dimentions Dimentions = win32GetWindowDimentions(Window);
+                win32_DisplayBuffer(GlobalBackBuff, DeviceContext, Dimentions.w, Dimentions.h);
+                ReleaseDC(Window, DeviceContext);
+
+                XOffset += 2;
+
             }
-        CloseWindow();
+        }
+        else {   // TODO
+        }
     }
+    else {   // TODO
+    }
+
     return 0;
 }
