@@ -394,17 +394,21 @@ int CALLBACK WinMain (
 
                 // directsound test
                 //      note: did not understand a thing about how this works
+
                 DWORD PlayCursor;
                 DWORD WriteCursor;
                 if (SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
-                    DWORD ByteToLock = RunningSampleIndex * BytesPerSample % SecondaryBufferSize;
-                    DWORD BytesToWrite;
+                    DWORD ByteToLock = RunningSampleIndex * BytesPerSample;
+                    DWORD BytesToWrite = RunningSampleIndex * BytesPerSample % SecondaryBufferSize;
+                    if (ByteToLock == PlayCursor) {
+                        BytesToWrite = SecondaryBufferSize;
+                    }
                     if (ByteToLock > PlayCursor) {
                         BytesToWrite = SecondaryBufferSize - ByteToLock;
                         BytesToWrite += PlayCursor;
                     }
                     else {
-                        BytesToWrite = SecondaryBufferSize - ByteToLock;
+                        BytesToWrite = PlayCursor - ByteToLock;
                     }
 
                     VOID *Region1;
@@ -412,8 +416,7 @@ int CALLBACK WinMain (
                     VOID *Region2;
                     DWORD Region2Size;
                     if (SUCCEEDED(GlobalSecondaryBuffer->Lock(
-                      ByteToLock,
-                      BytesToWrite,
+                      ByteToLock, BytesToWrite,
                       &Region1, &Region1Size,
                       &Region2, &Region2Size,
                       0
@@ -435,6 +438,8 @@ int CALLBACK WinMain (
                             *SampleOut++ = SampleValue;
                             *SampleOut++ = SampleValue;
                         }
+
+                        GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2,Region2Size);
                     }
                 }
 
