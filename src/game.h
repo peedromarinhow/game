@@ -8,6 +8,6 @@ typedef struct _game_offscreen_buffer {
     int   Pitch;
 } game_offscreen_buffer;
 
-void GameUpdateAndRender(game_offscreen_buffer *Buffer);
+void GameUpdateAndRender(game_offscreen_buffer *Buffer, int XOffset, int YOffset);
 
 #endif//GAHE_H

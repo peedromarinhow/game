@@ -1,6 +1,7 @@
 #include "game.h"
 
-internal void RenderWeirdGradient(win32_offscreen_buffer *Buffer, int BlueOffset, int GreenOffset)
+// internal
+void RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffset)
 {
     uint8_t *Row = (uint8_t *)Buffer->Mem;
     for (int Y = 0;Y < Buffer->Height; Y++) {
@@ -16,6 +17,7 @@ internal void RenderWeirdGradient(win32_offscreen_buffer *Buffer, int BlueOffset
     }
 }
 
-internal void GameUpdateAndRender(game_offscreen_buffer *Buffer) {
-    RenderWeirGradient(Buffer)
+// internal
+void GameUpdateAndRender(game_offscreen_buffer *Buffer, int XOffset, int YOffset) {
+    RenderWeirdGradient(Buffer, XOffset, YOffset);
 }

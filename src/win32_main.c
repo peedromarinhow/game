@@ -1,3 +1,7 @@
+#define internal   static
+#define global     static
+#define persistent static
+
 #include <windows.h>
 #include <xinput.h>
 #include <dsound.h>
@@ -7,10 +11,6 @@
 #include <math.h>
 
 #include "game.cpp"
-
-#define internal   static
-#define global     static
-#define persistent static
 
 typedef int8_t  int8;
 typedef int16_t int16;
@@ -474,7 +474,12 @@ int CALLBACK WinMain (
                     SoundIsPlaying = true;
                 }
 
-                RenderWeirdGradient(GlobalBackBuff, XOffset, YOffset);
+                game_offscreen_buffer Buff = {};
+                Buff.Mem = GlobalBackBuff.Mem;
+                Buff.Width = GlobalBackBuff.Width;
+                Buff.Height = GlobalBackBuff.Height;
+                Buff.Pitch = GlobalBackBuff.Pitch;
+                GameUpdateAndRender(&Buff, XOffset, YOffset);
                 win32_window_dimensions Dimension = Win32GetWindowDimensions(Window);
                 Win32DisplayBuffer(GlobalBackBuff, DeviceContext, Dimension.Width, Dimension.Height);
 

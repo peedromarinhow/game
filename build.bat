@@ -2,6 +2,7 @@
 call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x64
 REM I hate pink, so no .cpp files on the github repo are allowed
 copy src\*.c *.cpp
+copy src\*.h *.h
 
 pushd build\debug
 del *.pdb > NUL 2> NUL
