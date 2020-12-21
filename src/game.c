@@ -1,23 +1,21 @@
 #include "game.h"
 
-// internal
-void RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffset)
+internal void RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffset)
 {
-    uint8_t *Row = (uint8_t *)Buffer->Mem;
+    uint8 *Row = (uint8 *)Buffer->Mem;
     for (int Y = 0;Y < Buffer->Height; Y++) {
-        uint32_t *Pixel = (uint32_t *)Row;
+        uint32 *Pixel = (uint32 *)Row;
         for (int X = 0; X < Buffer->Width; X++) {
             // memory Order: BB GG RR XX
             // 0xXXRRGGBB
-            uint8_t Blue = X + BlueOffset;
-            uint8_t Green = Y + GreenOffset;
+            uint8 Blue = X + BlueOffset;
+            uint8 Green = Y + GreenOffset;
             *Pixel++ = ((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }
 }
 
-// internal
-void GameUpdateAndRender(game_offscreen_buffer *Buffer, int XOffset, int YOffset) {
-    RenderWeirdGradient(Buffer, XOffset, YOffset);
+internal void GameUpdateAndRender(game_offscreen_buffer *Buffer) {
+    RenderWeirdGradient(Buffer, 0, 0);
 }

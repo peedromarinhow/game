@@ -3,11 +3,11 @@
 
 typedef struct _game_offscreen_buffer {
     void *Mem;
-    int   Width;
-    int   Height;
-    int   Pitch;
+    int32 Width;
+    int32 Height;
+    int32 Pitch;
 } game_offscreen_buffer;
 
-void GameUpdateAndRender(game_offscreen_buffer *Buffer, int XOffset, int YOffset);
+void GameUpdateAndRender(game_offscreen_buffer *Buffer);
 
 #endif//GAHE_H
