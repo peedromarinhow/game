@@ -100,7 +100,7 @@ internal void Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferS
             WaveFormat.nBlockAlign = (WaveFormat.nChannels * WaveFormat.wBitsPerSample) / 8;
             WaveFormat.nAvgBytesPerSec = WaveFormat.nSamplesPerSec * WaveFormat.nBlockAlign;
             WaveFormat.cbSize = 0;
-            
+
             if (SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY))) {
                 DSBUFFERDESC BufferDescription = {0};
                 BufferDescription.dwSize = sizeof(BufferDescription);
@@ -112,15 +112,15 @@ internal void Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferS
                         OutputDebugStringA("primary buffer created successfully!\n");
                     }
                     else {
-                        // todo: logging    
+                        // todo: logging
                     }
                 }
                 else {
-                    // todo: logging    
+                    // todo: logging
                 }
             }
             else {
-                // todo: logging    
+                // todo: logging
             }
 
             DSBUFFERDESC BufferDescription = {0};
@@ -132,7 +132,7 @@ internal void Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferS
                 OutputDebugStringA("secondary buffer created successfully!\n");
             }
             else {
-                // todo: logging    
+                // todo: logging
             }
         }
         else {
@@ -300,6 +300,7 @@ typedef struct _win32_sound_output {
     int32 WavePeriod;
     int32 ToneVolume;
     real32 SineT;
+    int32 LatencySampleCount;
 } win32_sound_output;
 
 internal void Win32FillSoundBuffer (win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesToWrite) {
@@ -357,7 +358,7 @@ int CALLBACK WinMain (
     WindowClass.lpfnWndProc   = win32MainWindowCallback;
     WindowClass.hInstance     = Instance;
     WindowClass.lpszClassName = "game";
-    
+
     if (RegisterClassA(&WindowClass)) {
         HWND Window =
             CreateWindowExA (
@@ -389,10 +390,11 @@ int CALLBACK WinMain (
             SoundOutput.Frequency = 261;
             SoundOutput.RunningSampleIndex = 0;
             SoundOutput.SecondaryBufferSize = SoundOutput.BytesPerSample * SoundOutput.SamplesPerSecond;
+            SoundOutput.LatencySampleCount = SoundOutput.SamplesPerSecond / 15;
             SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond / SoundOutput.Frequency;
             SoundOutput.ToneVolume = 4000;
-            Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize); 
-            Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize);
+            Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
+            Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
             bool32 SoundIsPlaying = false;
@@ -458,13 +460,14 @@ int CALLBACK WinMain (
                 DWORD WriteCursor;
                 if (SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) {
                     DWORD ByteToLock = (SoundOutput.RunningSampleIndex * SoundOutput.BytesPerSample) % SoundOutput.SecondaryBufferSize;
+                    DWORD TargetCursor = (PlayCursor + (SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample)) % SoundOutput.SecondaryBufferSize;
                     DWORD BytesToWrite;
-                    if (ByteToLock > PlayCursor) {
+                    if (ByteToLock > TargetCursor) {
                         BytesToWrite = SoundOutput.SecondaryBufferSize - ByteToLock;
-                        BytesToWrite += PlayCursor;
+                        BytesToWrite += TargetCursor;
                     }
                     else {
-                        BytesToWrite = PlayCursor - ByteToLock;
+                        BytesToWrite = TargetCursor - ByteToLock;
                     }
                     Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite);
                 }
