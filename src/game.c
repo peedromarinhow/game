@@ -16,8 +16,7 @@ internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency) {
     }
 }
 
-internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset)
-{
+internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset) {
     uint8 *Row = (uint8 *)Buffer->Mem;
     for (int Y = 0;Y < Buffer->Height; Y++) {
         uint32 *Pixel = (uint32 *)Row;
@@ -32,7 +31,27 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
     }
 }
 
-internal void GameUpdateAndRender(game_sound_buffer *SoundBuffer, int32 ToneFrequency, game_video_buffer *VideoBuffer, int32 GreenOffset, int32 BlueOffset) {
+internal void GameUpdateAndRender(game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer) {
+    int32 ToneFrequency = 522;
+    local_persistent int32 GreenOffset = 0;
+    local_persistent int32 BlueOffset = 0;
+
+    game_controller_input *Input0 = &Input->Controllers[0];
+    if (Input0->IsAnalog) {
+        // analog movement tuning
+        // I don't have a controller to test this
+        ToneFrequency = 256 + (int32)(128.0f * Input0->EndX);
+        BlueOffset += (int32)4.0f * Input0->EndY;
+    }
+    else {
+        // digital movement tuning
+    }
+
+    if (Input0->Down.EndedDown) {
+        // can't test this either
+        GreenOffset += 1;
+    }
+
     OutputSound(SoundBuffer, ToneFrequency);
     RenderWeirdGradient(VideoBuffer, GreenOffset, BlueOffset);
 }

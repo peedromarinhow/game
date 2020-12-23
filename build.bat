@@ -1,10 +1,10 @@
 @echo off
-call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x64
+call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x64 > NUL 2> NUL
 REM I hate pink, so no .cpp files on the github repo are allowed
 pushd build\debug
-copy ..\..\src\*.c *.cpp
-copy ..\..\src\*.h *.h
+copy ..\..\src\*.c *.cpp > NUL 2> NUL
+copy ..\..\src\*.h *.h > NUL 2> NUL
 
 del *.pdb > NUL 2> NUL
-cl /Zi win32_main.cpp user32.lib gdi32.lib
+cl /nologo /Zi win32_main.cpp user32.lib gdi32.lib
 popd
