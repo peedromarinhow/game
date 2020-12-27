@@ -6,5 +6,5 @@ copy ..\..\src\*.c *.cpp > NUL 2> NUL
 copy ..\..\src\*.h *.h > NUL 2> NUL
 
 del *.pdb > NUL 2> NUL
-cl /nologo /Zi win32_main.cpp user32.lib gdi32.lib
+cl -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 /nologo /Zi win32_main.cpp user32.lib gdi32.lib
 popd

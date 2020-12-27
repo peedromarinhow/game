@@ -31,17 +31,22 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
     }
 }
 
-internal void GameUpdateAndRender(game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer) {
-    int32 ToneFrequency = 522;
-    local_persistent int32 GreenOffset = 0;
-    local_persistent int32 BlueOffset = 0;
+internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer) {
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+
+    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    if (!Memory->IsInitialized) {
+        State->ToneFrequency = 261;
+
+        Memory->IsInitialized = true;
+    }
 
     game_controller_input *Input0 = &Input->Controllers[0];
     if (Input0->IsAnalog) {
         // analog movement tuning
         // I don't have a controller to test this
-        ToneFrequency = 256 + (int32)(128.0f * Input0->EndX);
-        BlueOffset += (int32)4.0f * Input0->EndY;
+        State->ToneFrequency = 256 + (int32)(128.0f * Input0->EndX);
+        State->BlueOffset += (int32)4.0f * Input0->EndY;
     }
     else {
         // digital movement tuning
@@ -49,9 +54,9 @@ internal void GameUpdateAndRender(game_input *Input, game_sound_buffer *SoundBuf
 
     if (Input0->Down.EndedDown) {
         // can't test this either
-        GreenOffset += 1;
+        State->GreenOffset += 1;
     }
 
-    OutputSound(SoundBuffer, ToneFrequency);
-    RenderWeirdGradient(VideoBuffer, GreenOffset, BlueOffset);
+    OutputSound(SoundBuffer, State->ToneFrequency);
+    RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
 }
