@@ -26,7 +26,7 @@
 
 inline uint32 SafeTruncateUInt64(uint64 Value) {
     uint32 Result = 0;
-    if (Value <= 0xFFFFFFFF) result = (uint32)Value;
+    if (Value <= 0xFFFFFFFF) Result = (uint32)Value;
     return Result;
 }
 
@@ -37,8 +37,8 @@ typedef struct _debug_read_file_result {
     void *Contents;
 } debug_read_file_result;
 
-internal void  *DEBUGPlatformReadEntireFile(char *FileName);
-internal void   DEBUGPlatformFreeEntireFile(void *Memory);
+internal void DEBUGPlatformFreeEntireFile(void *Memory);
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
 internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint32 Size, void *Memory);
 
 #else

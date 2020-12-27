@@ -62,14 +62,14 @@ internal void DEBUGPlatformFreeEntireFile(void *Memory) {
     }
 }
 
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName) {
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename) {
     debug_read_file_result Res = {0};
 
-    HANDLE FileHandle = CreateFileA( FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
-            Asset(FileSize.QuadPart <= 0xFFFFFFFF);
+            Assert(FileSize.QuadPart <= 0xFFFFFFFF);
             Res.Contents = VirtualAlloc(0, (size_t)FileSize.QuadPart, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
             uint32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
             if (Res.Contents) {
@@ -80,7 +80,7 @@ internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName) {
                 }
                 else {
                     // todo: logging
-                    DEBUGplatformFreeWholeFile(Res.Contents);
+                    DEBUGPlatformFreeEntireFile(Res.Contents);
                     Res.Contents = 0;
                 }
             }

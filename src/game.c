@@ -36,6 +36,13 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_s
 
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized) {
+        char *Filename = __FILE__;
+        debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+        if (File.Contents) {
+            DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
+            DEBUGPlatformFreeEntireFile(File.Contents);
+        }
+
         State->ToneFrequency = 261;
 
         Memory->IsInitialized = true;
