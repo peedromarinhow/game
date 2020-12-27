@@ -39,7 +39,7 @@ typedef struct _debug_read_file_result {
 
 internal void DEBUGPlatformFreeEntireFile(void *Memory);
 internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
-internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint32 Size, void *Memory);
+internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory);
 
 #else
 #endif

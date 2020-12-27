@@ -23,8 +23,8 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
         for (int X = 0; X < Buffer->Width; X++) {
             // memory Order: BB GG RR XX
             // 0xXXRRGGBB
-            uint8 Blue = X + BlueOffset;
-            uint8 Green = Y + GreenOffset;
+            uint8 Blue = (uint8)(X + BlueOffset);
+            uint8 Green = (uint8)(Y + GreenOffset);
             *Pixel++ = ((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
@@ -53,7 +53,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_s
         // analog movement tuning
         // I don't have a controller to test this
         State->ToneFrequency = 256 + (int32)(128.0f * Input0->EndX);
-        State->BlueOffset += (int32)4.0f * Input0->EndY;
+        State->BlueOffset += (int32)(4.0f * Input0->EndY);
     }
     else {
         // digital movement tuning
@@ -61,7 +61,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_s
 
     if (Input0->Down.EndedDown) {
         // can't test this either
-        State->GreenOffset += 1;
+        State->GreenOffset += 10;
     }
 
     OutputSound(SoundBuffer, State->ToneFrequency);
