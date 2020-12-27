@@ -53,9 +53,75 @@ X_INPUT_SET_STATE(XInputSetStateStub) {
 global  f_x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
-
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
+internal void DEBUGPlatformFreeEntireFile(void *Memory) {
+    if (Memory) {
+        VirtualFree(Memory, 0, MEM_RELEASE);
+    }
+}
+
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName) {
+    debug_read_file_result Res = {0};
+
+    HANDLE FileHandle = CreateFileA( FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER FileSize;
+        if (GetFileSizeEx(FileHandle, &FileSize)) {
+            Asset(FileSize.QuadPart <= 0xFFFFFFFF);
+            Res.Contents = VirtualAlloc(0, (size_t)FileSize.QuadPart, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            uint32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
+            if (Res.Contents) {
+                DWORD BytesRead;
+                if (ReadFile(FileHandle, Res.Contents, FileSize32, &BytesRead, 0) && (FileSize32 == BytesRead)) {
+                    // sucess
+                    Res.ContentsSize = FileSize32;
+                }
+                else {
+                    // todo: logging
+                    DEBUGplatformFreeWholeFile(Res.Contents);
+                    Res.Contents = 0;
+                }
+            }
+            else {
+                // todo: logging
+            }
+        }
+        else {
+            // todo: logging
+        }
+
+        CloseHandle(FileHandle);
+    }
+    else {
+        // todo: logging
+    }
+
+    return Res;
+}
+
+internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint32 Size, void *Memory) {
+    bool Result = false;
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        DWORD BytesWritten;
+        if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
+            // sucess
+            Result = (Size == BytesWritten);
+        }
+        else {
+            // TODO: logging
+        }
+        CloseHandle(FileHandle);
+    }
+    else {
+        // TODO: logging
+    }
+
+    return Result;
+}
 
 
 internal void Win32LoadXInput(void) {
@@ -360,7 +426,7 @@ int CALLBACK WinMain (
     WNDCLASSA WindowClass = {0};
 
     Win32ResizeDIBSection(&GlobalBackBuffer, 1920, 1080);
-    
+
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
     WindowClass.lpfnWndProc   = win32MainWindowCallback;
     WindowClass.hInstance     = Instance;

@@ -24,6 +24,26 @@
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+inline uint32 SafeTruncateUInt64(uint64 Value) {
+    uint32 Result = 0;
+    if (Value <= 0xFFFFFFFF) result = (uint32)Value;
+    return Result;
+}
+
+#if BUILD_INTERNAL
+
+typedef struct _debug_read_file_result {
+    uint64 ContentsSize;
+    void *Contents;
+} debug_read_file_result;
+
+internal void  *DEBUGPlatformReadEntireFile(char *FileName);
+internal void   DEBUGPlatformFreeEntireFile(void *Memory);
+internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint32 Size, void *Memory);
+
+#else
+#endif
+
 typedef struct _game_video_buffer {
     void *Mem;
     int32 Width;
