@@ -89,7 +89,7 @@ typedef struct _game_controller_input {
 } game_controller_input;
 
 typedef struct _game_input {
-    game_controller_input Controllers[4];
+    game_controller_input Controllers[5];
 } game_input;
 
 typedef struct _game_memory {
