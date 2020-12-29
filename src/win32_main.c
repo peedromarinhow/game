@@ -668,11 +668,16 @@ int CALLBACK WinMain (
                 
                     real32 SecondsElapsedForFrame = WorkSecondsElapsed;
                     if (SecondsElapsedForFrame < TargerSecondsPerFrame) {
-                        while (SecondsElapsedForFrame < TargerSecondsPerFrame) {
-                            if (SleepIsGranuler) {
-                                DWORD SleepMiliseconds = (DWORD)(1000.0f * (SecondsElapsedForFrame - TargerSecondsPerFrame));
+                        if (SleepIsGranuler) {
+                            DWORD SleepMiliseconds = (DWORD)((SecondsElapsedForFrame - TargerSecondsPerFrame));
+                            if (SleepMiliseconds > 0) {
                                 Sleep(SleepMiliseconds);
                             }
+                        }
+
+                        Assert(Win32GetSecondsElapsed(LastCounter, Win32GetWallClockTime()) < TargerSecondsPerFrame);
+
+                        while (SecondsElapsedForFrame < TargerSecondsPerFrame) {
                             SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClockTime());
                         }
                     }
@@ -684,26 +689,26 @@ int CALLBACK WinMain (
                     win32_window_dimensions Dimension = Win32GetWindowDimensions(Window);
                     Win32DisplayBuffer(GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
 
-#if 0
-                    real32 MSPerFrame = (1000.0f * (real32)CounterElapsed) / (real32)GlobalPerfCounterFrequency;
-                    real32 FramesPerSecond = (real32)GlobalPerfCounterFrequency / (real32)CounterElapsed;
-                    real32 MCyclesPerFrame = (real32)CyclesElapsed / 1000000.0f;
-
-                    char Buffer[256];
-                    sprintf_s(Buffer, "%f ms/f\t\t%f f/s\t\t%f Mc/f\n", MSPerFrame, FramesPerSecond, MCyclesPerFrame);
-                    OutputDebugStringA(Buffer);
-#endif
-
                     game_input *Temp = NewInput;
                     NewInput = OldInput;
                     OldInput = Temp;
 
                     LARGE_INTEGER EndCounter = Win32GetWallClockTime();
+                    real32 MSPerFrame = 1000.0f * Win32GetSecondsElapsed(LastCounter, EndCounter);
                     LastCounter = EndCounter;
 
                     uint64 EndCycleCount = __rdtsc();
                     uint64 CyclesElapsed = EndCycleCount - LastCycleCount;  
                     LastCycleCount = EndCycleCount;
+
+#if 1
+                    real32 FramesPerSecond = 0.0f;
+                    real32 MCyclesPerFrame = (real32)CyclesElapsed / 1000000.0f;
+
+                    char FPSBuffer[256];
+                    sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f ms/f\t\t%f f/s\t\t%f Mc/f\n", MSPerFrame, FramesPerSecond, MCyclesPerFrame);
+                    OutputDebugStringA(FPSBuffer);
+#endif
                 }
             }
             else {
