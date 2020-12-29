@@ -32,7 +32,9 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
 }
 
 internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer) {
+    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+    
 
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized) {

@@ -372,11 +372,11 @@ internal void Win32ProcessXInputDigitalButton(DWORD XInputButtonState, game_butt
 internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshold) {
     real32 Result = 0;
     if (Value < -DeadZoneThreshold) {
-        Result = (real32)Value / -32768.0f;
+        Result = (real32)((Value + DeadZoneThreshold) / (-32768.0f - (real32)DeadZoneThreshold));
     }
     else
     if (Value > DeadZoneThreshold) {
-        Result = (real32)Value / 32768.0f;
+        Result = (real32)((Value + DeadZoneThreshold) / (32768.0f - (real32)DeadZoneThreshold));
     }
     return Result;
 }
@@ -559,31 +559,39 @@ int CALLBACK WinMain (
                             NewController->StickAverageX = Win32ProcessXInputStickValue(Pad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
                             NewController->StickAverageY = Win32ProcessXInputStickValue(Pad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 
+                            if ((NewController->StickAverageX != 0.0f) || (NewController->StickAverageX != 0.0f)) {
+                                NewController->IsAnalog = true;
+                            }
+
                             if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP) {
                                 NewController->StickAverageY = 1.0f;
+                                NewController->IsAnalog = false;
                             }
                             if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN) {
                                 NewController->StickAverageY = -1.0f;
+                                NewController->IsAnalog = false;
                             }
                             if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT) {
                                 NewController->StickAverageX = -1.0f;
+                                NewController->IsAnalog = false;
                             }
                             if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) {
                                 NewController->StickAverageX = 1.0f;
+                                NewController->IsAnalog = false;
                             }
 
                             real32 Threshold = 0.5f;
-                            Win32ProcessXInputDigitalButton((NewController->StickAverageX < -Threshold) ? 1 : 0, &OldController->ActionDown, 1, &NewController->ActionDown);
-                            Win32ProcessXInputDigitalButton((NewController->StickAverageX >  Threshold) ? 1 : 0, &OldController->ActionDown, 1, &NewController->ActionDown);
-                            Win32ProcessXInputDigitalButton((NewController->StickAverageY < -Threshold) ? 1 : 0, &OldController->ActionDown, 1, &NewController->ActionDown);
-                            Win32ProcessXInputDigitalButton((NewController->StickAverageY >  Threshold) ? 1 : 0, &OldController->ActionDown, 1, &NewController->ActionDown);
+                            Win32ProcessXInputDigitalButton((NewController->StickAverageX < -Threshold) ? 1 : 0, &OldController->ActionLeft,  1, &NewController->ActionLeft);
+                            Win32ProcessXInputDigitalButton((NewController->StickAverageX >  Threshold) ? 1 : 0, &OldController->ActionRight, 1, &NewController->ActionRight);
+                            Win32ProcessXInputDigitalButton((NewController->StickAverageY < -Threshold) ? 1 : 0, &OldController->ActionUp,    1, &NewController->ActionUp);
+                            Win32ProcessXInputDigitalButton((NewController->StickAverageY >  Threshold) ? 1 : 0, &OldController->ActionDown,  1, &NewController->ActionDown);
 
-                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionDown, XINPUT_GAMEPAD_A, &NewController->ActionDown);
+                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionDown,  XINPUT_GAMEPAD_A, &NewController->ActionDown);
                             Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionRight, XINPUT_GAMEPAD_B, &NewController->ActionRight);
-                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionLeft, XINPUT_GAMEPAD_X, &NewController->ActionLeft);
-                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionUp, XINPUT_GAMEPAD_Y, &NewController->ActionUp);
+                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionLeft,  XINPUT_GAMEPAD_X, &NewController->ActionLeft);
+                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->ActionUp,    XINPUT_GAMEPAD_Y, &NewController->ActionUp);
 
-                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->LeftShoulder, XINPUT_GAMEPAD_LEFT_SHOULDER, &NewController->LeftShoulder);
+                            Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->LeftShoulder,  XINPUT_GAMEPAD_LEFT_SHOULDER,  &NewController->LeftShoulder);
                             Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->RightShoulder, XINPUT_GAMEPAD_RIGHT_SHOULDER, &NewController->RightShoulder);
 
                             Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->Start, XINPUT_GAMEPAD_START, &NewController->Start);

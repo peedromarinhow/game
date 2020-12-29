@@ -86,6 +86,10 @@ typedef struct _game_controller_input {
 
             game_button_state Start;
             game_button_state Back;
+
+            // all buttons should be added above this terminator button
+
+            game_button_state Terminator;
         };
     };
 } game_controller_input;
@@ -94,7 +98,7 @@ typedef struct _game_input {
     game_controller_input Controllers[5];
 } game_input;
 
-inline game_controller_input *GetController(game_input *Input, int32 ControllerIndex) {
+inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex) {
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     game_controller_input *Result = &Input->Controllers[ControllerIndex];
     return Result;
