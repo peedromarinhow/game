@@ -45,7 +45,7 @@ internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *
 #endif
 
 typedef struct _game_video_buffer {
-    void *Mem;
+    void *Memory;
     int32 Width;
     int32 Height;
     int32 Pitch;

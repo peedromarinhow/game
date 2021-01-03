@@ -217,7 +217,7 @@ internal win32_window_dimensions Win32GetWindowDimensions (HWND Window) {
 }
 
 internal void Win32DisplayBuffer(
-  win32_offscreen_buffer Buffer,
+  win32_offscreen_buffer *Buffer,
   HDC DeviceContext,
   int32 WindowWidth,
   int32 WindowHeight
@@ -227,9 +227,9 @@ internal void Win32DisplayBuffer(
     StretchDIBits (
         DeviceContext,
         0, 0, WindowWidth, WindowHeight,
-        0, 0, Buffer.Width, Buffer.Height,
-        Buffer.Mem,
-        &Buffer.Info,
+        0, 0, Buffer->Width, Buffer->Height,
+        Buffer->Memory,
+        &Buffer->Info,
         DIB_RGB_COLORS, SRCCOPY
     );
 }
@@ -239,8 +239,8 @@ internal void Win32ResizeDIBSection (
   int32 Width,
   int32 Height
 ) {
-    if (Buffer->Mem) {
-        VirtualFree(Buffer->Mem, 0, MEM_RELEASE);
+    if (Buffer->Memory) {
+        VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
     }
 
     Buffer->Width = Width;
@@ -254,8 +254,10 @@ internal void Win32ResizeDIBSection (
     Buffer->Info.bmiHeader.biCompression = BI_RGB;
 
     int32 BytesPerPixel = 4;
+    Buffer->BytesPerPixel = BytesPerPixel;
+
     int32 BitmapMemSize = (Width * Height) * BytesPerPixel;
-    Buffer->Mem = VirtualAlloc(0, BitmapMemSize, MEM_COMMIT, PAGE_READWRITE);
+    Buffer->Memory = VirtualAlloc(0, BitmapMemSize, MEM_COMMIT, PAGE_READWRITE);
     Buffer->Pitch = Width * BytesPerPixel;
 
     // todo: clear to black
@@ -294,7 +296,7 @@ internal LRESULT CALLBACK win32MainWindowCallback (
             PAINTSTRUCT Paint;
             HDC DeviceContext = BeginPaint(Window, &Paint);
             win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
-            Win32DisplayBuffer(GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
+            Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
             EndPaint(Window, &Paint);
         } break;
         default: {
@@ -458,6 +460,31 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
     return Result;
 }
 
+internal void Win32DrawVertical(win32_offscreen_buffer *BackBuffer, int32 X, int32 Top, int32 Bottom, uint32 Color) {
+    uint8 *Pixel = (uint8 *)BackBuffer->Memory + X*BackBuffer->BytesPerPixel + Top*BackBuffer->Pitch;
+    for (int32 Y = Top; Y < Bottom; Y++) {
+        *(uint32 *)Pixel = Color;
+        Pixel += BackBuffer->Pitch;
+    }
+}
+
+internal void DEBUGWin32SyncDisplay(win32_offscreen_buffer *BackBuffer, int32 LastPlayCursorCount, DWORD *LastPlayCursor, win32_sound_output* SoundOutput, real32 TargetSecondsPerFrame) {
+    int32 PadX = 16;
+    int32 PadY = 16;
+
+    int32 Top = PadY;
+    int32 Bottom = BackBuffer->Height - PadY;
+
+    real32 C = (real32)(BackBuffer->Width - 2 * PadX) / (real32)SoundOutput->SecondaryBufferSize;
+    for (int32 PlayCursorIndex = 0; PlayCursorIndex < LastPlayCursorCount; PlayCursorIndex++) {
+        DWORD ThisPlayCursor = LastPlayCursor[PlayCursorIndex];
+        Assert(ThisPlayCursor < SoundOutput->SecondaryBufferSize);
+        real32 Real32X = (C * (real32)ThisPlayCursor);
+        int32 X = PadX + (int32)Real32X;
+        Win32DrawVertical(BackBuffer, X, Top, Bottom, 0xFFFFFFFF);
+    }
+}
+
 int CALLBACK WinMain (
   HINSTANCE Instance,
   HINSTANCE PrevInstance,
@@ -482,8 +509,9 @@ int CALLBACK WinMain (
     WindowClass.hInstance     = Instance;
     WindowClass.lpszClassName = "game";
 
-    int32 MonitorRefreshFrequency = 60;
-    int32 GameRefreshFrequency = MonitorRefreshFrequency/2;
+#define MonitorRefreshFrequency 60
+#define GameRefreshFrequency (MonitorRefreshFrequency/2)
+
     real32 TargerSecondsPerFrame = 1.0f / (real32)GameRefreshFrequency;
 
     if (RegisterClassA(&WindowClass)) {
@@ -541,6 +569,10 @@ int CALLBACK WinMain (
                 game_input *OldInput = &Input[1];
 
                 LARGE_INTEGER LastCounter = Win32GetWallClockTime();
+
+                int32 DEBUGLastPlayCursorIndex = 0;
+                DWORD DEBUGLastPlayCursor[GameRefreshFrequency] =  {};
+
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning) {
 
@@ -645,7 +677,7 @@ int CALLBACK WinMain (
                     SoundBuffer.Samples = Samples;
 
                     game_video_buffer VideoBuffer = {};
-                    VideoBuffer.Mem = GlobalBackBuffer.Mem;
+                    VideoBuffer.Memory = GlobalBackBuffer.Memory;
                     VideoBuffer.Width = GlobalBackBuffer.Width;
                     VideoBuffer.Height = GlobalBackBuffer.Height;
                     VideoBuffer.Pitch = GlobalBackBuffer.Pitch;
@@ -687,7 +719,26 @@ int CALLBACK WinMain (
                     }
 
                     win32_window_dimensions Dimension = Win32GetWindowDimensions(Window);
-                    Win32DisplayBuffer(GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+
+#if BUILD_INTERNAL
+                    DEBUGWin32SyncDisplay(&GlobalBackBuffer, ArrayCount(DEBUGLastPlayCursor), DEBUGLastPlayCursor, &SoundOutput, TargerSecondsPerFrame);
+#endif
+
+                    Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+
+#if BUILD_INTERNAL
+                    {
+                        DWORD PlayCursorA;
+                        DWORD WriteCursorA;
+                        GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursorA, &WriteCursorA);
+
+                        DEBUGLastPlayCursor[DEBUGLastPlayCursorIndex++] = PlayCursorA;
+                        if (DEBUGLastPlayCursorIndex > ArrayCount(DEBUGLastPlayCursor)) {
+                            DEBUGLastPlayCursorIndex = 0;
+                        }
+                    }
+                    
+#endif
 
                     game_input *Temp = NewInput;
                     NewInput = OldInput;

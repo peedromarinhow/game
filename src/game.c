@@ -17,7 +17,7 @@ internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency) {
 }
 
 internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset) {
-    uint8 *Row = (uint8 *)Buffer->Mem;
+    uint8 *Row = (uint8 *)Buffer->Memory;
     for (int Y = 0;Y < Buffer->Height; Y++) {
         uint32 *Pixel = (uint32 *)Row;
         for (int X = 0; X < Buffer->Width; X++) {
