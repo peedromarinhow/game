@@ -514,7 +514,6 @@ int CALLBACK WinMain (
     WindowClass.hInstance     = Instance;
     WindowClass.lpszClassName = "game";
 
-#define FramesOfAudioLatency 2
 #define MonitorRefreshFrequency 60
 #define GameRefreshFrequency (MonitorRefreshFrequency/2)
 
@@ -546,7 +545,8 @@ int CALLBACK WinMain (
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
             SoundOutput.RunningSampleIndex = 0;
             SoundOutput.SecondaryBufferSize = SoundOutput.BytesPerSample * SoundOutput.SamplesPerSecond;
-            SoundOutput.LatencySampleCount = FramesOfAudioLatency * (SoundOutput.SamplesPerSecond / GameRefreshFrequency);
+            // todo: get riod of FramesOfAudioLatency
+            SoundOutput.LatencySampleCount = 3 * (SoundOutput.SamplesPerSecond / GameRefreshFrequency);
             Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
             Win32ClearSoundBuffer(&SoundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
@@ -580,7 +580,10 @@ int CALLBACK WinMain (
                 DEBUG_win32_time_marker DEBUGTimeMarkers[GameRefreshFrequency / 2] =  {};
 
                 DWORD LastPlayCursor = 0;
+                DWORD LastWriteCursor = 0;
                 bool32 SoundIsValid = false;
+                DWORD AudioLatencyBytes = 0;
+                real32 AudioLatencySeconds = 0.0f;
 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning) {
@@ -675,10 +678,6 @@ int CALLBACK WinMain (
                         else {
                             BytesToWrite = TargetCursor - ByteToLock;
                         }
-
-                        char TextBuffer[256];
-                        sprintf_s(TextBuffer, sizeof(TextBuffer), "PC: %u\tBTL: %u\tTC: %u\tBTW: %u\n", LastPlayCursor, ByteToLock, TargetCursor, BytesToWrite);
-                        OutputDebugStringA(TextBuffer);
                     }
 
                     game_sound_buffer SoundBuffer = {};
@@ -697,6 +696,26 @@ int CALLBACK WinMain (
                     // directsound test
                     //      note: did not understand a thing about how this works
                     if (SoundIsValid) {
+#if BUILD_INTERNAL
+                        DWORD PlayCursor;
+                        DWORD WriteCursor;
+                        GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor);
+
+                        DWORD UnwrappedWriteCursor = WriteCursor;
+                        if (UnwrappedWriteCursor < PlayCursor) {
+                            UnwrappedWriteCursor += SoundOutput.SecondaryBufferSize;
+                        }
+                        AudioLatencyBytes = UnwrappedWriteCursor - PlayCursor;
+                        AudioLatencySeconds = ((real32)AudioLatencyBytes / (real32)SoundOutput.BytesPerSample) / (real32)SoundOutput.SamplesPerSecond;
+
+                        char TextBuffer[256];
+                        sprintf_s (
+                            TextBuffer, sizeof(TextBuffer),
+                            "LPC: %u\tBTL: %u\tTC: %u\tBTW: %uPC: %u\tWC: %u\tDELTA: %u(%fs)\n",
+                            LastPlayCursor, ByteToLock, TargetCursor, BytesToWrite, PlayCursor, WriteCursor, AudioLatencyBytes, AudioLatencySeconds
+                        );
+                        OutputDebugStringA(TextBuffer);
+#endif                        
                         Win32FillSoundBuffer(&SoundBuffer, &SoundOutput, ByteToLock, BytesToWrite);
                     }
 
@@ -717,7 +736,11 @@ int CALLBACK WinMain (
                             }
                         }
 
-                        Assert(Win32GetSecondsElapsed(LastCounter, Win32GetWallClockTime()) < TargerSecondsPerFrame);
+                        real32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClockTime());
+
+                        if (TestSecondsElapsedForFrame < TargerSecondsPerFrame) {
+                            // todo: log missed sleep here
+                        }
 
                         while (SecondsElapsedForFrame < TargerSecondsPerFrame) {
                             SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClockTime());
@@ -743,7 +766,8 @@ int CALLBACK WinMain (
                     DWORD PlayCursor;
                     DWORD WriteCursor;
                     if (GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor) == DS_OK) {
-                        LastPlayCursor = PlayCursor;
+                        LastWriteCursor = WriteCursor;
+                        LastPlayCursor  = PlayCursor;
                         if (!SoundIsValid) {
                             SoundOutput.RunningSampleIndex = WriteCursor / SoundOutput.BytesPerSample;
                         }
@@ -754,9 +778,11 @@ int CALLBACK WinMain (
                     }
 
 #if BUILD_INTERNAL
-                    {
+                    {   
+                        Assert(DEBUGTimeMarkerIndex <
+                         ArrayCount(DEBUGTimeMarkers));
                         DEBUG_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex++];
-                        if (DEBUGTimeMarkerIndex > ArrayCount(DEBUGTimeMarkers)) {
+                        if (DEBUGTimeMarkerIndex == ArrayCount(DEBUGTimeMarkers)) {
                             DEBUGTimeMarkerIndex = 0;
                         }
                         Marker->PlayCursor = PlayCursor;
