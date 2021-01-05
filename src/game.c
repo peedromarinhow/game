@@ -28,9 +28,9 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
         {
             // memory Order: BB GG RR XX
             // 0xXXRRGGBB
-            uint8 Blue = (uint8)(X + BlueOffset);
-            uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = ((Green << 8) | Blue );
+            //uint8 Blue = (uint8)(X + BlueOffset);
+            //uint8 Green = (uint8)(Y + GreenOffset);
+            *Pixel++ = 0xFFFF0000;//((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }
