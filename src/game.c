@@ -1,12 +1,14 @@
 #include "game.h"
 
-internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency) {
+internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
+{
     local_persistent real32 SineT;
     int16 ToneVolume = 3000;
     int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneFrequency;
 
     int16* SampleOut = SoundBuffer->Samples;
-    for (int32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
+    for (int32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
+    {
         real32 SineValue = sinf(SineT);
         int16 SampleValue = (int16)(SineValue * ToneVolume);
         *SampleOut++ = SampleValue;
@@ -16,11 +18,14 @@ internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency) {
     }
 }
 
-internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset) {
+internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset)
+{
     uint8 *Row = (uint8 *)Buffer->Memory;
-    for (int Y = 0;Y < Buffer->Height; Y++) {
+    for (int Y = 0;Y < Buffer->Height; Y++)
+    {
         uint32 *Pixel = (uint32 *)Row;
-        for (int X = 0; X < Buffer->Width; X++) {
+        for (int X = 0; X < Buffer->Width; X++)
+        {
             // memory Order: BB GG RR XX
             // 0xXXRRGGBB
             uint8 Blue = (uint8)(X + BlueOffset);
@@ -31,15 +36,18 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
     }
 }
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer) {
+internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
+{
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
-    if (!Memory->IsInitialized) {
+    if (!Memory->IsInitialized)
+    {
         char *Filename = __FILE__;
         debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
-        if (File.Contents) {
+        if (File.Contents)
+        {
             DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
             DEBUGPlatformFreeEntireFile(File.Contents);
         }
@@ -49,30 +57,41 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_s
         Memory->IsInitialized = true;
     }
 
-    for (int32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
+    for (int32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
+    {
         game_controller_input *Controller = GetController(Input, ControllerIndex);
-        if (Controller->IsAnalog) {
+        if (Controller->IsAnalog)
+        {
             // analog movement tuning
             // I don't have a controller to test this
             State->ToneFrequency = 256 + (int32)(128.0f * Controller->StickAverageX);
             State->BlueOffset += (int32)(4.0f * Controller->StickAverageY);
         }
-        else {
-            if (Controller->MoveLeft.EndedDown) {
+        else
+        {
+            if (Controller->MoveLeft.EndedDown)
+            {
                 State->GreenOffset += 10;
             }
-            if (Controller->MoveRight.EndedDown) {
+            if (Controller->MoveRight.EndedDown)
+            {
                 State->GreenOffset -= 10;
             }
-            if (Controller->MoveUp.EndedDown) {
+            if (Controller->MoveUp.EndedDown)
+            {
                 State->BlueOffset -= 10;
             }
-            if (Controller->MoveDown.EndedDown) {
+            if (Controller->MoveDown.EndedDown)
+            {
                 State->BlueOffset += 10;
             }
         }
     }
-
-    OutputSound(SoundBuffer, State->ToneFrequency);
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
+}
+
+internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer)
+{
+    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    OutputSound(SoundBuffer, State->ToneFrequency);
 }

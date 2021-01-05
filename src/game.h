@@ -2,13 +2,13 @@
 #define GAME_H
 
 /*
- *  BUILD_INTERNAL:
- *      0: for public release
- *      1: for development
- * 
- *  BUILD_SLOW:
- *      0: no slow code allowed
- *      1: slow code allowed
+    BUILD_INTERNAL:
+        0: for public release
+        1: for development
+   
+    BUILD_SLOW:
+        0: no slow code allowed
+        1: slow code allowed
  */
 
 #if BUILD_SLOW
@@ -24,7 +24,8 @@
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-inline uint32 SafeTruncateUInt64(uint64 Value) {
+inline uint32 SafeTruncateUInt64(uint64 Value)
+{
     uint32 Result = 0;
     if (Value <= 0xFFFFFFFF) Result = (uint32)Value;
     return Result;
@@ -32,7 +33,8 @@ inline uint32 SafeTruncateUInt64(uint64 Value) {
 
 #if BUILD_INTERNAL
 
-typedef struct _debug_read_file_result {
+typedef struct _debug_read_file_result
+{
     uint64 ContentsSize;
     void *Contents;
 } debug_read_file_result;
@@ -44,33 +46,39 @@ internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *
 #else
 #endif
 
-typedef struct _game_video_buffer {
+typedef struct _game_video_buffer
+{
     void *Memory;
     int32 Width;
     int32 Height;
     int32 Pitch;
 } game_video_buffer;
 
-typedef struct _game_sound_buffer {
+typedef struct _game_sound_buffer
+{
     int32 SamplesPerSecond;
     int32 SampleCount;
     int16 *Samples;
 } game_sound_buffer;
 
-typedef struct _game_button_state {
+typedef struct _game_button_state
+{
     int32 HalfTransitionCount;
     bool32 EndedDown;
 } game_button_state;
 
-typedef struct _game_controller_input {
+typedef struct _game_controller_input
+{
     bool32 IsConnected;
     bool32 IsAnalog;
     real32 StickAverageX;
     real32 StickAverageY;
 
-    union {
+    union
+    {
         game_button_state Buttons[12];
-        struct {
+        struct
+        {
             game_button_state MoveUp;
             game_button_state MoveDown;
             game_button_state MoveLeft;
@@ -94,17 +102,20 @@ typedef struct _game_controller_input {
     };
 } game_controller_input;
 
-typedef struct _game_input {
+typedef struct _game_input
+{
     game_controller_input Controllers[5];
 } game_input;
 
-inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex) {
+inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex)
+{
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     game_controller_input *Result = &Input->Controllers[ControllerIndex];
     return Result;
 }
 
-typedef struct _game_memory {
+typedef struct _game_memory
+{
     bool32 IsInitialized;
     uint64 PermanentStorageSize;
     void  *PermanentStorageBytes;   // note: required to be cleared to zero
@@ -113,9 +124,13 @@ typedef struct _game_memory {
     void  *TransientStorageBytes;   // note: required to be cleared to zero
 } game_memory;
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_sound_buffer *SoundBuffer, game_video_buffer *VideoBuffer);
+internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer);
 
-typedef struct _game_state {
+// note: at the moment, this funcion should be very fast, < 1ms or so
+internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
+
+typedef struct _game_state
+{
     int32 ToneFrequency;
     int32 GreenOffset;
     int32 BlueOffset;
