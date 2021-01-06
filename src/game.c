@@ -45,7 +45,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_v
     if (!Memory->IsInitialized)
     {
         char *Filename = __FILE__;
-        debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+        DEBUG_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
         if (File.Contents)
         {
             DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);

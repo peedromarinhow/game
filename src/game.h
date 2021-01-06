@@ -33,14 +33,14 @@ inline uint32 SafeTruncateUInt64(uint64 Value)
 
 #if BUILD_INTERNAL
 
-typedef struct _debug_read_file_result
+typedef struct DEBUG_read_file_result
 {
     uint64 ContentsSize;
     void *Contents;
-} debug_read_file_result;
+} DEBUG_read_file_result;
 
 internal void DEBUGPlatformFreeEntireFile(void *Memory);
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
+internal DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
 internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory);
 
 #else
@@ -118,15 +118,16 @@ typedef struct _game_memory
 {
     bool32 IsInitialized;
     uint64 PermanentStorageSize;
-    void  *PermanentStorageBytes;   // note: required to be cleared to zero
-
+    void  *PermanentStorageBytes;   //note
+                                    //  required to be cleared to zero
     uint64 TransientStorageSize;
-    void  *TransientStorageBytes;   // note: required to be cleared to zero
-} game_memory;
+    void  *TransientStorageBytes;   //note
+} game_memory;                      //  required to be cleared to zero
 
 internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer);
 
-// note: at the moment, this funcion should be very fast, < 1ms or so
+//note
+//  at the moment, this funcion should be very fast, < 1ms or so
 internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
 
 typedef struct _game_state
