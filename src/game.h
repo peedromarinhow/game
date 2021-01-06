@@ -64,11 +64,15 @@ typedef struct DEBUG_read_file_result
 
 // pass these as pointers on game_memory
 //  and make a snippet for these function pointer macros
-void DEBUGPlatformFreeEntireFile(void *Memory);
-DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
-bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory);
+#define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) void name(void *Memory)
+typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUG_platform_free_entire_file);
 
-#else
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) DEBUG_read_file_result name(char *Filename)
+typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUG_platform_read_entire_file);
+
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char *Filename, uint64 Size, void *Memory)
+typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUG_platform_write_entire_file);
+
 #endif
 
 typedef struct _game_video_buffer
@@ -147,7 +151,12 @@ typedef struct _game_memory
                                     //  required to be cleared to zero
     uint64 TransientStorageSize;
     void  *TransientStorageBytes;   //note
-} game_memory;                      //  required to be cleared to zero
+                                    //  required to be cleared to zero
+    DEBUG_platform_free_entire_file  *DEBUGPlatformFreeEntireFile;
+    DEBUG_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
+    DEBUG_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
+
+} game_memory;
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
@@ -166,6 +175,7 @@ typedef struct _game_state
     int32 ToneFrequency;
     int32 GreenOffset;
     int32 BlueOffset;
+    real32 SineT;
 } game_state;
 
 #endif//GAHE_H

@@ -37,7 +37,7 @@ global x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
-void DEBUGPlatformFreeEntireFile(void *Memory)
+DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUGPlatformFreeEntireFile)
 {
     if (Memory)
     {
@@ -45,7 +45,7 @@ void DEBUGPlatformFreeEntireFile(void *Memory)
     }
 }
 
-DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
+DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
     DEBUG_read_file_result Res = {0};
 
@@ -104,7 +104,7 @@ DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
     return Res;
 }
 
-bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory)
+DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 {
     bool Result = false;
     HANDLE FileHandle = CreateFileA (
@@ -146,10 +146,11 @@ typedef struct _win32_game_code
     bool32 IsValid;
 } win32_game_code;
 
-internal win32_game_code Win32LoadGame(void)
+internal win32_game_code Win32LoadGameCode(void)
 {
     win32_game_code Result = {};
-    Result.GameCodeDLL     = LoadLibrary("game.dll");
+    CopyFileA("game.exe", "game_temp.dll", FALSE);
+    Result.GameCodeDLL     = LoadLibrary("game_temp.dll");
     if (Result.GameCodeDLL)
     {
         Result.UpdateAndRender = (game_update_and_render *)
@@ -169,6 +170,19 @@ internal win32_game_code Win32LoadGame(void)
     }
 
     return Result;
+}
+
+void Win32UnloadGameCode(win32_game_code *GameCode)
+{
+    if (GameCode->GameCodeDLL)
+    {
+        FreeLibrary(GameCode->GameCodeDLL);
+        GameCode->GameCodeDLL = 0;
+    }
+
+    GameCode->IsValid = false;
+    GameCode->UpdateAndRender = GameUpdateAndRenderStub;
+    GameCode->GetSoundSamples = GameGetSoundSamplesStub;
 }
 
 internal void Win32LoadXInput(void)
@@ -705,8 +719,6 @@ int CALLBACK WinMain (
   int       CmdShow
 )
 {
-    win32_game_code Game = Win32LoadGame();
-
     LARGE_INTEGER GlobalPerfCounterFrequencyResult;
     QueryPerformanceFrequency(&GlobalPerfCounterFrequencyResult);
     GlobalPerfCounterFrequency = GlobalPerfCounterFrequencyResult.QuadPart;
@@ -780,6 +792,10 @@ int CALLBACK WinMain (
             game_memory GameMemory = {};
             GameMemory.PermanentStorageSize = Megabytes((uint64)64);
             GameMemory.TransientStorageSize = Gigabytes((uint64)1);
+            GameMemory.DEBUGPlatformFreeEntireFile  = DEBUGPlatformFreeEntireFile;
+            GameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
+            GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
+
             uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
             GameMemory.PermanentStorageBytes = VirtualAlloc(BaseAddress, (size_t)TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
             GameMemory.TransientStorageBytes = (uint8 *)GameMemory.PermanentStorageBytes + GameMemory.PermanentStorageSize;
@@ -802,9 +818,18 @@ int CALLBACK WinMain (
                 real32 AudioLatencySeconds = 0.0f;
                 bool32 SoundIsValid = false;
 
+                win32_game_code Game = Win32LoadGameCode();
+                uint32 LoadCounter = 120;
+
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning)
                 {
+                    if (LoadCounter++ > 120)
+                    {
+                        Win32UnloadGameCode(&Game);
+                        Game = Win32LoadGameCode();
+                        LoadCounter = 0;
+                    }
 
                     game_controller_input *OldKeyboardController = GetController(OldInput, 0);
                     game_controller_input *NewKeyboardController = GetController(NewInput, 0);

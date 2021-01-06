@@ -1,23 +1,22 @@
 #include "game.h"
 
-void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
+void OutputSineWave(game_sound_buffer *SoundBuffer, game_state *GameState)
 {
-    local_persistent real32 SineT;
     int16 ToneVolume = 3000;
-    int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneFrequency;
+    int32 WavePeriod = SoundBuffer->SamplesPerSecond / GameState->ToneFrequency;
 
     int16* SampleOut = SoundBuffer->Samples;
     for (int32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
-        real32 SineValue = sinf(SineT);
+        real32 SineValue = sinf(GameState->SineT);
         int16 SampleValue = (int16)(SineValue * ToneVolume);
         *SampleOut++ = SampleValue;
         *SampleOut++ = SampleValue;
 
-        SineT += 2.0f * PI32 / (real32)WavePeriod;
-        if (SineT > (2.0f * PI32))
+        GameState->SineT += 2.0f * PI32 / (real32)WavePeriod;
+        if (GameState->SineT > (2.0f * PI32))
         {
-            SineT -= 2.0f * PI32;
+            GameState->SineT -= 2.0f * PI32;
         }
     }
 }
@@ -34,13 +33,13 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
             // 0xXXRRGGBB
             //uint8 Blue = (uint8)(X + BlueOffset);
             //uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = 0xFFFF0000;//((Green << 8) | Blue );
+            *Pixel++ = 0xFF000000;//((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }
 }
 
-GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -49,14 +48,15 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized)
     {
         char *Filename = __FILE__;
-        DEBUG_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+        DEBUG_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Filename);
         if (File.Contents)
         {
-            DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
-            DEBUGPlatformFreeEntireFile(File.Contents);
+            Memory->DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
+            Memory->DEBUGPlatformFreeEntireFile(File.Contents);
         }
 
         State->ToneFrequency = 261;
+        State->SineT = 0.0f;
 
         Memory->IsInitialized = true;
     }
@@ -94,8 +94,20 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
 }
 
-GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
+extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
-    OutputSound(SoundBuffer, State->ToneFrequency);
+    OutputSineWave(SoundBuffer, State);
 }
+
+#if BUILD_WIN32
+#include <windows.h>
+BOOL WINAPI DllMain (
+    HINSTANCE hinstDLL,
+    DWORD fdwReason,
+    LPVOID lpReserved
+)
+{
+    return TRUE;
+}
+#endif
