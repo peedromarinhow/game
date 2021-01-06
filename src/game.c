@@ -33,7 +33,7 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
             // 0xXXRRGGBB
             //uint8 Blue = (uint8)(X + BlueOffset);
             //uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = 0xFF000000;//((Green << 8) | Blue );
+            *Pixel++ = 0xFFFF00FF;//((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }

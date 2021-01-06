@@ -149,8 +149,8 @@ typedef struct _win32_game_code
 internal win32_game_code Win32LoadGameCode(void)
 {
     win32_game_code Result = {};
-    CopyFileA("game.exe", "game_temp.dll", FALSE);
-    Result.GameCodeDLL     = LoadLibrary("game_temp.dll");
+    CopyFileA("game.exe", "game_temp.dll", FALSE);  // ! this CopyFileA fails
+    Result.GameCodeDLL = LoadLibrary("game_temp.dll");
     if (Result.GameCodeDLL)
     {
         Result.UpdateAndRender = (game_update_and_render *)
