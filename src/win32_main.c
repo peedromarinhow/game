@@ -1,35 +1,11 @@
-#define internal         static
-#define global           static
-#define local_persistent static
-
-#include <stdint.h>
-
-typedef int8_t  int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef int32   bool32;
-
-typedef uint8_t  uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
-typedef float  real32;
-typedef double real64;
-
-#define PI32 3.14159265359f
+#include "game.h"
 
 #include <windows.h>
-#include <strsafe.h>
+#include <stdio.h>
+#include <malloc.h>
 #include <xinput.h>
 #include <dsound.h>
 
-#include <stdio.h>
-#include <math.h>
-#include <malloc.h>
-
-#include "game.cpp"
 #include "win32_main.h"
 
 global bool32 GlobalRunning;
@@ -40,28 +16,28 @@ global int64 GlobalPerfCounterFrequency;
 
 // for XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD DwUserIndex, XINPUT_STATE* PState)
-typedef X_INPUT_GET_STATE(f_x_input_get_state);
+typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
 {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
-global  f_x_input_get_state *XInputGetState_ = XInputGetStateStub;
+global x_input_get_state *XInputGetState_ = XInputGetStateStub;
 #define XInputGetState XInputGetState_
 
 // for XInputSetState
 #define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD DwUserIndex, XINPUT_VIBRATION* PVibration)
-typedef X_INPUT_SET_STATE(f_x_input_set_state);
+typedef X_INPUT_SET_STATE(x_input_set_state);
 X_INPUT_SET_STATE(XInputSetStateStub)
 {
     return ERROR_DEVICE_NOT_CONNECTED;
 }
-global  f_x_input_set_state *XInputSetState_ = XInputSetStateStub;
+global x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
-internal void DEBUGPlatformFreeEntireFile(void *Memory)
+void DEBUGPlatformFreeEntireFile(void *Memory)
 {
     if (Memory)
     {
@@ -69,7 +45,7 @@ internal void DEBUGPlatformFreeEntireFile(void *Memory)
     }
 }
 
-internal DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
+DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
 {
     DEBUG_read_file_result Res = {0};
 
@@ -128,7 +104,7 @@ internal DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
     return Res;
 }
 
-internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory)
+bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory)
 {
     bool Result = false;
     HANDLE FileHandle = CreateFileA (
@@ -161,6 +137,39 @@ internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *
     return Result;
 }
 
+typedef struct _win32_game_code
+{
+    HMODULE GameCodeDLL;
+    game_update_and_render *UpdateAndRender;
+    game_get_sound_samples *GetSoundSamples;
+
+    bool32 IsValid;
+} win32_game_code;
+
+internal win32_game_code Win32LoadGame(void)
+{
+    win32_game_code Result = {};
+    Result.GameCodeDLL     = LoadLibrary("game.dll");
+    if (Result.GameCodeDLL)
+    {
+        Result.UpdateAndRender = (game_update_and_render *)
+            GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+
+        Result.GetSoundSamples = (game_get_sound_samples *)
+            GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+
+        Result.IsValid = (Result.UpdateAndRender &&
+                          Result.GetSoundSamples);
+    }
+
+    if (!Result.IsValid)
+    {
+        Result.UpdateAndRender = GameUpdateAndRenderStub;
+        Result.GetSoundSamples = GameGetSoundSamplesStub;
+    }
+
+    return Result;
+}
 
 internal void Win32LoadXInput(void)
 {
@@ -180,9 +189,9 @@ internal void Win32LoadXInput(void)
     if (XInputLibrary)
     {
         XInputGetState_ =
-            (f_x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
+            (x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState_ =
-            (f_x_input_set_state *)GetProcAddress(XInputLibrary, "XInputSetState");
+            (x_input_set_state *)GetProcAddress(XInputLibrary, "XInputSetState");
     }
     else
     {
@@ -659,7 +668,7 @@ internal void DEBUGWin32SyncDisplay (
         DWORD WriteColor = 0xFFFFFFFF;
         DWORD ExpectedFlipColor = 0x000000FF;
         DWORD PlayWindowColor = 0xFFFF00FF;
-
+                                                                                                                                 
         int32 Top = PadY;
         int32 Bottom = Top + LineHeight;
         if (MarkerIndex == CurrentMarkerIndex)
@@ -696,6 +705,8 @@ int CALLBACK WinMain (
   int       CmdShow
 )
 {
+    win32_game_code Game = Win32LoadGame();
+
     LARGE_INTEGER GlobalPerfCounterFrequencyResult;
     QueryPerformanceFrequency(&GlobalPerfCounterFrequencyResult);
     GlobalPerfCounterFrequency = GlobalPerfCounterFrequencyResult.QuadPart;
@@ -892,7 +903,7 @@ int CALLBACK WinMain (
                         VideoBuffer.Height = GlobalBackBuffer.Height;
                         VideoBuffer.Pitch = GlobalBackBuffer.Pitch;
 
-                        GameUpdateAndRender(&GameMemory, NewInput, &VideoBuffer);
+                        Game.UpdateAndRender(&GameMemory, NewInput, &VideoBuffer);
 
                         LARGE_INTEGER AudioWallClock = Win32GetWallClockTime();
                         real32 FromBeginToAudioSeconds = Win32GetSecondsElapsed(FlipWallClock, AudioWallClock);
@@ -972,7 +983,7 @@ int CALLBACK WinMain (
                             SoundBuffer.SamplesPerSecond = SoundOutput.SamplesPerSecond;
                             SoundBuffer.SampleCount = BytesToWrite / SoundOutput.BytesPerSample;
                             SoundBuffer.Samples = Samples;
-                            GameGetSoundSamples(&GameMemory, &SoundBuffer);
+                            Game.GetSoundSamples(&GameMemory, &SoundBuffer);
 #if BUILD_INTERNAL  
                             DEBUG_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
                             Marker->OutputPlayCursor = PlayCursor;

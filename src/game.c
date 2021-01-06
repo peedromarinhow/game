@@ -1,6 +1,6 @@
 #include "game.h"
 
-internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
+void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
 {
     local_persistent real32 SineT;
     int16 ToneVolume = 3000;
@@ -15,10 +15,14 @@ internal void OutputSound(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
         *SampleOut++ = SampleValue;
 
         SineT += 2.0f * PI32 / (real32)WavePeriod;
+        if (SineT > (2.0f * PI32))
+        {
+            SineT -= 2.0f * PI32;
+        }
     }
 }
 
-internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset)
+void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset)
 {
     uint8 *Row = (uint8 *)Buffer->Memory;
     for (int Y = 0;Y < Buffer->Height; Y++)
@@ -36,7 +40,7 @@ internal void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, i
     }
 }
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
+GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -90,7 +94,7 @@ internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_v
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
 }
 
-internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer)
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
     OutputSound(SoundBuffer, State->ToneFrequency);

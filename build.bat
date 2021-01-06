@@ -15,6 +15,6 @@ REM 32bit build
 REM cl %CommonCompilerFlags% win32_main.cpp -link -subsystem:windows,5.1 %CommonLinkerFlags%
 
 REM 64bit build
+cl %CommonCompilerFlags% game.cpp -link -DLL
 cl %CommonCompilerFlags% win32_main.cpp -link %CommonLinkerFlags%
-
 popd

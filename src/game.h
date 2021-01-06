@@ -11,6 +11,29 @@
         1: slow code allowed
  */
 
+#include <stdint.h>
+#include <math.h>
+
+#define internal         static
+#define global           static
+#define local_persistent static
+
+#define PI32 3.14159265359f
+
+typedef int8_t  int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+typedef int32   bool32;
+
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+typedef float  real32;
+typedef double real64;
+
 #if BUILD_SLOW
 #   define Assert(Expression) if (!(Expression)) { *(int *)0 = 0; }
 #else
@@ -39,9 +62,11 @@ typedef struct DEBUG_read_file_result
     void *Contents;
 } DEBUG_read_file_result;
 
-internal void DEBUGPlatformFreeEntireFile(void *Memory);
-internal DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
-internal bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory);
+// pass these as pointers on game_memory
+//  and make a snippet for these function pointer macros
+void DEBUGPlatformFreeEntireFile(void *Memory);
+DEBUG_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
+bool32 DEBUGPlatformWriteEntireFile(char* Filename, uint64 Size, void *Memory);
 
 #else
 #endif
@@ -124,11 +149,17 @@ typedef struct _game_memory
     void  *TransientStorageBytes;   //note
 } game_memory;                      //  required to be cleared to zero
 
-internal void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer);
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
+{}
 
 //note
 //  at the moment, this funcion should be very fast, < 1ms or so
-internal void GameGetSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
+#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_buffer *SoundBuffer)
+typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
+{}
 
 typedef struct _game_state
 {
