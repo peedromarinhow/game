@@ -137,17 +137,6 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
     return Result;
 }
 
-typedef struct _win32_game_code
-{
-    HMODULE GameCodeDLL;
-    FILETIME DLLLastWriteTime;
-
-    game_update_and_render *UpdateAndRender;
-    game_get_sound_samples *GetSoundSamples;
-
-    bool32 IsValid;
-} win32_game_code;
-
 inline FILETIME GetLastFileWriteTime(char *FileName)
 {
     FILETIME Result = {};
@@ -210,6 +199,24 @@ void Win32UnloadGameCode(win32_game_code *GameCode)
     GameCode->IsValid = false;
     GameCode->UpdateAndRender = GameUpdateAndRenderStub;
     GameCode->GetSoundSamples = GameGetSoundSamplesStub;
+}
+
+void CatStrings (
+  size_t SourceACount, char *SourceA,
+  size_t SourceBCount, char *SourceB,
+  size_t DestCount   , char *Dest
+)
+{
+    for (size_t Index = 0; Index < SourceACount; Index++)
+    {
+        *Dest++ = *SourceA++;
+    }
+    for (size_t Index = 0; Index < SourceBCount; Index++)
+    {
+        *Dest++ = *SourceB++;
+    }
+
+    *Dest++ = '\0';
 }
 
 internal void Win32LoadXInput(void)
@@ -746,6 +753,15 @@ int CALLBACK WinMain (
   int       CmdShow
 )
 {
+    char EXEFileName[MAX_PATH];
+    DWORD SizeofFileName = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
+    char *OnePastLastSlash = EXEFileName;
+    for (char *Scan = EXEFileName; *Scan; ++Scan) {
+        if (*Scan == '\\') {
+            OnePastLastSlash = Scan + 1;
+        }
+    }
+
     LARGE_INTEGER GlobalPerfCounterFrequencyResult;
     QueryPerformanceFrequency(&GlobalPerfCounterFrequencyResult);
     GlobalPerfCounterFrequency = GlobalPerfCounterFrequencyResult.QuadPart;
@@ -845,7 +861,6 @@ int CALLBACK WinMain (
                 real32 AudioLatencySeconds = 0.0f;
                 bool32 SoundIsValid = false;
 
-                char *SourceDLLName = "game.dll";
                 win32_game_code Game = Win32LoadGameCode(SourceDLLName);
                 uint32 LoadCounter = 0;
 
