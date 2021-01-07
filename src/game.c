@@ -31,9 +31,9 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
         {
             // memory Order: BB GG RR XX
             // 0xXXRRGGBB
-            //uint8 Blue = (uint8)(X + BlueOffset);
-            //uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = 0xFFFF00FF;//((Green << 8) | Blue );
+            uint8 Blue = (uint8)(X + BlueOffset);
+            uint8 Green = (uint8)(Y + GreenOffset);
+            *Pixel++ = ((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }
@@ -99,15 +99,3 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
     OutputSineWave(SoundBuffer, State);
 }
-
-#if BUILD_WIN32
-#include <windows.h>
-BOOL WINAPI DllMain (
-    HINSTANCE hinstDLL,
-    DWORD fdwReason,
-    LPVOID lpReserved
-)
-{
-    return TRUE;
-}
-#endif

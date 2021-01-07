@@ -149,18 +149,20 @@ typedef struct _win32_game_code
 internal win32_game_code Win32LoadGameCode(void)
 {
     win32_game_code Result = {};
-    CopyFileA("game.exe", "game_temp.dll", FALSE);  // ! this CopyFileA fails
-    Result.GameCodeDLL = LoadLibrary("game_temp.dll");
-    if (Result.GameCodeDLL)
+    if (CopyFileA("game.dll", "game_temp.dll", FALSE))
     {
-        Result.UpdateAndRender = (game_update_and_render *)
-            GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-
-        Result.GetSoundSamples = (game_get_sound_samples *)
-            GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
-
-        Result.IsValid = (Result.UpdateAndRender &&
-                          Result.GetSoundSamples);
+        Result.GameCodeDLL = LoadLibrary("game_temp.dll");
+        if (Result.GameCodeDLL)
+        {
+            Result.UpdateAndRender = (game_update_and_render *)
+                GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+    
+            Result.GetSoundSamples = (game_get_sound_samples *)
+                GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+    
+            Result.IsValid = (Result.UpdateAndRender &&
+                              Result.GetSoundSamples);
+        }
     }
 
     if (!Result.IsValid)
@@ -819,14 +821,15 @@ int CALLBACK WinMain (
                 bool32 SoundIsValid = false;
 
                 win32_game_code Game = Win32LoadGameCode();
-                uint32 LoadCounter = 120;
+                uint32 LoadCounter = 0;
 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning)
                 {
-                    if (LoadCounter++ > 120)
+                    if (LoadCounter++ < 120)
                     {
                         Win32UnloadGameCode(&Game);
+                        OutputDebugStringA("loading!!\n");
                         Game = Win32LoadGameCode();
                         LoadCounter = 0;
                     }
