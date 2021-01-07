@@ -140,29 +140,54 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 typedef struct _win32_game_code
 {
     HMODULE GameCodeDLL;
+    FILETIME DLLLastWriteTime;
+
     game_update_and_render *UpdateAndRender;
     game_get_sound_samples *GetSoundSamples;
 
     bool32 IsValid;
 } win32_game_code;
 
-internal win32_game_code Win32LoadGameCode(void)
+inline FILETIME GetLastFileWriteTime(char *FileName)
+{
+    FILETIME Result = {};
+
+    WIN32_FIND_DATA FindData;
+    HANDLE FindHandle = FindFirstFileA(FileName, &FindData);
+    if (FindHandle != INVALID_HANDLE_VALUE)
+    {
+        Result = FindData.ftLastWriteTime;
+        FindClose(FindHandle);
+    }
+
+    return Result;
+}
+
+internal win32_game_code Win32LoadGameCode(char *SourceDLLName)
 {
     win32_game_code Result = {};
-    if (CopyFileA("game.dll", "game_temp.dll", FALSE))
+
+    char *TempDLLName = "game_temp.dll";
+
+    Result.DLLLastWriteTime = GetLastFileWriteTime(SourceDLLName);
+    while (true)
     {
-        Result.GameCodeDLL = LoadLibrary("game_temp.dll");
-        if (Result.GameCodeDLL)
+        if (CopyFileA(SourceDLLName, TempDLLName, FALSE))
         {
-            Result.UpdateAndRender = (game_update_and_render *)
-                GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-    
-            Result.GetSoundSamples = (game_get_sound_samples *)
-                GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
-    
-            Result.IsValid = (Result.UpdateAndRender &&
-                              Result.GetSoundSamples);
+            break;
         }
+    }
+    Result.GameCodeDLL = LoadLibrary(TempDLLName);
+    if (Result.GameCodeDLL)
+    {
+        Result.UpdateAndRender = (game_update_and_render *)
+            GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+
+        Result.GetSoundSamples = (game_get_sound_samples *)
+            GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+
+        Result.IsValid = (Result.UpdateAndRender &&
+                          Result.GetSoundSamples);
     }
 
     if (!Result.IsValid)
@@ -820,17 +845,18 @@ int CALLBACK WinMain (
                 real32 AudioLatencySeconds = 0.0f;
                 bool32 SoundIsValid = false;
 
-                win32_game_code Game = Win32LoadGameCode();
+                char *SourceDLLName = "game.dll";
+                win32_game_code Game = Win32LoadGameCode(SourceDLLName);
                 uint32 LoadCounter = 0;
 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning)
                 {
-                    if (LoadCounter++ < 120)
+                    FILETIME NewDLLWriteTime = GetLastFileWriteTime(SourceDLLName);
+                    if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
                     {
                         Win32UnloadGameCode(&Game);
-                        OutputDebugStringA("loading!!\n");
-                        Game = Win32LoadGameCode();
+                        Game = Win32LoadGameCode(SourceDLLName);
                         LoadCounter = 0;
                     }
 
