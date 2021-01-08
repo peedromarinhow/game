@@ -518,12 +518,16 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     return Result;
 }
 
-internal void Win32BeginRecordingInput(win32_state *Win32State, int32 InputRecordingIndex)
+internal void Win32BeginRecordingInput(win32_state *Win32State, int32  InputRecordingIndex)
 {
     Win32State->InputRecordingIndex = InputRecordingIndex;
+
     char *Filename = "foo.gmin";
-    Win32State->RecordingHandle =
-        CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,  0, 0);
+    Win32State->RecordingHandle = CreateFileA (
+        Filename,
+        GENERIC_WRITE, 0, NULL,
+        CREATE_ALWAYS, 0, NULL
+    );
 }
 
 internal void Win32EndRecordingInput(win32_state *Win32State)
@@ -532,12 +536,16 @@ internal void Win32EndRecordingInput(win32_state *Win32State)
     Win32State->InputRecordingIndex = 0;
 }
 
-internal void Win32BeginInputPlayback(win32_state *Win32State, int32 InputPlayingIndex)
+internal void Win32BeginInputPlayback(win32_state *Win32State, int32  InputPlaybackIndex)
 {
-    Win32State->InputPlaybackIndex = InputPlayingIndex;
+    Win32State->InputPlaybackIndex = InputPlaybackIndex;
+
     char *Filename = "foo.gmin";
-    Win32State->PlaybackHandle =
-        CreateFileA(Filename, GENERIC_READ, 0, 0, OPEN_EXISTING,  0, 0);
+    Win32State->PlaybackHandle = CreateFileA (
+        Filename,
+        GENERIC_READ, FILE_SHARE_READ,
+        NULL, OPEN_EXISTING, 0, NULL
+    );
 }
 
 internal void Win32EndInputPlayback(win32_state *Win32State)
@@ -546,20 +554,20 @@ internal void Win32EndInputPlayback(win32_state *Win32State)
     Win32State->InputPlaybackIndex = 0;
 }
 
-internal void Win32RecordInput(win32_state *Win32State, game_input *GameInput)
+internal void Win32RecordInput(win32_state *Win32State, game_input *Input)
 {
     DWORD BytesWritten;
-    WriteFile(Win32State->RecordingHandle, GameInput, sizeof(*GameInput), &BytesWritten, 0);
+    WriteFile(Win32State->RecordingHandle, Input, sizeof(*Input), &BytesWritten, 0);
 }
 
-internal void Win32PlayBackInput(win32_state *Win32State, game_input *GameInput)
+internal void Win32PlaybackInput(win32_state *Win32State, game_input *Input)
 {
     DWORD BytesRead;
-    if (ReadFile(Win32State->PlaybackHandle, GameInput, sizeof(*GameInput), &BytesRead, 0))
+    if (ReadFile(Win32State->PlaybackHandle, Input, sizeof(*Input), &BytesRead, 0))
     {
-        int32 PlayingIndex = Win32State->InputPlaybackIndex;
+        int32 InputPlaybackIndex = Win32State->InputPlaybackIndex;
         Win32EndInputPlayback(Win32State);
-        Win32BeginInputPlayback(Win32State, PlayingIndex);
+        Win32BeginInputPlayback(Win32State, InputPlaybackIndex);
     }
 }
 
@@ -1051,7 +1059,7 @@ int CALLBACK WinMain (
 
                         if (Win32State.InputPlaybackIndex)
                         {
-                            Win32PlayBackInput(&Win32State, NewInput);
+                            Win32PlaybackInput(&Win32State, NewInput);
                         }
     
                         Game.UpdateAndRender(&GameMemory, NewInput, &VideoBuffer);
