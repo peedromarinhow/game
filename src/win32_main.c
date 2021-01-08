@@ -152,11 +152,9 @@ inline FILETIME GetLastFileWriteTime(char *FileName)
     return Result;
 }
 
-internal win32_game_code Win32LoadGameCode(char *SourceDLLName)
+internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName)
 {
     win32_game_code Result = {};
-
-    char *TempDLLName = "game_temp.dll";
 
     Result.DLLLastWriteTime = GetLastFileWriteTime(SourceDLLName);
     while (true)
@@ -199,24 +197,6 @@ void Win32UnloadGameCode(win32_game_code *GameCode)
     GameCode->IsValid = false;
     GameCode->UpdateAndRender = GameUpdateAndRenderStub;
     GameCode->GetSoundSamples = GameGetSoundSamplesStub;
-}
-
-void CatStrings (
-  size_t SourceACount, char *SourceA,
-  size_t SourceBCount, char *SourceB,
-  size_t DestCount   , char *Dest
-)
-{
-    for (size_t Index = 0; Index < SourceACount; Index++)
-    {
-        *Dest++ = *SourceA++;
-    }
-    for (size_t Index = 0; Index < SourceBCount; Index++)
-    {
-        *Dest++ = *SourceB++;
-    }
-
-    *Dest++ = '\0';
 }
 
 internal void Win32LoadXInput(void)
@@ -538,7 +518,7 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     return Result;
 }
 
-internal void Win32ProcessPendingMessages(game_controller_input *KeyboardController)
+internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController)
 {
     MSG Message;
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
@@ -587,6 +567,18 @@ internal void Win32ProcessPendingMessages(game_controller_input *KeyboardControl
                         if (IsDown)
                         {
                             GlobalPause = !GlobalPause;
+                        }
+                    }
+                    else if (VKCode == 'L')
+                    {
+                        if (Win32State->InputRecordingIndex == 0)
+                        {
+                            Win32State->InputRecordingIndex = 1;
+                        }
+                        else
+                        {
+                            Win32State->InputRecordingIndex = 0;
+                            Win32State->InputPlayingIndex =  1;
                         }
                     }
 #endif
@@ -746,6 +738,34 @@ internal void DEBUGWin32SyncDisplay (
     }
 }
 
+void CatStrings (
+  size_t SourceACount, char *SourceA,
+  size_t SourceBCount, char *SourceB,
+  size_t DestCount   , char *Dest
+)
+{
+    for (size_t Index = 0; Index < SourceACount; Index++)
+    {
+        *Dest++ = *SourceA++;
+    }
+    for (size_t Index = 0; Index < SourceBCount; Index++)
+    {
+        *Dest++ = *SourceB++;
+    }
+
+    *Dest++ = '\0';
+}
+
+internal void Win32RecordInput(win32_state *Win32State, game_input *GameInput)
+{
+    // todo
+}
+
+internal void Win32PlayBackInput(win32_state *Win32State, game_input *GameInput)
+{
+    // todo
+}
+
 int CALLBACK WinMain (
   HINSTANCE Instance,
   HINSTANCE PrevInstance,
@@ -761,6 +781,18 @@ int CALLBACK WinMain (
             OnePastLastSlash = Scan + 1;
         }
     }
+
+    char SourceGameCodeDLLFilename[] = "game.dll";
+    char SourceGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
+               sizeof(SourceGameCodeDLLFilename) - 1, SourceGameCodeDLLFilename,
+               sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath);
+    
+    char TempGameCodeDLLFilename[] = "game_temp.dll";
+    char TempGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
+               sizeof(TempGameCodeDLLFilename) - 1, TempGameCodeDLLFilename,
+               sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
 
     LARGE_INTEGER GlobalPerfCounterFrequencyResult;
     QueryPerformanceFrequency(&GlobalPerfCounterFrequencyResult);
@@ -805,9 +837,8 @@ int CALLBACK WinMain (
 
         if (Window)
         {
-            GlobalRunning = true;
+            HDC DeviceContext = GetDC(Window);
 
-            // sound test
             win32_sound_output SoundOutput = {};
             SoundOutput.SamplesPerSecond = 48000;
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
@@ -822,6 +853,9 @@ int CALLBACK WinMain (
             Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
             Win32ClearSoundBuffer(&SoundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+            
+            win32_state Win32State = {};
+            GlobalRunning = true;
 
             int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
             bool32 SoundIsPlaying = false;
@@ -845,7 +879,6 @@ int CALLBACK WinMain (
 
             if (Samples && GameMemory.PermanentStorageBytes)
             {
-                HDC DeviceContext = GetDC(Window);
 
                 game_input Input[2] = {};
                 game_input *NewInput = &Input[0];
@@ -861,18 +894,18 @@ int CALLBACK WinMain (
                 real32 AudioLatencySeconds = 0.0f;
                 bool32 SoundIsValid = false;
 
-                win32_game_code Game = Win32LoadGameCode(SourceDLLName);
-                uint32 LoadCounter = 0;
+                win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath,
+                                                         TempGameCodeDLLFullPath);
 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning)
                 {
-                    FILETIME NewDLLWriteTime = GetLastFileWriteTime(SourceDLLName);
+                    FILETIME NewDLLWriteTime = GetLastFileWriteTime(SourceGameCodeDLLFullPath);
                     if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
                     {
                         Win32UnloadGameCode(&Game);
-                        Game = Win32LoadGameCode(SourceDLLName);
-                        LoadCounter = 0;
+                        Game = Win32LoadGameCode(SourceGameCodeDLLFullPath,
+                                                 TempGameCodeDLLFullPath);
                     }
 
                     game_controller_input *OldKeyboardController = GetController(OldInput, 0);
@@ -968,10 +1001,21 @@ int CALLBACK WinMain (
 
                         game_video_buffer VideoBuffer = {};
                         VideoBuffer.Memory = GlobalBackBuffer.Memory;
-                        VideoBuffer.Width = GlobalBackBuffer.Width;
+                        VideoBuffer.Width  = GlobalBackBuffer.Width;
                         VideoBuffer.Height = GlobalBackBuffer.Height;
-                        VideoBuffer.Pitch = GlobalBackBuffer.Pitch;
+                        VideoBuffer.Pitch  = GlobalBackBuffer.Pitch;
+                        VideoBuffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
 
+                        if (Win32State.InputRecordingIndex)
+                        {
+                            Win32RecordInput(&Win32State, NewInput);
+                        }
+
+                        if (Win32State.InputPlayingIndex)
+                        {
+                            Win32PlayBackInput(Win32State, &NewInput);
+                        }
+    
                         Game.UpdateAndRender(&GameMemory, NewInput, &VideoBuffer);
 
                         LARGE_INTEGER AudioWallClock = Win32GetWallClockTime();

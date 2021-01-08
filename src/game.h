@@ -81,6 +81,7 @@ typedef struct _game_video_buffer
     int32 Width;
     int32 Height;
     int32 Pitch;
+    int32 BytesPerPixel;
 } game_video_buffer;
 
 typedef struct _game_sound_buffer
@@ -173,9 +174,16 @@ GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
 typedef struct _game_state
 {
     int32 ToneFrequency;
+
     int32 GreenOffset;
     int32 BlueOffset;
+
     real32 SineT;
+
+    int32 PlayerX;
+    int32 PlayerY;
+
+    real32 JumpT;
 } game_state;
 
 #endif//GAHE_H
