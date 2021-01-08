@@ -387,7 +387,14 @@ internal LRESULT CALLBACK win32MainWindowCallback (
         case WM_SIZE: {
         } break;
         case WM_ACTIVATEAPP: {
-            OutputDebugStringA("WM_ACTIVATEAPP\n");
+            if (WParam == TRUE)
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 256, LWA_ALPHA);
+            }
+            else
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
+            }
         } break;
         case WM_CLOSE: {
             GlobalRunning = false;
@@ -891,7 +898,7 @@ int CALLBACK WinMain (
     {
         HWND Window =
             CreateWindowExA (
-                0,
+                WS_EX_TOPMOST|WS_EX_LAYERED,
                 WindowClass.lpszClassName,
                 "game",
                 WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -907,8 +914,6 @@ int CALLBACK WinMain (
 
         if (Window)
         {
-            HDC DeviceContext = GetDC(Window);
-
             win32_sound_output SoundOutput = {};
             SoundOutput.SamplesPerSecond = 48000;
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
@@ -1250,7 +1255,10 @@ int CALLBACK WinMain (
                         DEBUGWin32SyncDisplay(&GlobalBackBuffer, ArrayCount(DEBUGTimeMarkers), DEBUGTimeMarkers, DEBUGTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 #endif
 
+                        
+                        HDC DeviceContext = GetDC(Window);
                         Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+                        ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClockTime();
 

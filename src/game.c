@@ -37,7 +37,7 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
             // 0xXXRRGGBB
             uint8 Blue = (uint8)(X + BlueOffset);
             uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = ((Green << 8) | Blue );
+            *Pixel++ = ((Green << 16) | Blue );
         }
         Row += Buffer->Pitch;
     }
@@ -45,9 +45,7 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
 
 void RenderPlayer(game_video_buffer *Buffer, int32 PlayerX, int32 PlayerY)
 {
-    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory +
-                                  Buffer->BytesPerPixel * Buffer->Width +
-                                  Buffer->Pitch * Buffer->Height;
+    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch * Buffer->Height;
     int32 PlayerWidth = 50;
     int32 PlayerHeight = 50;
     uint32 Color = 0xFFFFFFFF;
@@ -58,11 +56,11 @@ void RenderPlayer(game_video_buffer *Buffer, int32 PlayerX, int32 PlayerY)
         uint8 *Pixel = (uint8 *)Buffer->Memory + X*Buffer->BytesPerPixel + Top*Buffer->Pitch;
         for (int32 Y = Top; Y < Bottom; Y++)
         {
-            if ((Pixel >= Buffer->Memory) && (Pixel < EndOfBuffer))
+            if ((Pixel >= Buffer->Memory) && ((Pixel + 4) <= EndOfBuffer))
             {
                 *(uint32 *)Pixel = Color;
-                Pixel += Buffer->Pitch;
             }
+            Pixel += Buffer->Pitch;
         }
     }
 }
