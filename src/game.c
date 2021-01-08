@@ -128,13 +128,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         if (State->JumpT > 0)
         {
-            State->PlayerY += (int)(10.0f*sinf(State->JumpT));
+            State->PlayerY -= (int)(10.0f*sinf(2.0f*PI32*State->JumpT));
         }
         if (Controller->ActionDown.EndedDown)
         {
             State->JumpT = 1.0f;
         }
-        State->JumpT -= 0.033f;
+        State->JumpT -= 0.033f/2.0f;
     }
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
     RenderPlayer(VideoBuffer, State->PlayerX, State->PlayerY);
