@@ -518,6 +518,51 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     return Result;
 }
 
+internal void Win32BeginRecordingInput(win32_state *Win32State, int32 InputRecordingIndex)
+{
+    Win32State->InputRecordingIndex = InputRecordingIndex;
+    char *Filename = "foo.gmin";
+    Win32State->RecordingHandle =
+        CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,  0, 0);
+}
+
+internal void Win32EndRecordingInput(win32_state *Win32State)
+{
+    CloseHandle(Win32State->RecordingHandle);
+    Win32State->InputRecordingIndex = 0;
+}
+
+internal void Win32BeginInputPlayback(win32_state *Win32State, int32 InputPlayingIndex)
+{
+    Win32State->InputPlaybackIndex = InputPlayingIndex;
+    char *Filename = "foo.gmin";
+    Win32State->PlaybackHandle =
+        CreateFileA(Filename, GENERIC_READ, 0, 0, OPEN_EXISTING,  0, 0);
+}
+
+internal void Win32EndInputPlayback(win32_state *Win32State)
+{
+    CloseHandle(Win32State->PlaybackHandle);
+    Win32State->InputPlaybackIndex = 0;
+}
+
+internal void Win32RecordInput(win32_state *Win32State, game_input *GameInput)
+{
+    DWORD BytesWritten;
+    WriteFile(Win32State->RecordingHandle, GameInput, sizeof(*GameInput), &BytesWritten, 0);
+}
+
+internal void Win32PlayBackInput(win32_state *Win32State, game_input *GameInput)
+{
+    DWORD BytesRead;
+    if (ReadFile(Win32State->PlaybackHandle, GameInput, sizeof(*GameInput), &BytesRead, 0))
+    {
+        int32 PlayingIndex = Win32State->InputPlaybackIndex;
+        Win32EndInputPlayback(Win32State);
+        Win32BeginInputPlayback(Win32State, PlayingIndex);
+    }
+}
+
 internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController)
 {
     MSG Message;
@@ -571,14 +616,17 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
                     }
                     else if (VKCode == 'L')
                     {
-                        if (Win32State->InputRecordingIndex == 0)
+                        if (IsDown)
                         {
-                            Win32State->InputRecordingIndex = 1;
-                        }
-                        else
-                        {
-                            Win32State->InputRecordingIndex = 0;
-                            Win32State->InputPlayingIndex =  1;
+                            if (Win32State->InputRecordingIndex == 0)
+                            {
+                                Win32BeginRecordingInput(Win32State, 1);
+                            }
+                            else
+                            {
+                                Win32EndRecordingInput(Win32State);
+                                Win32BeginInputPlayback(Win32State, 1);
+                            }
                         }
                     }
 #endif
@@ -756,16 +804,6 @@ void CatStrings (
     *Dest++ = '\0';
 }
 
-internal void Win32RecordInput(win32_state *Win32State, game_input *GameInput)
-{
-    // todo
-}
-
-internal void Win32PlayBackInput(win32_state *Win32State, game_input *GameInput)
-{
-    // todo
-}
-
 int CALLBACK WinMain (
   HINSTANCE Instance,
   HINSTANCE PrevInstance,
@@ -918,7 +956,7 @@ int CALLBACK WinMain (
                         NewKeyboardController->Buttons[ButtonIndex].EndedDown = OldKeyboardController->Buttons[ButtonIndex].EndedDown;
                     }
 
-                    Win32ProcessPendingMessages(NewKeyboardController);
+                    Win32ProcessPendingMessages(&Win32State, NewKeyboardController);
 
                     if (!GlobalPause)
                     {
@@ -1011,9 +1049,9 @@ int CALLBACK WinMain (
                             Win32RecordInput(&Win32State, NewInput);
                         }
 
-                        if (Win32State.InputPlayingIndex)
+                        if (Win32State.InputPlaybackIndex)
                         {
-                            Win32PlayBackInput(Win32State, &NewInput);
+                            Win32PlayBackInput(&Win32State, NewInput);
                         }
     
                         Game.UpdateAndRender(&GameMemory, NewInput, &VideoBuffer);

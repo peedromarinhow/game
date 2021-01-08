@@ -1,5 +1,6 @@
 .vscode/
 build/
+*.gmin
 *.out
 *.cpp
 *.h
