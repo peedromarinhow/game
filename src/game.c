@@ -8,7 +8,7 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, game_state *GameState)
     int16* SampleOut = SoundBuffer->Samples;
     for (int32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
-#if 0
+#if 1
         real32 SineValue = sinf(GameState->SineT);
         int16 SampleValue = (int16)(SineValue * ToneVolume);
 #else
@@ -90,7 +90,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->IsInitialized = true;
     }
 
-    int32 Increment = 50;
+    int32 Increment = 10;
 
     for (int32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
     {

@@ -14,6 +14,55 @@ global win32_offscreen_buffer GlobalBackBuffer;
 global LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global int64 GlobalPerfCounterFrequency;
 
+void CatStrings (
+  size_t SourceACount, char *SourceA,
+  size_t SourceBCount, char *SourceB,
+  size_t DestCount   , char *Dest
+)
+{
+    for (size_t Index = 0; Index < SourceACount; Index++)
+    {
+        *Dest++ = *SourceA++;
+    }
+    for (size_t Index = 0; Index < SourceBCount; Index++)
+    {
+        *Dest++ = *SourceB++;
+    }
+
+    *Dest++ = '\0';
+}
+
+internal void Win32GetEXEFilename(win32_state *State)
+{
+    DWORD SizeofFileName = GetModuleFileNameA(0, State->EXEFileName, sizeof(State->EXEFileName));
+    State->OnePastLastEXEFileNameSlash = State->EXEFileName;
+    for (char *Scan = State->EXEFileName; *Scan; ++Scan) {
+        if (*Scan == '\\') {
+            State->OnePastLastEXEFileNameSlash = Scan + 1;
+        }
+    }
+}
+
+internal int StringLenght(char *String)
+{
+    int Count = 0;
+    while (*String++)
+    {
+        Count++;
+    }
+    return Count;
+}
+
+internal void Win32BuildEXEPathFilename (
+    win32_state *State, char *Filename,
+    int32 DestCount, char *Dest
+)
+{
+    CatStrings(State->OnePastLastEXEFileNameSlash - State->EXEFileName, State->EXEFileName,
+               StringLenght(Filename), Filename,
+               DestCount, Dest);
+}
+
 // for XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD DwUserIndex, XINPUT_STATE* PState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
@@ -333,7 +382,7 @@ internal void Win32DisplayBuffer (
 
     StretchDIBits (
         DeviceContext,
-        0, 0, WindowWidth, WindowHeight,
+        0, 0, Buffer->Width, Buffer->Height,
         0, 0, Buffer->Width, Buffer->Height,
         Buffer->Memory,
         &Buffer->Info,
@@ -524,89 +573,109 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     }
     return Result;
 }
-
-internal void Win32BeginRecordingInput(win32_state *Win32State, int32  InputRecordingIndex)
+/*
+internal void Win32GetInputFileLocation(win32_state *State, int32 SlotIndex, int32 DestCount, char *Dest)
 {
-    Win32State->InputRecordingIndex = InputRecordingIndex;
+    // note
+    //  casey did this by saving the file on the same drive as the game
+    //  i'm going to save on c: for better speed, because the file is
+    //  huge (~1gb)
 
-    // writing on the c: drive because it is an ssd
-    // and these files are huge (~1gb)
+    // Assert(SlotIndex == 1);
+    ...
+    Dest = "c:/Etc/foo.gmin";
+}
+*/
+
+internal void Win32BeginRecordingInput(win32_state *State, int32  InputRecordingIndex)
+{
+    State->InputRecordingIndex = InputRecordingIndex;
+
+    // note:
+    //  writing on the c: drive because it is an ssd
+    //  and these files are huge (~1gb), also cannot
+    //  currently write more than one slot
     char *Filename = "c:/Etc/foo.gmin";
-    Win32State->RecordingHandle = CreateFileA (
+
+    State->RecordingHandle = CreateFileA (
         Filename,
         GENERIC_WRITE, 0, NULL,
         CREATE_ALWAYS, 0, NULL
     );
     
-    DWORD BytesToWrite = (DWORD)Win32State->TotalGameMemorySize;
+    DWORD BytesToWrite = (DWORD)State->TotalGameMemorySize;
     DWORD BytesRead;
-    Assert(Win32State->TotalGameMemorySize == BytesToWrite);
+    Assert(State->TotalGameMemorySize == BytesToWrite);
     WriteFile (
-        Win32State->RecordingHandle,
-        Win32State->GameMemoryBlock,
+        State->RecordingHandle,
+        State->GameMemoryBlock,
         BytesToWrite,
         &BytesRead, 0
     );
 }
 
-internal void Win32EndRecordingInput(win32_state *Win32State)
+internal void Win32EndRecordingInput(win32_state *State)
 {
-    CloseHandle(Win32State->RecordingHandle);
-    Win32State->InputRecordingIndex = 0;
+    CloseHandle(State->RecordingHandle);
+    State->InputRecordingIndex = 0;
 }
 
-internal void Win32BeginInputPlayback(win32_state *Win32State, int32  InputPlaybackIndex)
+internal void Win32BeginInputPlayback(win32_state *State, int32  InputPlaybackIndex)
 {
-    Win32State->InputPlaybackIndex = InputPlaybackIndex;
+    State->InputPlaybackIndex = InputPlaybackIndex;
 
-    // writing on the c: drive because it is an ssd
-    // and these files are huge (~1gb)
+    // note:
+    //  writing on the c: drive because it is an ssd
+    //  and these files are huge (~1gb), also cannot
+    //  currently write more than one slot
     char *Filename = "c:/Etc/foo.gmin";
-    Win32State->PlaybackHandle = CreateFileA (
+
+    State->PlaybackHandle = CreateFileA (
         Filename,
         GENERIC_READ, FILE_SHARE_READ,
         NULL, OPEN_EXISTING, 0, NULL
     );
 
-    DWORD BytesToRead = (DWORD)Win32State->TotalGameMemorySize;
+    DWORD BytesToRead = (DWORD)State->TotalGameMemorySize;
     DWORD BytesRead;
-    Assert(Win32State->TotalGameMemorySize == BytesToRead);
+    Assert(State->TotalGameMemorySize == BytesToRead);
     ReadFile (
-        Win32State->PlaybackHandle,
-        Win32State->GameMemoryBlock,
+        State->PlaybackHandle,
+        State->GameMemoryBlock,
         BytesToRead,
         &BytesRead, 0
     );
 }
 
-internal void Win32EndInputPlayback(win32_state *Win32State)
+internal void Win32EndInputPlayback(win32_state *State)
 {
-    CloseHandle(Win32State->PlaybackHandle);
-    Win32State->InputPlaybackIndex = 0;
+    CloseHandle(State->PlaybackHandle);
+    State->InputPlaybackIndex = 0;
 }
 
-internal void Win32RecordInput(win32_state *Win32State, game_input *Input)
+internal void Win32RecordInput(win32_state *State, game_input *Input)
 {
     DWORD BytesWritten;
-    WriteFile(Win32State->RecordingHandle, Input, sizeof(*Input), &BytesWritten, 0);
+    WriteFile(State->RecordingHandle, Input, sizeof(*Input), &BytesWritten, 0);
 }
 
-internal void Win32PlaybackInput(win32_state *Win32State, game_input *Input)
+internal void Win32PlaybackInput(win32_state *State, game_input *Input)
 {
     DWORD BytesRead = 0;
-    if (ReadFile(Win32State->PlaybackHandle, Input, sizeof(*Input), &BytesRead, 0))
+    if (ReadFile(State->PlaybackHandle, Input, sizeof(*Input), &BytesRead, 0))
     {
         if (BytesRead == 0)
         {
             // this is the end, go back to the beginning
-            int32 InputPlaybackIndex = Win32State->InputPlaybackIndex;
-            Win32EndInputPlayback(Win32State);
-            Win32BeginInputPlayback(Win32State, InputPlaybackIndex);
+            int32 InputPlaybackIndex = State->InputPlaybackIndex;
+            Win32EndInputPlayback(State);
+            Win32BeginInputPlayback(State, InputPlaybackIndex);
+            ReadFile(State->PlaybackHandle, Input, sizeof(*Input), &BytesRead, 0);
         }
     }
 }
 
-internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController)
+internal void Win32ProcessPendingMessages(win32_state *State, game_controller_input *KeyboardController)
 {
     MSG Message;
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
@@ -661,14 +730,15 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
                     {
                         if (IsDown)
                         {
-                            if (Win32State->InputRecordingIndex == 0)
+                            OutputDebugStringA("recording\n");
+                            if (State->InputRecordingIndex == 0)
                             {
-                                Win32BeginRecordingInput(Win32State, 1);
+                                Win32BeginRecordingInput(State, 1);
                             }
                             else
                             {
-                                Win32EndRecordingInput(Win32State);
-                                Win32BeginInputPlayback(Win32State, 1);
+                                Win32EndRecordingInput(State);
+                                Win32BeginInputPlayback(State, 1);
                             }
                         }
                     }
@@ -829,24 +899,6 @@ internal void DEBUGWin32SyncDisplay (
     }
 }
 
-void CatStrings (
-  size_t SourceACount, char *SourceA,
-  size_t SourceBCount, char *SourceB,
-  size_t DestCount   , char *Dest
-)
-{
-    for (size_t Index = 0; Index < SourceACount; Index++)
-    {
-        *Dest++ = *SourceA++;
-    }
-    for (size_t Index = 0; Index < SourceBCount; Index++)
-    {
-        *Dest++ = *SourceB++;
-    }
-
-    *Dest++ = '\0';
-}
-
 int CALLBACK WinMain (
   HINSTANCE Instance,
   HINSTANCE PrevInstance,
@@ -854,30 +906,25 @@ int CALLBACK WinMain (
   int       CmdShow
 )
 {
-    char EXEFileName[MAX_PATH];
-    DWORD SizeofFileName = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
-    char *OnePastLastSlash = EXEFileName;
-    for (char *Scan = EXEFileName; *Scan; ++Scan) {
-        if (*Scan == '\\') {
-            OnePastLastSlash = Scan + 1;
-        }
-    }
-
-    char SourceGameCodeDLLFilename[] = "game.dll";
-    char SourceGameCodeDLLFullPath[MAX_PATH];
-    CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
-               sizeof(SourceGameCodeDLLFilename) - 1, SourceGameCodeDLLFilename,
-               sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath);
-    
-    char TempGameCodeDLLFilename[] = "game_temp.dll";
-    char TempGameCodeDLLFullPath[MAX_PATH];
-    CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
-               sizeof(TempGameCodeDLLFilename) - 1, TempGameCodeDLLFilename,
-               sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
+    win32_state Win32State = {};
 
     LARGE_INTEGER GlobalPerfCounterFrequencyResult;
     QueryPerformanceFrequency(&GlobalPerfCounterFrequencyResult);
     GlobalPerfCounterFrequency = GlobalPerfCounterFrequencyResult.QuadPart;
+
+    Win32GetEXEFilename(&Win32State);
+
+    char SourceGameCodeDLLFullPath[WIN32_STATE_FILENAME_COUNT];
+    Win32BuildEXEPathFilename (
+        &Win32State, "game.dll",
+        sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath
+    );
+    
+    char TempGameCodeDLLFullPath[WIN32_STATE_FILENAME_COUNT];
+    Win32BuildEXEPathFilename (
+        &Win32State, "game_temp.dll",
+        sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath
+    );
 
     UINT DesiredSchedulerMiliseconds = 1;
     bool32 SleepIsGranuler = (timeBeginPeriod(DesiredSchedulerMiliseconds) == TIMERR_NOERROR);
@@ -886,7 +933,7 @@ int CALLBACK WinMain (
 
     WNDCLASSA WindowClass = {0};
 
-    Win32ResizeDIBSection(&GlobalBackBuffer, 1920, 1080);
+    Win32ResizeDIBSection(&GlobalBackBuffer, 1080, 600);
 
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
     WindowClass.lpfnWndProc   = win32MainWindowCallback;
@@ -933,7 +980,6 @@ int CALLBACK WinMain (
             Win32ClearSoundBuffer(&SoundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
             
-            win32_state Win32State = {};
             GlobalRunning = true;
 
             int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
@@ -1023,6 +1069,7 @@ int CALLBACK WinMain (
                             {
                                 // the controller is plugged in
                                 NewController->IsConnected = true;
+                                NewController->IsAnalog = OldController->IsAnalog;
 
                                 XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
 
@@ -1139,7 +1186,7 @@ int CALLBACK WinMain (
                             real32 SecondsLeftUntilFlip = TargetSecondsPerFrame - FromBeginToAudioSeconds;
                             DWORD ExpectedBytesUntilFlip = (DWORD)((SecondsLeftUntilFlip / TargetSecondsPerFrame) * (real32)ExpectedSoundBytesPerFrame);
 
-                            DWORD ExpectedFrameBoundaryByte = PlayCursor + ExpectedSoundBytesPerFrame;
+                            DWORD ExpectedFrameBoundaryByte = PlayCursor + ExpectedBytesUntilFlip;
 
                             DWORD SafeWriteCursor = WriteCursor;
                             if (SafeWriteCursor < PlayCursor)
