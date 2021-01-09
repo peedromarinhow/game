@@ -389,7 +389,7 @@ internal LRESULT CALLBACK win32MainWindowCallback (
         case WM_ACTIVATEAPP: {
             if (WParam == TRUE)
             {
-                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 256, LWA_ALPHA);
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
             }
             else
             {
@@ -529,7 +529,9 @@ internal void Win32BeginRecordingInput(win32_state *Win32State, int32  InputReco
 {
     Win32State->InputRecordingIndex = InputRecordingIndex;
 
-    char *Filename = "foo.gmin";
+    // writing on the c: drive because it is an ssd
+    // and these files are huge (~1gb)
+    char *Filename = "c:/Etc/foo.gmin";
     Win32State->RecordingHandle = CreateFileA (
         Filename,
         GENERIC_WRITE, 0, NULL,
@@ -557,7 +559,9 @@ internal void Win32BeginInputPlayback(win32_state *Win32State, int32  InputPlayb
 {
     Win32State->InputPlaybackIndex = InputPlaybackIndex;
 
-    char *Filename = "foo.gmin";
+    // writing on the c: drive because it is an ssd
+    // and these files are huge (~1gb)
+    char *Filename = "c:/Etc/foo.gmin";
     Win32State->PlaybackHandle = CreateFileA (
         Filename,
         GENERIC_READ, FILE_SHARE_READ,
