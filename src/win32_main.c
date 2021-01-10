@@ -1057,10 +1057,9 @@ int CALLBACK WinMain (
 
                 ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->Filename, GENERIC_READ | GENERIC_WRITE,
                                                        0, NULL, CREATE_ALWAYS, 0, NULL);
-                DWORD MaxSizeHigh = Win32State.TotalSize >> 32;
-                DWORD MaxSizeLow = Win32State.TotalSize & 0xFFFFFFFF;
+                LARGE_INTEGER MaxSize = Win32State.TotalSize;
                 ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, NULL, PAGE_READWRITE,
-                                                            MaxSizeHigh, MaxSizeLow, NULL);
+                                                            MaxSize.HighPart, MaxSize.LowPart, NULL);
                 ReplayBuffer->MemoryBlock =
                     MapViewOfFile(ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS,
                                   0, 0, (size_t)Win32State.TotalSize);
