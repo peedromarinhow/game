@@ -740,15 +740,21 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
                     {
                         if (IsDown)
                         {
-                            OutputDebugStringA("recording\n");
-                            if (State->InputRecordingIndex == 0)
+                            if (State->InputPlaybackIndex == 0)
                             {
-                                Win32BeginRecordingInput(State, 1);
+                                if (State->InputRecordingIndex == 0)
+                                {
+                                    Win32BeginRecordingInput(State, 1);
+                                }
+                                else
+                                {
+                                    Win32EndRecordingInput(State);
+                                    Win32BeginInputPlayback(State, 1);
+                                }
                             }
                             else
                             {
-                                Win32EndRecordingInput(State);
-                                Win32BeginInputPlayback(State, 1);
+                                Win32EndInputPlayback(State);
                             }
                         }
                     }
@@ -806,6 +812,7 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
     return Result;
 }
 
+#if 0
 internal void Win32DrawVertical (
     win32_offscreen_buffer *BackBuffer,
     int32  X,
@@ -908,6 +915,8 @@ internal void DEBUGWin32SyncDisplay (
         Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipWriteCursor, WriteColor);
     }
 }
+
+#endif
 
 int CALLBACK WinMain (
   HINSTANCE Instance,
@@ -1037,6 +1046,11 @@ int CALLBACK WinMain (
                  ReplayIndex++)
             
             {
+                // todo
+                //  recording still takes a while on startup,
+                //  find out what windows is doing that takes
+                //  that long and if it is possible to defer
+                //  or speed it up
                 win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
                 Win32GetInputFileLocation(&Win32State, false, ReplayIndex,
                                           sizeof(ReplayBuffer->Filename), ReplayBuffer->Filename);
@@ -1327,6 +1341,7 @@ int CALLBACK WinMain (
                             AudioLatencyBytes = UnwrappedWriteCursor - PlayCursor;
                             AudioLatencySeconds = ((real32)AudioLatencyBytes / (real32)SoundOutput.BytesPerSample) / (real32)SoundOutput.SamplesPerSecond;
 
+#if 0
                             char TextBuffer[256];
                             sprintf_s (
                                 TextBuffer, sizeof(TextBuffer),
@@ -1334,6 +1349,8 @@ int CALLBACK WinMain (
                                 ByteToLock, TargetCursor, BytesToWrite, PlayCursor, WriteCursor, AudioLatencyBytes, AudioLatencySeconds
                             );
                             OutputDebugStringA(TextBuffer);
+#endif
+
 #endif
                             Win32FillSoundBuffer(&SoundBuffer, &SoundOutput, ByteToLock, BytesToWrite);
                         }
@@ -1389,10 +1406,7 @@ int CALLBACK WinMain (
 
                         win32_window_dimensions Dimension = Win32GetWindowDimensions(Window);
 
-#if BUILD_INTERNAL
-                        DEBUGWin32SyncDisplay(&GlobalBackBuffer, ArrayCount(DEBUGTimeMarkers), DEBUGTimeMarkers, DEBUGTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
-#endif
-
+                        // Win32SyncDisplay was here
                         
                         HDC DeviceContext = GetDC(Window);
                         Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext/*, Dimension.Width, Dimension.Height*/);
@@ -1417,6 +1431,7 @@ int CALLBACK WinMain (
                         NewInput = OldInput;
                         OldInput = Temp;
 
+#if 0
                         uint64 EndCycleCount = __rdtsc();
                         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;  
                         LastCycleCount = EndCycleCount;
@@ -1427,6 +1442,7 @@ int CALLBACK WinMain (
                         char FPSBuffer[256];
                         sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f ms/f\t\t%f f/s\t\t%f Mc/f\n", MSPerFrame, FramesPerSecond, MCyclesPerFrame);
                         OutputDebugStringA(FPSBuffer);
+#endif
 
 #if BUILD_INTERNAL
                         ++DEBUGTimeMarkerIndex;
