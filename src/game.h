@@ -139,7 +139,7 @@ typedef struct _game_controller_input
 
 typedef struct _game_input
 {
-    game_button_state MouseButtons[3];
+    game_button_state MouseButtons[5];
     int32 MouseX;
     int32 MouseY;
     int32 MouseZ;

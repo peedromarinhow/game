@@ -1,6 +1,12 @@
 /*
  *  observations:
- *      I - for some reason it draws the video buffer upside-down
+ *      I   - for some reason it draws the video buffer upside-down,
+ *            solving by setting Buffer->Info.bmiHeader.biHeight = -Height
+ *      II  - the sine wave output frequency seems to be one octave
+ *            down from casey's (half the frequency)
+ *      III - casey dumps the whole win32_state::GameMemoryBlock to ram
+ *            instead of to disk in https://youtu.be/es-Bou2dIdY?t=2000
+ *            this computer cannot handle that, so skipping this
  */
 
 #include "game.h"
@@ -560,9 +566,11 @@ internal void Win32FillSoundBuffer (
 
 internal void Win32ProcessKeyboardMessage(game_button_state *NewState, bool32 IsDown)
 {
-    Assert(NewState->EndedDown != IsDown);
-    NewState->EndedDown = IsDown;
-    ++NewState->HalfTransitionCount;
+    if (NewState->EndedDown != IsDown)
+    {
+        NewState->EndedDown = IsDown;
+        ++NewState->HalfTransitionCount;
+    }
 }
 
 internal void Win32ProcessXInputDigitalButton (
@@ -1025,13 +1033,37 @@ int CALLBACK WinMain (
             //  use MEM_LARGE_PAGES and call AdjustTokenPrivileges when
             //  not in windows XP?
             Win32State.TotalGameMemorySize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-            Win32State.GameMemoryBlock = VirtualAlloc (
-                BaseAddress, (size_t)Win32State.TotalGameMemorySize,
-                MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
-                PAGE_READWRITE
-            );
+            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalGameMemorySize,
+                                                      MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
+                                                      PAGE_READWRITE);
             GameMemory.PermanentStorageBytes = Win32State.GameMemoryBlock;
             GameMemory.TransientStorageBytes = (uint8 *)GameMemory.PermanentStorageBytes + GameMemory.PermanentStorageSize;
+
+            // note
+            //  this doesn't work on ths computer because of only
+            //  8gb of ram
+
+#if 0
+            for (int32 ReplayIndex = 0;
+                 ReplayIndex < ArrayCount(Win32State.ReplayBuffers);
+                 ReplayIndex++)
+            
+            {
+                win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
+                ReplayBuffer->MemoryBlock = VirtualAlloc(0, (size_t)Win32State.TotalGameMemorySize,
+                                                         MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
+                                                         PAGE_READWRITE);
+                if (ReplayBuffer->MemoryBlock)
+                {
+                    // 
+                }
+                else
+                {
+                    // todo
+                    //  diagostic
+                }
+            }
+#endif
 
             if (Samples && GameMemory.PermanentStorageBytes)
             {
@@ -1084,9 +1116,19 @@ int CALLBACK WinMain (
                         NewInput->MouseX = MousePoint.x;
                         NewInput->MouseY = MousePoint.y;
                         NewInput->MouseZ = 0;
-                        // NewInput->MouseButtons[0] = ;
-                        // NewInput->MouseButtons[1] = ;
-                        // NewInput->MouseButtons[2] = ;
+                        // note
+                        //  doing these here for now, do them with the messages in
+                        //  Win32ProcessKeyboardMessage and support mouse wheel
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0],
+                                                    GetKeyState(VK_LBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1],
+                                                    GetKeyState(VK_MBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2],
+                                                    GetKeyState(VK_RBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3],
+                                                    GetKeyState(VK_XBUTTON1) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[4],
+                                                    GetKeyState(VK_XBUTTON1) & (1 << 15));
 
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
                         if (MaxControllerCount > (ArrayCount(NewInput->Controllers) - 1))

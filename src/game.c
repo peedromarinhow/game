@@ -134,9 +134,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         State->JumpT -= 0.033f/2.0f;
     }
+
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
     RenderPlayer(VideoBuffer, State->PlayerX, State->PlayerY);
+
     RenderPlayer(VideoBuffer, Input->MouseX, Input->MouseY);
+
+    for (int32 ButtonIndex = 0;
+         ButtonIndex < ArrayCount(Input->MouseButtons);
+         ButtonIndex++)
+    {
+        if (Input->MouseButtons[ButtonIndex].EndedDown)
+        {
+            RenderPlayer(VideoBuffer, 10 + 20 * ButtonIndex, 10);
+        }
+    }
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
