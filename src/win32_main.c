@@ -596,45 +596,34 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     }
     return Result;
 }
-/*
+//
 internal void Win32GetInputFileLocation(win32_state *State, int32 SlotIndex, int32 DestCount, char *Dest)
-{
-    // note
-    //  casey did this by saving the file on the same drive as the game
-    //  i'm going to save on c: for better speed, because the file is
-    //  huge (~1gb)
-
-    // Assert(SlotIndex == 1);
-    ...
-    Dest = "c:/Etc/foo.gmin";
+{   
+    char Temp[64];
+    wsprintf(Temp, "looped_edit_%d.gmi", SlotIndex);
+    Win32BuildEXEPathFilename(State, Temp, DestCount, Dest);
 }
-*/
 
-internal void Win32BeginRecordingInput(win32_state *State, int32  InputRecordingIndex)
+internal win32_replay_buffer *Win32GetReplayBuffer(win32_state *State, int unsigned Index)
 {
-    State->InputRecordingIndex = InputRecordingIndex;
+    Assert(Index < ArrayCount(State->ReplayBuffers));
+    win32_replay_buffer *Result = &State->ReplayBuffers[Index];
+    return Result;
+}
 
-    // note:
-    //  writing on the c: drive because it is an ssd
-    //  and these files are huge (~1gb), also cannot
-    //  currently write more than one slot
-    char *Filename = "c:/Etc/foo.gmin";
+internal void Win32BeginRecordingInput(win32_state *State, int32 InputRecordingIndex)
+{
+    win32_replay_buffer *Buffer = Win32GetReplayBuffer(State, InputRecordingIndex);
+    if (Buffer->MemoryBlock)
+    {
+        State->InputRecordingIndex = InputRecordingIndex;
+        State->RecordingHandle = Buffer->FileHandle;
 
-    State->RecordingHandle = CreateFileA (
-        Filename,
-        GENERIC_WRITE, 0, NULL,
-        CREATE_ALWAYS, 0, NULL
-    );
-    
-    DWORD BytesToWrite = (DWORD)State->TotalGameMemorySize;
-    DWORD BytesRead;
-    Assert(State->TotalGameMemorySize == BytesToWrite);
-    WriteFile (
-        State->RecordingHandle,
-        State->GameMemoryBlock,
-        BytesToWrite,
-        &BytesRead, 0
-    );
+        LARGE_INTEGER FilePosition;  
+        FilePosition.QuadPart = State->TotalSize;
+        SetFilePointerEx(State->RecordingHandle, FilePosition, 0, FILE_BEGIN);
+        CopyMemory(Buffer->MemoryBlock, State->GameMemoryBlock, (size_t)State->TotalSize);
+    }
 }
 
 internal void Win32EndRecordingInput(win32_state *State)
@@ -645,29 +634,17 @@ internal void Win32EndRecordingInput(win32_state *State)
 
 internal void Win32BeginInputPlayback(win32_state *State, int32  InputPlaybackIndex)
 {
-    State->InputPlaybackIndex = InputPlaybackIndex;
+    win32_replay_buffer *Buffer = Win32GetReplayBuffer(State, InputPlaybackIndex);
+    if (Buffer->MemoryBlock)
+    {
+        State->InputPlaybackIndex = InputPlaybackIndex;
+        State->PlaybackHandle = Buffer->FileHandle;
 
-    // note:
-    //  writing on the c: drive because it is an ssd
-    //  and these files are huge (~1gb), also cannot
-    //  currently write more than one slot
-    char *Filename = "c:/Etc/foo.gmin";
-
-    State->PlaybackHandle = CreateFileA (
-        Filename,
-        GENERIC_READ, FILE_SHARE_READ,
-        NULL, OPEN_EXISTING, 0, NULL
-    );
-
-    DWORD BytesToRead = (DWORD)State->TotalGameMemorySize;
-    DWORD BytesRead;
-    Assert(State->TotalGameMemorySize == BytesToRead);
-    ReadFile (
-        State->PlaybackHandle,
-        State->GameMemoryBlock,
-        BytesToRead,
-        &BytesRead, 0
-    );
+        LARGE_INTEGER FilePosition;  
+        FilePosition.QuadPart = State->TotalSize;
+        SetFilePointerEx(State->PlaybackHandle, FilePosition, 0, FILE_BEGIN);
+        CopyMemory(State->GameMemoryBlock, Buffer->MemoryBlock, (size_t)State->TotalSize);
+    }
 }
 
 internal void Win32EndInputPlayback(win32_state *State)
@@ -1023,7 +1000,9 @@ int CALLBACK WinMain (
 
             game_memory GameMemory = {};
             GameMemory.PermanentStorageSize = Megabytes((uint64)64);
-            GameMemory.TransientStorageSize = Gigabytes((uint64)1);
+            GameMemory.TransientStorageSize = Megabytes((uint64)250);
+            // note
+            //  reduced from 1gb to 250mb, may cause problems later
             GameMemory.DEBUGPlatformFreeEntireFile  = DEBUGPlatformFreeEntireFile;
             GameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
             GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
@@ -1032,27 +1011,35 @@ int CALLBACK WinMain (
             //  handle various memory footprints using system metrics;
             //  use MEM_LARGE_PAGES and call AdjustTokenPrivileges when
             //  not in windows XP?
-            Win32State.TotalGameMemorySize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalGameMemorySize,
+            Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,
                                                       MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
                                                       PAGE_READWRITE);
             GameMemory.PermanentStorageBytes = Win32State.GameMemoryBlock;
             GameMemory.TransientStorageBytes = (uint8 *)GameMemory.PermanentStorageBytes + GameMemory.PermanentStorageSize;
 
             // note
-            //  this doesn't work on ths computer because of only
+            //  this might not work on ths computer because of only
             //  8gb of ram
 
-#if 0
             for (int32 ReplayIndex = 0;
                  ReplayIndex < ArrayCount(Win32State.ReplayBuffers);
                  ReplayIndex++)
             
             {
                 win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
-                ReplayBuffer->MemoryBlock = VirtualAlloc(0, (size_t)Win32State.TotalGameMemorySize,
-                                                         MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
-                                                         PAGE_READWRITE);
+                Win32GetInputFileLocation(&Win32State, ReplayIndex,
+                                          sizeof(ReplayBuffer->Filename), ReplayBuffer->Filename);
+
+                ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->Filename, GENERIC_READ | GENERIC_WRITE,
+                                                       0, NULL, CREATE_ALWAYS, 0, NULL);
+                DWORD MaxSizeHigh = Win32State.TotalSize >> 32;
+                DWORD MaxSizeLow = Win32State.TotalSize & 0xFFFFFFFF;
+                ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, NULL, PAGE_READWRITE,
+                                                            MaxSizeHigh, MaxSizeLow, NULL);
+                ReplayBuffer->MemoryBlock =
+                    MapViewOfFile(ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS,
+                                  0, 0, (size_t)Win32State.TotalSize);
                 if (ReplayBuffer->MemoryBlock)
                 {
                     // 
@@ -1060,10 +1047,9 @@ int CALLBACK WinMain (
                 else
                 {
                     // todo
-                    //  diagostic
+                    //  diagostic and support for low memory systems
                 }
             }
-#endif
 
             if (Samples && GameMemory.PermanentStorageBytes)
             {

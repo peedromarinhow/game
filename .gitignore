@@ -2,6 +2,3 @@
 build/
 *.gmin
 *.out
-*.cpp
-*.h
-*.lua
