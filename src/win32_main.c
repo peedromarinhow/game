@@ -1,3 +1,8 @@
+/*
+ *  observations:
+ *      I - for some reason it draws the video buffer upside-down
+ */
+
 #include "game.h"
 
 #include <windows.h>
@@ -126,7 +131,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
                 {
                     //todo
                     //  logging
-                    DEBUGPlatformFreeEntireFile(Res.Contents);
+                    DEBUGPlatformFreeEntireFile(Thread, Res.Contents);
                     Res.Contents = 0;
                 }
             }
@@ -186,10 +191,11 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
     return Result;
 }
 
-inline FILETIME GetLastFileWriteTime(char *FileName)
+inline FILETIME GetLastFileWriteTime(char *Filename)
 {
     FILETIME Result = {};
 
+#if 0
     WIN32_FIND_DATA FindData;
     HANDLE FindHandle = FindFirstFileA(FileName, &FindData);
     if (FindHandle != INVALID_HANDLE_VALUE)
@@ -197,6 +203,13 @@ inline FILETIME GetLastFileWriteTime(char *FileName)
         Result = FindData.ftLastWriteTime;
         FindClose(FindHandle);
     }
+#else
+    WIN32_FILE_ATTRIBUTE_DATA Data;
+    if(GetFileAttributesEx(Filename, GetFileExInfoStandard, &Data))
+    {
+        Result = Data.ftLastWriteTime;
+    }
+#endif
 
     return Result;
 }
@@ -228,8 +241,8 @@ internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLNam
 
     if (!Result.IsValid)
     {
-        Result.UpdateAndRender = GameUpdateAndRenderStub;
-        Result.GetSoundSamples = GameGetSoundSamplesStub;
+        Result.UpdateAndRender = 0;
+        Result.GetSoundSamples = 0;
     }
 
     return Result;
@@ -244,8 +257,8 @@ void Win32UnloadGameCode(win32_game_code *GameCode)
     }
 
     GameCode->IsValid = false;
-    GameCode->UpdateAndRender = GameUpdateAndRenderStub;
-    GameCode->GetSoundSamples = GameGetSoundSamplesStub;
+    GameCode->UpdateAndRender = 0;
+    GameCode->GetSoundSamples = 0;
 }
 
 internal void Win32LoadXInput(void)
@@ -372,9 +385,9 @@ internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
 
 internal void Win32DisplayBuffer (
     win32_offscreen_buffer *Buffer,
-    HDC   DeviceContext,
-    int32 WindowWidth,
-    int32 WindowHeight
+    HDC   DeviceContext //,
+    // int32 WindowWidth,
+    // int32 WindowHeight
 )
 {
     //todo
@@ -406,7 +419,7 @@ internal void Win32ResizeDIBSection (
 
     Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
     Buffer->Info.bmiHeader.biWidth = Width;
-    Buffer->Info.bmiHeader.biHeight = Height;
+    Buffer->Info.bmiHeader.biHeight = -Height; // negative because of bug, see observation I
     Buffer->Info.bmiHeader.biPlanes = 1;
     Buffer->Info.bmiHeader.biBitCount = 32;
     Buffer->Info.bmiHeader.biCompression = BI_RGB;
@@ -422,7 +435,7 @@ internal void Win32ResizeDIBSection (
     //  clear to black
 }
 
-internal LRESULT CALLBACK win32MainWindowCallback (
+internal LRESULT CALLBACK Win32MainWindowCallback (
     HWND Window,
     UINT Message,
     WPARAM WParam,
@@ -436,6 +449,7 @@ internal LRESULT CALLBACK win32MainWindowCallback (
         case WM_SIZE: {
         } break;
         case WM_ACTIVATEAPP: {
+#if 0
             if (WParam == TRUE)
             {
                 SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
@@ -444,6 +458,7 @@ internal LRESULT CALLBACK win32MainWindowCallback (
             {
                 SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
             }
+#endif
         } break;
         case WM_CLOSE: {
             GlobalRunning = false;
@@ -464,7 +479,7 @@ internal LRESULT CALLBACK win32MainWindowCallback (
             PAINTSTRUCT Paint;
             HDC DeviceContext = BeginPaint(Window, &Paint);
             win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
-            Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
+            Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext/*, Dimensions.Width, Dimensions.Height*/);
             EndPaint(Window, &Paint);
         } break;
         default: {
@@ -936,20 +951,15 @@ int CALLBACK WinMain (
     Win32ResizeDIBSection(&GlobalBackBuffer, 1080, 600);
 
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
-    WindowClass.lpfnWndProc   = win32MainWindowCallback;
+    WindowClass.lpfnWndProc   = Win32MainWindowCallback;
     WindowClass.hInstance     = Instance;
     WindowClass.lpszClassName = "game";
-
-#define MonitorRefreshFrequency 60
-#define GameRefreshFrequency (MonitorRefreshFrequency/2)
-
-    real32 TargetSecondsPerFrame = 1.0f / (real32)GameRefreshFrequency;
 
     if (RegisterClassA(&WindowClass))
     {
         HWND Window =
             CreateWindowExA (
-                WS_EX_TOPMOST|WS_EX_LAYERED,
+                0, // WS_EX_TOPMOST | WS_EX_LAYERED,
                 WindowClass.lpszClassName,
                 "game",
                 WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -965,17 +975,29 @@ int CALLBACK WinMain (
 
         if (Window)
         {
+            HDC RefreshDC = GetDC(Window);
             win32_sound_output SoundOutput = {};
+            ReleaseDC(Window, RefreshDC);
+            int32 MonitorRefreshFrequency = 60;
+            int32 Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
+            if (Win32RefreshRate > 1)
+            {
+                MonitorRefreshFrequency = GetDeviceCaps(RefreshDC, VREFRESH);
+                // how reliable? don't know
+            }
+            real32 GameRefreshFrequency = MonitorRefreshFrequency / 2.0f;
+            real32 TargetSecondsPerFrame = 1.0f / GameRefreshFrequency;
+            
             SoundOutput.SamplesPerSecond = 48000;
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
             SoundOutput.RunningSampleIndex = 0;
             SoundOutput.SecondaryBufferSize = SoundOutput.BytesPerSample * SoundOutput.SamplesPerSecond;
             //todo
-            //  get riod of FramesOfAudioLatency
-            SoundOutput.LatencySampleCount = 3 * (SoundOutput.SamplesPerSecond / GameRefreshFrequency);
-            //todo
-            //  actuallt compute tis variance and figure out lowest reasonable value is
-            SoundOutput.SafetyBytes = ((SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample) / GameRefreshFrequency) / 3;
+            //  actually compute tis variance and figure out lowest reasonable value is
+            SoundOutput.SafetyBytes =
+                (int32)(((real32)SoundOutput.SamplesPerSecond *
+                         (real32)SoundOutput.BytesPerSample /
+                          GameRefreshFrequency) / 3.0f);
             Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
             Win32ClearSoundBuffer(&SoundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
@@ -998,8 +1020,16 @@ int CALLBACK WinMain (
             GameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
             GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 
+            // todo
+            //  handle various memory footprints using system metrics;
+            //  use MEM_LARGE_PAGES and call AdjustTokenPrivileges when
+            //  not in windows XP?
             Win32State.TotalGameMemorySize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalGameMemorySize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            Win32State.GameMemoryBlock = VirtualAlloc (
+                BaseAddress, (size_t)Win32State.TotalGameMemorySize,
+                MEM_RESERVE | MEM_COMMIT, // MEM_LARGE_PAGES?
+                PAGE_READWRITE
+            );
             GameMemory.PermanentStorageBytes = Win32State.GameMemoryBlock;
             GameMemory.TransientStorageBytes = (uint8 *)GameMemory.PermanentStorageBytes + GameMemory.PermanentStorageSize;
 
@@ -1014,7 +1044,7 @@ int CALLBACK WinMain (
                 LARGE_INTEGER FlipWallClock = Win32GetWallClockTime();
 
                 int32 DEBUGTimeMarkerIndex = 0;
-                DEBUG_win32_time_marker DEBUGTimeMarkers[GameRefreshFrequency / 2] =  {};
+                DEBUG_win32_time_marker DEBUGTimeMarkers[30] =  {};
                 
                 DWORD AudioLatencyBytes = 0;
                 real32 AudioLatencySeconds = 0.0f;
@@ -1048,6 +1078,15 @@ int CALLBACK WinMain (
 
                     if (!GlobalPause)
                     {
+                        POINT MousePoint;
+                        GetCursorPos(&MousePoint);
+                        ScreenToClient(Window, &MousePoint);
+                        NewInput->MouseX = MousePoint.x;
+                        NewInput->MouseY = MousePoint.y;
+                        NewInput->MouseZ = 0;
+                        // NewInput->MouseButtons[0] = ;
+                        // NewInput->MouseButtons[1] = ;
+                        // NewInput->MouseButtons[2] = ;
 
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
                         if (MaxControllerCount > (ArrayCount(NewInput->Controllers) - 1))
@@ -1126,6 +1165,8 @@ int CALLBACK WinMain (
                             }
                         }
 
+                        thread_context Thread;
+
                         game_video_buffer VideoBuffer = {};
                         VideoBuffer.Memory = GlobalBackBuffer.Memory;
                         VideoBuffer.Width  = GlobalBackBuffer.Width;
@@ -1142,8 +1183,11 @@ int CALLBACK WinMain (
                         {
                             Win32PlaybackInput(&Win32State, NewInput);
                         }
-    
-                        Game.UpdateAndRender(&GameMemory, NewInput, &VideoBuffer);
+
+                        if (Game.UpdateAndRender)
+                        {
+                            Game.UpdateAndRender(&Thread, &GameMemory, NewInput, &VideoBuffer);
+                        }
 
                         LARGE_INTEGER AudioWallClock = Win32GetWallClockTime();
                         real32 FromBeginToAudioSeconds = Win32GetSecondsElapsed(FlipWallClock, AudioWallClock);
@@ -1182,7 +1226,8 @@ int CALLBACK WinMain (
                             
                             DWORD ByteToLock = (SoundOutput.RunningSampleIndex * SoundOutput.BytesPerSample) % SoundOutput.SecondaryBufferSize;
 
-                            DWORD ExpectedSoundBytesPerFrame = (SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample) / GameRefreshFrequency;
+                            DWORD ExpectedSoundBytesPerFrame =
+                                (int32)((real32)(SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample) / GameRefreshFrequency);
                             real32 SecondsLeftUntilFlip = TargetSecondsPerFrame - FromBeginToAudioSeconds;
                             DWORD ExpectedBytesUntilFlip = (DWORD)((SecondsLeftUntilFlip / TargetSecondsPerFrame) * (real32)ExpectedSoundBytesPerFrame);
 
@@ -1223,7 +1268,11 @@ int CALLBACK WinMain (
                             SoundBuffer.SamplesPerSecond = SoundOutput.SamplesPerSecond;
                             SoundBuffer.SampleCount = BytesToWrite / SoundOutput.BytesPerSample;
                             SoundBuffer.Samples = Samples;
-                            Game.GetSoundSamples(&GameMemory, &SoundBuffer);
+
+                            if (Game.GetSoundSamples)
+                            {
+                                Game.GetSoundSamples(&Thread, &GameMemory, &SoundBuffer);
+                            }
 #if BUILD_INTERNAL  
                             DEBUG_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
                             Marker->OutputPlayCursor = PlayCursor;
@@ -1308,7 +1357,7 @@ int CALLBACK WinMain (
 
                         
                         HDC DeviceContext = GetDC(Window);
-                        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+                        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext/*, Dimension.Width, Dimension.Height*/);
                         ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClockTime();

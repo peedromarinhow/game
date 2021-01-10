@@ -54,6 +54,11 @@ inline uint32 SafeTruncateUInt64(uint64 Value)
     return Result;
 }
 
+typedef struct _thread_context
+{
+    int PlaceHolder;
+} thread_context;
+
 #if BUILD_INTERNAL
 
 typedef struct DEBUG_read_file_result
@@ -64,13 +69,13 @@ typedef struct DEBUG_read_file_result
 
 // pass these as pointers on game_memory
 //  and make a snippet for these function pointer macros
-#define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) void name(void *Memory)
+#define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) void name(thread_context *Thread, void *Memory)
 typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUG_platform_free_entire_file);
 
-#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) DEBUG_read_file_result name(char *Filename)
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) DEBUG_read_file_result name(thread_context *Thread, char *Filename)
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUG_platform_read_entire_file);
 
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char *Filename, uint64 Size, void *Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(thread_context *Thread, char *Filename, uint64 Size, void *Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUG_platform_write_entire_file);
 
 #endif
@@ -134,6 +139,11 @@ typedef struct _game_controller_input
 
 typedef struct _game_input
 {
+    game_button_state MouseButtons[3];
+    int32 MouseX;
+    int32 MouseY;
+    int32 MouseZ;
+
     game_controller_input Controllers[5];
 } game_input;
 
@@ -159,17 +169,13 @@ typedef struct _game_memory
 
 } game_memory;
 
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
+#define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory *Memory, game_input *Input, game_video_buffer *VideoBuffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
-GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
-{}
 
 //note
 //  at the moment, this funcion should be very fast, < 1ms or so
-#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_buffer *SoundBuffer)
+#define GAME_GET_SOUND_SAMPLES(name) void name(thread_context *Thread, game_memory *Memory, game_sound_buffer *SoundBuffer)
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
-GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
-{}
 
 typedef struct _game_state
 {

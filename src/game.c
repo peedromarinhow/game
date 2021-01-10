@@ -37,7 +37,7 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
             // 0xXXRRGGBB
             uint8 Blue = (uint8)(X + BlueOffset);
             uint8 Green = (uint8)(Y + GreenOffset);
-            *Pixel++ = ((Green << 16) | Blue );
+            *Pixel++ = ((Green << 8) | Blue );
         }
         Row += Buffer->Pitch;
     }
@@ -46,9 +46,9 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
 void RenderPlayer(game_video_buffer *Buffer, int32 PlayerX, int32 PlayerY)
 {
     uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch * Buffer->Height;
-    int32 PlayerWidth = 50;
-    int32 PlayerHeight = 50;
-    uint32 Color = 0xFFFFFFFF;
+    int32 PlayerWidth = 10;
+    int32 PlayerHeight = 10;
+    uint32 Color = 0xFFFF00FF;
     int32 Top = PlayerY;
     int32 Bottom = Top + PlayerHeight;
     for (int32 X = PlayerX; X < PlayerX + PlayerWidth; X++)
@@ -74,11 +74,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized)
     {
         char *Filename = __FILE__;
-        DEBUG_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Filename);
+        DEBUG_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Thread, Filename);
         if (File.Contents)
         {
-            Memory->DEBUGPlatformWriteEntireFile("D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
-            Memory->DEBUGPlatformFreeEntireFile(File.Contents);
+            Memory->DEBUGPlatformWriteEntireFile(Thread, "D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
+            Memory->DEBUGPlatformFreeEntireFile(Thread, File.Contents);
         }
 
         State->ToneFrequency = 261;
@@ -117,11 +117,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
             if (Controller->MoveUp.EndedDown)
             {
-                State->PlayerY += Increment;
+                State->PlayerY -= Increment;
             }
             if (Controller->MoveDown.EndedDown)
             {
-                State->PlayerY -= Increment;
+                State->PlayerY += Increment;
             }
         }
         if (State->JumpT > 0)
@@ -136,6 +136,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
     RenderPlayer(VideoBuffer, State->PlayerX, State->PlayerY);
+    RenderPlayer(VideoBuffer, Input->MouseX, Input->MouseY);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
