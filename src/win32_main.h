@@ -39,7 +39,7 @@ typedef struct _DEBUG_win32_time_marker
     DWORD ExpectedFlipPlayCursor;
     DWORD FlipPlayCursor;
     DWORD FlipWriteCursor;
-} DEBUG_win32_time_marker
+} DEBUG_win32_time_marker;
 
 typedef struct _win32_game_code
 {

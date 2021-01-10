@@ -597,10 +597,10 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshol
     return Result;
 }
 //
-internal void Win32GetInputFileLocation(win32_state *State, int32 SlotIndex, int32 DestCount, char *Dest)
+internal void Win32GetInputFileLocation(win32_state *State, bool32 InputStream,     int32 SlotIndex, int32 DestCount, char *Dest)
 {   
     char Temp[64];
-    wsprintf(Temp, "looped_edit_%d.gmi", SlotIndex);
+    wsprintf(Temp, "looped_edit_%d_%s.gmi", SlotIndex, InputStream? "input" : "state");
     Win32BuildEXEPathFilename(State, Temp, DestCount, Dest);
 }
 
@@ -617,11 +617,16 @@ internal void Win32BeginRecordingInput(win32_state *State, int32 InputRecordingI
     if (Buffer->MemoryBlock)
     {
         State->InputRecordingIndex = InputRecordingIndex;
-        State->RecordingHandle = Buffer->FileHandle;
+        char Filename[WIN32_STATE_FILENAME_COUNT];
+        Win32GetInputFileLocation(State, true, InputRecordingIndex, sizeof(Filename), Filename);
+        State->RecordingHandle = CreateFileA(Filename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
 
+#if 0
         LARGE_INTEGER FilePosition;  
         FilePosition.QuadPart = State->TotalSize;
         SetFilePointerEx(State->RecordingHandle, FilePosition, 0, FILE_BEGIN);
+#endif
+
         CopyMemory(Buffer->MemoryBlock, State->GameMemoryBlock, (size_t)State->TotalSize);
     }
 }
@@ -638,11 +643,16 @@ internal void Win32BeginInputPlayback(win32_state *State, int32  InputPlaybackIn
     if (Buffer->MemoryBlock)
     {
         State->InputPlaybackIndex = InputPlaybackIndex;
-        State->PlaybackHandle = Buffer->FileHandle;
+        char Filename[WIN32_STATE_FILENAME_COUNT];
+        Win32GetInputFileLocation(State, true, InputPlaybackIndex, sizeof(Filename), Filename);
+        State->PlaybackHandle = CreateFileA(Filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
 
+#if 0
         LARGE_INTEGER FilePosition;  
         FilePosition.QuadPart = State->TotalSize;
         SetFilePointerEx(State->PlaybackHandle, FilePosition, 0, FILE_BEGIN);
+#endif
+
         CopyMemory(State->GameMemoryBlock, Buffer->MemoryBlock, (size_t)State->TotalSize);
     }
 }
@@ -1028,7 +1038,7 @@ int CALLBACK WinMain (
             
             {
                 win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
-                Win32GetInputFileLocation(&Win32State, ReplayIndex,
+                Win32GetInputFileLocation(&Win32State, false, ReplayIndex,
                                           sizeof(ReplayBuffer->Filename), ReplayBuffer->Filename);
 
                 ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->Filename, GENERIC_READ | GENERIC_WRITE,
