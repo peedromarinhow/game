@@ -67,7 +67,8 @@ void RenderPlayer(game_video_buffer *Buffer, int32 PlayerX, int32 PlayerY)
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
-    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
+    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
+             ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
@@ -77,7 +78,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DEBUG_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Thread, Filename);
         if (File.Contents)
         {
-            Memory->DEBUGPlatformWriteEntireFile(Thread, "D:\\code\\game\\data\\test.out", File.ContentsSize, File.Contents);
+            Memory->DEBUGPlatformWriteEntireFile(Thread, "D:\\code\\game\\data\\test.out",
+                                                 File.ContentsSize, File.Contents);
             Memory->DEBUGPlatformFreeEntireFile(Thread, File.Contents);
         }
 
