@@ -15,6 +15,7 @@
 //  using CRT for now
 #include <stdint.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define internal         static
 #define global           static
@@ -118,6 +119,12 @@ typedef struct _game_controller_input
     bool32 IsAnalog;
     real32 StickAverageX;
     real32 StickAverageY;
+    int32 MouseX;
+    int32 MouseY;
+    int32 MouseZ;
+
+    
+    game_button_state MouseButtons[5];
 
     union
     {
@@ -150,11 +157,6 @@ game_controller_input;
 
 typedef struct _game_input
 {
-    game_button_state MouseButtons[5];
-    int32 MouseX;
-    int32 MouseY;
-    int32 MouseZ;
-
     real32 SecondsToAdvanceOverUpdate;
     game_controller_input Controllers[5];
 }

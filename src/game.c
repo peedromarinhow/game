@@ -32,15 +32,25 @@ internal int32 RoundR32toI32(real32 Real32)
     return Result;
 }
 
+internal uint32 RoundR32toUI32(real32 Real32)
+{
+    uint32 Result = (uint32)(Real32 + 0.5f);
+    return Result;
+}
+
 void DrawRectangle(game_video_buffer *Buffer, 
                    real32 RealMinX, real32 RealMinY,
                    real32 RealMaxX, real32 RealMaxY,
-                   uint32 Color)
+                   real32 R, real32 G, real32 B)
 {
     int32 MinX = RoundR32toI32(RealMinX);
     int32 MinY = RoundR32toI32(RealMinY);
     int32 MaxX = RoundR32toI32(RealMaxX);
     int32 MaxY = RoundR32toI32(RealMaxY);
+
+    uint32 Color = (RoundR32toUI32(R * 255.0f) << 16) |
+                   (RoundR32toUI32(G * 255.0f) << 8)  |
+                   (RoundR32toUI32(B * 255.0f) << 0);
 
     if (MinX < 0)
         MinX = 0;
@@ -93,8 +103,57 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0xFFFAFAFA);
-    DrawRectangle(VideoBuffer, 0.0f, 0.0f, 80.0f, 80.0f, 0xFF88AACC);
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 1.0f, 1.0f, 1.0f);
+    
+    int32 Width =  16;
+    int32 Height = 16;
+    real32 UpperLeftX = 10.0f;
+    real32 UpperLeftY = 10.0f;
+    real32 TileWidth  = 25.0f;
+    real32 TileHeight = 25.0f;
+    // this is not supposed to happen, ever
+    static int32 TileMap[16][16] = {
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
+        {64, 64, 64, 64, 64, 64, 64, 64,  64, 64, 64, 64,  64, 64, 64, 64},
+    };
+    for (int32 Row = 0; Row < Height; Row++)
+    {
+        for (int32 Column = 0; Column < Width; Column++)
+        {
+            int32 Tile = TileMap[Row][Column];
+            int32 Decay = 0;
+            if (Row + 1 < Height)
+            {
+                int32 Below = TileMap[Row + 1][Column];
+                Decay = rand() % 16;
+                Tile = Below - Decay >= 0? Below - Decay : 0;
+            }
+            TileMap[Row][Column - Decay >= 0? Column - Decay : Column] = Tile;
+
+            real32 Red = ((real32)Tile - 0.1f)/64.0f;
+
+            real32 MinX = UpperLeftX + ((real32)Column) * TileWidth;
+            real32 MinY = UpperLeftX + ((real32)Row) * TileHeight;
+            real32 MaxX = MinX + TileWidth;
+            real32 MaxY = MinY + TileHeight;
+
+            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Red, 0.0f, 0.0f);
+        }
+    }
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)

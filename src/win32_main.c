@@ -14,7 +14,8 @@
  *      I   - rename types to smaller abbreviations, ie:
  *              int32  -> i32
  *              real32 -> r32
- *      II  - process mouse messages together with the rest of the input
+ *      // II  - process mouse messages together with the rest of the input
+ *      III - maybe separate all these functions to different files
  * 
  *            
  *  this whole thing seems wicked
@@ -813,6 +814,18 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
         break;
         }
     }
+
+    // for some reason these messages don't seem go get caught above 
+    Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[0],
+                                 GetKeyState(VK_LBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[1],
+                                 GetKeyState(VK_MBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[2],
+                                 GetKeyState(VK_RBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[3],
+                                 GetKeyState(VK_XBUTTON1) & (1 << 15));
+    Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[4],
+                                 GetKeyState(VK_XBUTTON1) & (1 << 15));
 }
 
 
@@ -1127,22 +1140,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         POINT MousePoint;
                         GetCursorPos(&MousePoint);
                         ScreenToClient(Window, &MousePoint);
-                        NewInput->MouseX = MousePoint.x;
-                        NewInput->MouseY = MousePoint.y;
-                        NewInput->MouseZ = 0;
+                        NewKeyboardController->MouseX = MousePoint.x;
+                        NewKeyboardController->MouseY = MousePoint.y;
+                        NewKeyboardController->MouseZ = 0;
                         // note
-                        //  doing these here for now, do them with the messages in
-                        //  Win32ProcessKeyboardMessage and support mouse wheel
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0],
-                                                     GetKeyState(VK_LBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1],
-                                                     GetKeyState(VK_MBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2],
-                                                     GetKeyState(VK_RBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3],
-                                                     GetKeyState(VK_XBUTTON1) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[4],
-                                                     GetKeyState(VK_XBUTTON1) & (1 << 15));
+                        //  can I do this processing elsewhere?
+                        // todo
+                        //  support mouse wheel
 
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
                         if (MaxControllerCount > (ArrayCount(NewInput->Controllers) - 1))
