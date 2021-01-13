@@ -1,14 +1,14 @@
 #include "game.h"
 
-void OutputSineWave(game_sound_buffer *SoundBuffer, game_state *GameState)
+void OutputSineWave(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
 {
     int16 ToneVolume = 3000;
-    int32 WavePeriod = SoundBuffer->SamplesPerSecond / GameState->ToneFrequency;
+    int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneFrequency;
 
     int16* SampleOut = SoundBuffer->Samples;
     for (int32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
-#if 1
+#if 0   
         real32 SineValue = sinf(GameState->SineT);
         int16 SampleValue = (int16)(SineValue * ToneVolume);
 #else
@@ -16,15 +16,96 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, game_state *GameState)
 #endif
         *SampleOut++ = SampleValue;
         *SampleOut++ = SampleValue;
-
+#if 0
         GameState->SineT += 2.0f * PI32 / (real32)WavePeriod;
         if (GameState->SineT > (2.0f * PI32))
         {
             GameState->SineT -= 2.0f * PI32;
         }
+#endif
     }
 }
 
+internal int32 RoundR32toI32(real32 Real32)
+{
+    int32 Result = (int32)(Real32 + 0.5f);
+    return Result;
+}
+
+void DrawRectangle(game_video_buffer *Buffer, 
+                   real32 RealMinX, real32 RealMinY,
+                   real32 RealMaxX, real32 RealMaxY,
+                   uint32 Color)
+{
+    int32 MinX = RoundR32toI32(RealMinX);
+    int32 MinY = RoundR32toI32(RealMinY);
+    int32 MaxX = RoundR32toI32(RealMaxX);
+    int32 MaxY = RoundR32toI32(RealMaxY);
+
+    if (MinX < 0)
+        MinX = 0;
+
+    if (MinY < 0)
+        MinY = 0;
+
+    if (MaxX > Buffer->Width)
+        MaxX = Buffer->Width;
+
+    if (MaxY > Buffer->Height)
+        MaxY = Buffer->Height;
+
+    uint8 *Row = (uint8 *)Buffer->Memory + (MinX * Buffer->BytesPerPixel) + (MinY * Buffer->Pitch);
+    for (int32 Y = MinY; Y < MaxY; Y++)
+    {
+        uint32 *Pixel = (uint32 *)Row;
+        for (int32 X = MinX; X < MaxX; X++)
+        {
+            *Pixel++ = Color;
+        }
+        
+        Row += Buffer->Pitch;
+    }
+}
+
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+{
+    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
+             ArrayCount(Input->Controllers[0].Buttons));
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+
+    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    if (!Memory->IsInitialized)
+        Memory->IsInitialized = true;
+
+    int32 Increment = 10;
+
+    for (int32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
+    {
+        game_controller_input *Controller = GetController(Input, ControllerIndex);
+        if (Controller->IsAnalog)
+        {
+            // analog movement tuning
+            // I don't have a controller to test this
+        }
+        else
+        {
+            // digital movement tuning
+        }
+    }
+
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0xFFFAFAFA);
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, 80.0f, 80.0f, 0xFF88AACC);
+}
+
+extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
+{
+    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    OutputSineWave(SoundBuffer, 400);
+}
+
+
+
+#if 0
 void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 GreenOffset)
 {
     uint8 *Row = (uint8 *)Buffer->Memory;
@@ -42,119 +123,4 @@ void RenderWeirdGradient(game_video_buffer *Buffer, int32 BlueOffset, int32 Gree
         Row += Buffer->Pitch;
     }
 }
-
-void RenderPlayer(game_video_buffer *Buffer, int32 PlayerX, int32 PlayerY)
-{
-    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch * Buffer->Height;
-    int32 PlayerWidth = 10;
-    int32 PlayerHeight = 10;
-    uint32 Color = 0xFFFF00FF;
-    int32 Top = PlayerY;
-    int32 Bottom = Top + PlayerHeight;
-    for (int32 X = PlayerX; X < PlayerX + PlayerWidth; X++)
-    {
-        uint8 *Pixel = (uint8 *)Buffer->Memory + X*Buffer->BytesPerPixel + Top*Buffer->Pitch;
-        for (int32 Y = Top; Y < Bottom; Y++)
-        {
-            if ((Pixel >= Buffer->Memory) && ((Pixel + 4) <= EndOfBuffer))
-            {
-                *(uint32 *)Pixel = Color;
-            }
-            Pixel += Buffer->Pitch;
-        }
-    }
-}
-
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
-{
-    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
-             ArrayCount(Input->Controllers[0].Buttons));
-    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
-
-    game_state *State = (game_state *)Memory->PermanentStorageBytes;
-    if (!Memory->IsInitialized)
-    {
-        char *Filename = __FILE__;
-        DEBUG_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Thread, Filename);
-        if (File.Contents)
-        {
-            Memory->DEBUGPlatformWriteEntireFile(Thread, "D:\\code\\game\\data\\test.out",
-                                                 File.ContentsSize, File.Contents);
-            Memory->DEBUGPlatformFreeEntireFile(Thread, File.Contents);
-        }
-
-        State->ToneFrequency = 261;
-        State->SineT = 0.0f;
-
-        State->PlayerX = 100;
-        State->PlayerY = 100;
-
-        Memory->IsInitialized = true;
-    }
-
-    int32 Increment = 10;
-
-    for (int32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
-    {
-        game_controller_input *Controller = GetController(Input, ControllerIndex);
-        if (Controller->IsAnalog)
-        {
-            // analog movement tuning
-            // I don't have a controller to test this
-            State->ToneFrequency = 256 + (int32)(128.0f * Controller->StickAverageX);
-            State->BlueOffset += (int32)(4.0f * Controller->StickAverageY);
-
-            State->PlayerX += (int32)(4.0f * Controller->StickAverageX);
-            State->PlayerY += (int32)(4.0f * Controller->StickAverageY);
-        }
-        else
-        {
-            if (Controller->MoveLeft.EndedDown)
-            {
-                State->PlayerX -= Increment;
-            }
-            if (Controller->MoveRight.EndedDown)
-            {
-                State->PlayerX += Increment;
-            }
-            if (Controller->MoveUp.EndedDown)
-            {
-                State->PlayerY -= Increment;
-            }
-            if (Controller->MoveDown.EndedDown)
-            {
-                State->PlayerY += Increment;
-            }
-        }
-        if (State->JumpT > 0)
-        {
-            State->PlayerY -= (int)(10.0f*sinf(2.0f*PI32*State->JumpT));
-        }
-        if (Controller->ActionDown.EndedDown)
-        {
-            State->JumpT = 1.0f;
-        }
-        State->JumpT -= 0.033f/2.0f;
-    }
-
-    RenderWeirdGradient(VideoBuffer, State->GreenOffset, State->BlueOffset);
-    RenderPlayer(VideoBuffer, State->PlayerX, State->PlayerY);
-
-    RenderPlayer(VideoBuffer, Input->MouseX, Input->MouseY);
-
-    for (int32 ButtonIndex = 0;
-         ButtonIndex < ArrayCount(Input->MouseButtons);
-         ButtonIndex++)
-    {
-        if (Input->MouseButtons[ButtonIndex].EndedDown)
-        {
-            RenderPlayer(VideoBuffer, 10 + 20 * ButtonIndex, 10);
-        }
-    }
-}
-
-extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
-{
-    game_state *State = (game_state *)Memory->PermanentStorageBytes;
-    OutputSineWave(SoundBuffer, State);
-}
+#endif

@@ -9,13 +9,15 @@ typedef struct _win32_offscreen_buffer
     int32 Height;
     int32 Pitch;
     int32 BytesPerPixel;
-} win32_offscreen_buffer;
+}
+win32_offscreen_buffer;
 
 typedef struct _win32_window_dimensions
 {
     int32 Width;
     int32 Height;
-} win32_window_dimensions;
+}
+win32_window_dimensions;
 
 typedef struct _win32_sound_output
 {
@@ -27,7 +29,8 @@ typedef struct _win32_sound_output
     real32 SineT;
     //todo
     //  maths will get easier with a "BytesPerSecond" field
-} win32_sound_output;
+}
+win32_sound_output;
 
 typedef struct _DEBUG_win32_time_marker
 {
@@ -39,7 +42,8 @@ typedef struct _DEBUG_win32_time_marker
     DWORD ExpectedFlipPlayCursor;
     DWORD FlipPlayCursor;
     DWORD FlipWriteCursor;
-} DEBUG_win32_time_marker;
+}
+DEBUG_win32_time_marker;
 
 typedef struct _win32_game_code
 {
@@ -52,8 +56,9 @@ typedef struct _win32_game_code
     game_update_and_render *UpdateAndRender;
     game_get_sound_samples *GetSoundSamples;
 
-    bool32 IsValid;
-} win32_game_code;
+  bool32 IsValid;
+}
+win32_game_code;
 
 #define WIN32_STATE_FILENAME_COUNT MAX_PATH
 
@@ -63,7 +68,8 @@ typedef struct _win32_replay_buffer
     HANDLE MemoryMap;
     char Filename[WIN32_STATE_FILENAME_COUNT];
     void *MemoryBlock;
-} win32_replay_buffer;
+}
+win32_replay_buffer;
 
 typedef struct _win32_state
 {
@@ -79,6 +85,7 @@ typedef struct _win32_state
 
     char EXEFileName[WIN32_STATE_FILENAME_COUNT];
     char *OnePastLastEXEFileNameSlash;
-} win32_state;
+}
+win32_state;
 
 #endif//WIN32_MAIN_H

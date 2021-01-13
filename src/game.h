@@ -11,6 +11,8 @@
         1: slow code allowed
  */
 
+// note
+//  using CRT for now
 #include <stdint.h>
 #include <math.h>
 
@@ -57,7 +59,8 @@ inline uint32 SafeTruncateUInt64(uint64 Value)
 typedef struct _thread_context
 {
     int PlaceHolder;
-} thread_context;
+}
+thread_context;
 
 #if BUILD_INTERNAL
 
@@ -65,7 +68,8 @@ typedef struct DEBUG_read_file_result
 {
     uint64 ContentsSize;
     void *Contents;
-} DEBUG_read_file_result;
+}
+DEBUG_read_file_result;
 
 // pass these as pointers on game_memory
 //  and make a snippet for these function pointer macros
@@ -90,20 +94,23 @@ typedef struct _game_video_buffer
     int32 Height;
     int32 Pitch;
     int32 BytesPerPixel;
-} game_video_buffer;
+}
+game_video_buffer;
 
 typedef struct _game_sound_buffer
 {
     int32 SamplesPerSecond;
     int32 SampleCount;
     int16 *Samples;
-} game_sound_buffer;
+}
+game_sound_buffer;
 
 typedef struct _game_button_state
 {
     int32 HalfTransitionCount;
     bool32 EndedDown;
-} game_button_state;
+}
+game_button_state;
 
 typedef struct _game_controller_input
 {
@@ -138,7 +145,8 @@ typedef struct _game_controller_input
             game_button_state Terminator;
         };
     };
-} game_controller_input;
+}
+game_controller_input;
 
 typedef struct _game_input
 {
@@ -147,14 +155,15 @@ typedef struct _game_input
     int32 MouseY;
     int32 MouseZ;
 
+    real32 SecondsToAdvanceOverUpdate;
     game_controller_input Controllers[5];
-} game_input;
+}
+game_input;
 
 inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex)
 {
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
-    game_controller_input *Result = &Input->Controllers[ControllerIndex];
-    return Result;
+    return &Input->Controllers[ControllerIndex];
 }
 
 typedef struct _game_memory
@@ -170,7 +179,8 @@ typedef struct _game_memory
     DEBUG_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
     DEBUG_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 
-} game_memory;
+}
+game_memory;
 
 #define GAME_UPDATE_AND_RENDER(name)                       \
     void name(thread_context *Thread, game_memory *Memory, \
@@ -186,17 +196,7 @@ typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 typedef struct _game_state
 {
-    int32 ToneFrequency;
-
-    int32 GreenOffset;
-    int32 BlueOffset;
-
-    real32 SineT;
-
-    int32 PlayerX;
-    int32 PlayerY;
-
-    real32 JumpT;
-} game_state;
+}
+game_state;
 
 #endif//GAHE_H
