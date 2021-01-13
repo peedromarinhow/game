@@ -1097,7 +1097,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 game_input Input[2] = {};
                 game_input *NewInput = &Input[0];
                 game_input *OldInput = &Input[1];
-                NewInput->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
+                NewInput->dtForFrame = TargetSecondsPerFrame;
 
                 LARGE_INTEGER LastCounter = Win32GetWallClockTime();
                 LARGE_INTEGER FlipWallClock = Win32GetWallClockTime();

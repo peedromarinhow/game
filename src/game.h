@@ -15,7 +15,6 @@
 //  using CRT for now
 #include <stdint.h>
 #include <math.h>
-#include <stdlib.h>
 
 #define internal         static
 #define global           static
@@ -157,7 +156,7 @@ game_controller_input;
 
 typedef struct _game_input
 {
-    real32 SecondsToAdvanceOverUpdate;
+    real32 dtForFrame;
     game_controller_input Controllers[5];
 }
 game_input;
@@ -198,6 +197,8 @@ typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 typedef struct _game_state
 {
+    real32 PlayerX;
+    real32 PlayerY;
 }
 game_state;
 

@@ -99,41 +99,51 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         else
         {
-            // digital movement tuning
+            real32 dPlayerX = 0.0f;
+            real32 dPlayerY = 0.0f;
+            if (Controller->MoveUp.EndedDown)
+                dPlayerY = -1.0f;
+            if (Controller->MoveDown.EndedDown)
+                dPlayerY =  1.0f;
+            if (Controller->MoveLeft.EndedDown)
+                dPlayerX = -1.0f;
+            if (Controller->MoveRight.EndedDown)
+                dPlayerX =  1.0f;
+
+            dPlayerX *= 128.0f;
+            dPlayerY *= 128.0f;
+
+            // diagonals are faster, fix with vectors
+            State->PlayerX += Input->dtForFrame * dPlayerX;
+            State->PlayerY += Input->dtForFrame * dPlayerY;
         }
     }
 
-    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 1.0f, 1.0f, 1.0f);
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0.5f, 0.75f, 1.0f);
     
     int32 Width =  16;
-    int32 Height = 16;
-    real32 UpperLeftX = 10.0f;
-    real32 UpperLeftY = 10.0f;
+    int32 Height = 9;
+    real32 UpperLeftX = 0.0f;
+    real32 UpperLeftY = 0.0f;
     real32 TileWidth  = 25.0f;
     real32 TileHeight = 25.0f;
-    // this is not supposed to happen, ever
-    static int32 TileMap[16][16] = {
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0},
-        {64, 64, 64, 64, 64, 64, 64, 64,  64, 64, 64, 64,  64, 64, 64, 64},
+    uint32 TileMap[9][16] = {
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
     };
     for (int32 Row = 0; Row < Height; Row++)
     {
         for (int32 Column = 0; Column < Width; Column++)
         {
+            uint32 Tile = TileMap[Row][Column];
+#if 0
             int32 Tile = TileMap[Row][Column];
             int32 Decay = 0;
             if (Row + 1 < Height)
@@ -145,13 +155,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             TileMap[Row][Column - Decay >= 0? Column - Decay : Column] = Tile;
 
             real32 Red = ((real32)Tile - 0.1f)/64.0f;
-
+#endif
+            real32 Red = Tile == 1? 1.0f : 0.5f;
             real32 MinX = UpperLeftX + ((real32)Column) * TileWidth;
             real32 MinY = UpperLeftX + ((real32)Row) * TileHeight;
             real32 MaxX = MinX + TileWidth;
             real32 MaxY = MinY + TileHeight;
 
-            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Red, 0.0f, 0.0f);
+            real32 PlayerR = 1.0f;
+            real32 PlayerG = 0.2f;
+            real32 PlayerB = 0.2f;
+            real32 PlayerWidth = 0.75f * TileWidth;
+            real32 PlayerHeight = 0.75f *TileHeight;
+            real32 PlayerLeft = State->PlayerX + 0.5f * PlayerWidth;
+            real32 PlayerTop = State->PlayerY - PlayerHeight;
+
+            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Red, 0.6f, 0.3f);
+            DrawRectangle(VideoBuffer,
+                          PlayerLeft, PlayerTop,
+                          PlayerLeft + PlayerWidth, PlayerTop + PlayerHeight,
+                          PlayerR, PlayerG, PlayerB);
         }
     }
 }
