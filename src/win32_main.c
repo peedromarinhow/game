@@ -471,12 +471,18 @@ internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
     return Result;
 }
 
-internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceContext)
+internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceContext,
+                                 int32 WindowWidth, int32 WindowHeight)
 {
-    // todo
-    //  aspect ratio correction
+    int32 OffsetX = 10;
+    int32 OffsetY = 10;
 
-    StretchDIBits(DeviceContext, 0, 0,
+    PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+    PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+    PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+    PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
+
+    StretchDIBits(DeviceContext, OffsetX, OffsetY,
                   Buffer->Width, Buffer->Height, 0, 0,
                   Buffer->Width, Buffer->Height,
                   Buffer->Memory, &Buffer->Info,
@@ -561,7 +567,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         PAINTSTRUCT Paint;
         HDC DeviceContext = BeginPaint(Window, &Paint);
         win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
-        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext);
+        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
         EndPaint(Window, &Paint);
     }
     break;
@@ -1097,7 +1103,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 game_input Input[2] = {};
                 game_input *NewInput = &Input[0];
                 game_input *OldInput = &Input[1];
-                NewInput->dtForFrame = TargetSecondsPerFrame;
 
                 LARGE_INTEGER LastCounter = Win32GetWallClockTime();
                 LARGE_INTEGER FlipWallClock = Win32GetWallClockTime();
@@ -1114,6 +1119,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning)
                 {
+                    NewInput->dtForFrame = TargetSecondsPerFrame;
+
                     FILETIME NewDLLWriteTime = GetLastFileWriteTime(SourceGameCodeDLLFullPath);
                     if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
                     {
@@ -1429,8 +1436,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         // Win32SyncDisplay was here
 
                         HDC DeviceContext = GetDC(Window);
-                        Win32DisplayBuffer(&GlobalBackBuffer,
-                                           DeviceContext /*, Dimension.Width, Dimension.Height*/);
+                        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext , Dimension.Width, Dimension.Height);
                         ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClockTime();

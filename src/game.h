@@ -15,6 +15,7 @@
 //  using CRT for now
 #include <stdint.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define internal         static
 #define global           static

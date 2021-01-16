@@ -1,5 +1,45 @@
 #include "game.h"
 
+const uint8 Pallete[][3] = {
+    {7,   7,   7},
+    {31,  7,   7},
+    {47,  15,  7},
+    {71,  15,  7},
+    {87,  23,  7},
+    {103, 31,  7},
+    {119, 31,  7},
+    {143, 39,  7},
+    {159, 47,  7},
+    {175, 63,  7},
+    {191, 71,  7},
+    {199, 71,  7},
+    {223, 79,  7},
+    {223, 87,  7},
+    {223, 87,  7},
+    {215, 95,  7},
+    {215, 95,  7},
+    {215, 103, 15},
+    {207, 111, 15},
+    {207, 119, 15},
+    {207, 127, 15},
+    {207, 135, 23},
+    {199, 135, 23},
+    {199, 143, 23},
+    {199, 151, 31},
+    {191, 159, 31},
+    {191, 159, 31},
+    {191, 167, 39},
+    {191, 167, 39},
+    {191, 175, 47},
+    {183, 175, 47},
+    {183, 183, 47},
+    {183, 183, 55},
+    {207, 207, 111},
+    {223, 223, 159},
+    {239, 239, 199},
+    {255, 255, 255}
+};
+
 void OutputSineWave(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
 {
     int16 ToneVolume = 3000;
@@ -77,6 +117,56 @@ void DrawRectangle(game_video_buffer *Buffer,
     }
 }
 
+void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
+{
+    real32 TileWidth  = 5.0f;
+    real32 TileHeight = 5.0f;
+    real32 UpperLeftX = 0.0f;
+    real32 UpperLeftY = 0.0f;
+#define TILEMAP_WIDTH 150
+#define TILEMAP_HEIGHT 100
+    // NOT SUPPOSED TO HAVE STATICS, EVER!
+    static int32 TileMap[TILEMAP_HEIGHT][TILEMAP_WIDTH] = {};
+    for (int32 X = 0; X < TILEMAP_WIDTH; X++)
+    {
+        TileMap[TILEMAP_HEIGHT - 1][X] = 32;
+    }
+
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0.0f, 0.0f, 0.0f);
+
+    for (int32 Row = 0; Row < TILEMAP_HEIGHT; Row++)
+    {
+        for (int32 Column = 0; Column < TILEMAP_WIDTH; Column++)
+        {
+            int32 Tile = TileMap[Row][Column];
+            int32 Decay = 0;
+
+            if (Row + 1 < TILEMAP_HEIGHT)
+            {
+                int32 Below = TileMap[Row + 1][Column];
+                Decay = rand() % 2;
+                Tile = Below - Decay >= 0? Below - Decay : 0;
+            }
+            
+            //if (Column - Decay >= 0)
+            {
+                TileMap[Row][Column - Decay] = Tile;
+            }
+
+            real32 Red = (real32)Pallete[Tile][0]/255.0f;
+            real32 Green = (real32)Pallete[Tile][1]/255.0f;
+            real32 Blue = (real32)Pallete[Tile][2]/255.0f;
+
+            real32 MinX = UpperLeftX + ((real32)Column) * TileWidth;
+            real32 MinY = UpperLeftX + ((real32)Row) * TileHeight;
+            real32 MaxX = MinX + TileWidth;
+            real32 MaxY = MinY + TileHeight;
+
+            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Red, Green, Blue);
+        }
+    }
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
@@ -120,11 +210,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0.5f, 0.75f, 1.0f);
+    RenderFire(Input, VideoBuffer);
     
     int32 Width =  16;
     int32 Height = 9;
-    real32 UpperLeftX = 0.0f;
-    real32 UpperLeftY = 0.0f;
+    real32 UpperLeftX = 50.0f;
+    real32 UpperLeftY = 50.0f;
     real32 TileWidth  = 25.0f;
     real32 TileHeight = 25.0f;
     uint32 TileMap[9][16] = {
