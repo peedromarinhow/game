@@ -1,6 +1,6 @@
 #include "game.h"
 
-const uint8 Pallete[][3] = {
+const uint8 FirePalette[][3] = {
     {7,   7,   7},
     {31,  7,   7},
     {47,  15,  7},
@@ -66,16 +66,24 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, int32 ToneFrequency)
     }
 }
 
-internal int32 RoundR32toI32(real32 Real32)
+internal int32 RoundR32ToI32(real32 Real32)
 {
-    int32 Result = (int32)(Real32 + 0.5f);
-    return Result;
+    return (int32)(Real32 + 0.5f);
 }
 
-internal uint32 RoundR32toUI32(real32 Real32)
+internal uint32 RoundR32ToUI32(real32 Real32)
 {
-    uint32 Result = (uint32)(Real32 + 0.5f);
-    return Result;
+    return (uint32)(Real32 + 0.5f);
+}
+
+internal int32 TruncateR32ToI32(real32 Real32)
+{
+    return (int32)(Real32);
+}
+
+internal uint32 TruncateR32ToUI32(real32 Real32)
+{
+    return (uint32)(Real32);
 }
 
 void DrawRectangle(game_video_buffer *Buffer, 
@@ -83,14 +91,14 @@ void DrawRectangle(game_video_buffer *Buffer,
                    real32 RealMaxX, real32 RealMaxY,
                    real32 R, real32 G, real32 B)
 {
-    int32 MinX = RoundR32toI32(RealMinX);
-    int32 MinY = RoundR32toI32(RealMinY);
-    int32 MaxX = RoundR32toI32(RealMaxX);
-    int32 MaxY = RoundR32toI32(RealMaxY);
+    int32 MinX = RoundR32ToI32(RealMinX);
+    int32 MinY = RoundR32ToI32(RealMinY);
+    int32 MaxX = RoundR32ToI32(RealMaxX);
+    int32 MaxY = RoundR32ToI32(RealMaxY);
 
-    uint32 Color = (RoundR32toUI32(R * 255.0f) << 16) |
-                   (RoundR32toUI32(G * 255.0f) << 8)  |
-                   (RoundR32toUI32(B * 255.0f) << 0);
+    uint32 Color = (RoundR32ToUI32(R * 255.0f) << 16) |
+                   (RoundR32ToUI32(G * 255.0f) << 8)  |
+                   (RoundR32ToUI32(B * 255.0f) << 0);
 
     if (MinX < 0)
         MinX = 0;
@@ -123,39 +131,36 @@ void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
     real32 TileHeight = 5.0f;
     real32 UpperLeftX = 0.0f;
     real32 UpperLeftY = 0.0f;
-#define TILEMAP_WIDTH 150
-#define TILEMAP_HEIGHT 100
+#define FIRE_TILEMAP_WIDTH 193
+#define FIRE_TILEMAP_HEIGHT 108
     // NOT SUPPOSED TO HAVE STATICS, EVER!
-    static int32 TileMap[TILEMAP_HEIGHT][TILEMAP_WIDTH] = {};
-    for (int32 X = 0; X < TILEMAP_WIDTH; X++)
+    static int32 TileMap[FIRE_TILEMAP_HEIGHT][FIRE_TILEMAP_WIDTH] = {};
+    for (int32 X = 0; X < FIRE_TILEMAP_WIDTH; X++)
     {
-        TileMap[TILEMAP_HEIGHT - 1][X] = 32;
+        TileMap[FIRE_TILEMAP_HEIGHT - 1][X] = 32;
     }
 
     DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0.0f, 0.0f, 0.0f);
 
-    for (int32 Row = 0; Row < TILEMAP_HEIGHT; Row++)
+    for (int32 Row = 0; Row < FIRE_TILEMAP_HEIGHT; Row++)
     {
-        for (int32 Column = 0; Column < TILEMAP_WIDTH; Column++)
+        for (int32 Column = 0; Column < FIRE_TILEMAP_WIDTH; Column++)
         {
             int32 Tile = TileMap[Row][Column];
             int32 Decay = 0;
 
-            if (Row + 1 < TILEMAP_HEIGHT)
+            if (Row + 1 < FIRE_TILEMAP_HEIGHT)
             {
                 int32 Below = TileMap[Row + 1][Column];
                 Decay = rand() % 2;
                 Tile = Below - Decay >= 0? Below - Decay : 0;
             }
             
-            //if (Column - Decay >= 0)
-            {
-                TileMap[Row][Column - Decay] = Tile;
-            }
+            TileMap[Row][Column - Decay] = Tile;
 
-            real32 Red = (real32)Pallete[Tile][0]/255.0f;
-            real32 Green = (real32)Pallete[Tile][1]/255.0f;
-            real32 Blue = (real32)Pallete[Tile][2]/255.0f;
+            real32 Red = (real32)FirePalette[Tile][0]/255.0f;
+            real32 Green = (real32)FirePalette[Tile][1]/255.0f;
+            real32 Blue = (real32)FirePalette[Tile][2]/255.0f;
 
             real32 MinX = UpperLeftX + ((real32)Column) * TileWidth;
             real32 MinY = UpperLeftX + ((real32)Row) * TileHeight;
@@ -167,15 +172,73 @@ void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
     }
 }
 
+typedef struct _tile_map
+{
+    int32 CountX;
+    int32 CountY;
+
+    real32 UpperLeftX;
+    real32 UpperLeftY;
+    real32 TileWidth;
+    real32 TileHeight;
+
+    uint32 *Tiles;
+} tile_map;
+
+internal bool32 IsTileMapPointEmpty(tile_map *TileMap, real32 TestX, real32 TestY)
+{
+    bool32 Empty = false;
+    int32 PlayerTileX = TruncateR32ToI32((TestX - TileMap->UpperLeftX) / TileMap->TileWidth);
+    int32 PlayerTileY = TruncateR32ToI32((TestY - TileMap->UpperLeftY) / TileMap->TileHeight);
+    if ((PlayerTileX >= 0) && (PlayerTileX < TileMap->CountX) &&
+        (PlayerTileY >= 0) && (PlayerTileY < TileMap->CountY))
+    {
+        uint32 TileMapValue = TileMap->Tiles[PlayerTileY * TileMap->CountX + PlayerTileX];
+        Empty = (TileMapValue == 0);
+    }
+
+    return Empty;
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
              ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+    
+#define TILEMAP_COUNT_X 16
+#define TILEMAP_COUNT_Y 9
+    uint32 Tiles[TILEMAP_COUNT_Y][TILEMAP_COUNT_X] =
+        {{1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+         {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+         {1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+         {1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+         {1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+         {1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1}};
+    tile_map TileMap;
+    TileMap.CountX = TILEMAP_COUNT_X;
+    TileMap.CountY = TILEMAP_COUNT_Y;
+
+    TileMap.UpperLeftX = -15;
+    TileMap.UpperLeftY = 0;
+    TileMap.TileWidth  = 30;
+    TileMap.TileHeight = 30;
+
+    TileMap.Tiles = (uint32 *)Tiles;
+    
+    real32 PlayerWidth = 0.75f * TileMap.TileWidth;
+    real32 PlayerHeight = 0.75f * TileMap.TileHeight;
 
     game_state *State = (game_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized)
+    {
         Memory->IsInitialized = true;
+        State->PlayerX = 80.0f;
+        State->PlayerY = 80.0f;
+    }
 
     int32 Increment = 10;
 
@@ -204,64 +267,40 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             dPlayerY *= 128.0f;
 
             // diagonals are faster, fix with vectors
-            State->PlayerX += Input->dtForFrame * dPlayerX;
-            State->PlayerY += Input->dtForFrame * dPlayerY;
+            real32 NewPlayerX = State->PlayerX + Input->dtForFrame * dPlayerX;
+            real32 NewPlayerY = State->PlayerY + Input->dtForFrame * dPlayerY;
+        
+            if (IsTileMapPointEmpty(&TileMap, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
+                IsTileMapPointEmpty(&TileMap, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
+                IsTileMapPointEmpty(&TileMap, NewPlayerX, NewPlayerY))
+            {
+                State->PlayerX = NewPlayerX;
+                State->PlayerY = NewPlayerY;
+            }
         }
     }
 
     DrawRectangle(VideoBuffer, 0.0f, 0.0f, (real32)VideoBuffer->Width, (real32)VideoBuffer->Width, 0.5f, 0.75f, 1.0f);
     RenderFire(Input, VideoBuffer);
-    
-    int32 Width =  16;
-    int32 Height = 9;
-    real32 UpperLeftX = 50.0f;
-    real32 UpperLeftY = 50.0f;
-    real32 TileWidth  = 25.0f;
-    real32 TileHeight = 25.0f;
-    uint32 TileMap[9][16] = {
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-    };
-    for (int32 Row = 0; Row < Height; Row++)
-    {
-        for (int32 Column = 0; Column < Width; Column++)
-        {
-            uint32 Tile = TileMap[Row][Column];
-#if 0
-            int32 Tile = TileMap[Row][Column];
-            int32 Decay = 0;
-            if (Row + 1 < Height)
-            {
-                int32 Below = TileMap[Row + 1][Column];
-                Decay = rand() % 16;
-                Tile = Below - Decay >= 0? Below - Decay : 0;
-            }
-            TileMap[Row][Column - Decay >= 0? Column - Decay : Column] = Tile;
 
-            real32 Red = ((real32)Tile - 0.1f)/64.0f;
-#endif
-            real32 Red = Tile == 1? 1.0f : 0.5f;
-            real32 MinX = UpperLeftX + ((real32)Column) * TileWidth;
-            real32 MinY = UpperLeftX + ((real32)Row) * TileHeight;
-            real32 MaxX = MinX + TileWidth;
-            real32 MaxY = MinY + TileHeight;
+    for (int32 Row = 0; Row < TileMap.CountY; Row++)
+    {
+        for (int32 Column = 0; Column < TileMap.CountX; Column++)
+        {
+            uint32 Tile = Tiles[Row][Column];
+            real32 Grey = Tile == 1? 1.0f : 0.5f;
+            real32 MinX = TileMap.UpperLeftX + ((real32)Column) * TileMap.TileWidth;
+            real32 MinY = TileMap.UpperLeftX + ((real32)Row) *    TileMap.TileHeight;
+            real32 MaxX = MinX + TileMap.TileWidth;
+            real32 MaxY = MinY + TileMap.TileHeight;
 
             real32 PlayerR = 1.0f;
             real32 PlayerG = 0.2f;
             real32 PlayerB = 0.2f;
-            real32 PlayerWidth = 0.75f * TileWidth;
-            real32 PlayerHeight = 0.75f *TileHeight;
-            real32 PlayerLeft = State->PlayerX + 0.5f * PlayerWidth;
+            real32 PlayerLeft = State->PlayerX - (0.5f * PlayerWidth);
             real32 PlayerTop = State->PlayerY - PlayerHeight;
 
-            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Red, 0.6f, 0.3f);
+            DrawRectangle(VideoBuffer, MinX, MinY, MaxX, MaxY, Grey, Grey, Grey);
             DrawRectangle(VideoBuffer,
                           PlayerLeft, PlayerTop,
                           PlayerLeft + PlayerWidth, PlayerTop + PlayerHeight,

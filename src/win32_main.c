@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <xinput.h>
+#include <gl/gl.h>
 
 #include "win32_main.h"
 
@@ -459,6 +460,44 @@ internal void Win32ClearSoundBuffer(win32_sound_output *SoundOutput)
 
 
 
+// opengl stuff?
+internal void Win32InitOpenGl(HWND Window)
+{
+    HDC WindowDC = GetDC(Window);
+
+    // todo wtf
+    //  cColorBits supposed to exclude alpha bits?
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+    DesiredPixelFormat.nVersion = 1;
+    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
+    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+    DesiredPixelFormat.cColorBits = 32;
+    DesiredPixelFormat.cAlphaBits = 8;
+    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+    int32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
+                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    if (wglMakeCurrent(WindowDC, OpenGLRC))
+    {
+        // note
+        // sucess!
+    }
+    else
+    {
+        Assert(!"NOOOOOOOOOOOO!!");
+        // invalid code path
+    }
+    ReleaseDC(Window, WindowDC);
+}
+
+
+
 // windows stuff
 internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
 {
@@ -474,6 +513,7 @@ internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
 internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceContext,
                                  int32 WindowWidth, int32 WindowHeight)
 {
+#if 0
     int32 OffsetX = 10;
     int32 OffsetY = 10;
 
@@ -487,6 +527,26 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
                   Buffer->Width, Buffer->Height,
                   Buffer->Memory, &Buffer->Info,
                   DIB_RGB_COLORS, SRCCOPY);
+#endif
+    glViewport(0, 0, WindowWidth, WindowHeight);
+    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glBegin(GL_TRIANGLES);
+
+    // lower tri
+    glVertex2i(0, 0);
+    glVertex2i(WindowWidth, 0);
+    glVertex2i(WindowWidth, WindowHeight);
+    
+    // higher tri
+    glVertex2i(0, 0);
+    glVertex2i(WindowWidth, WindowHeight);
+    glVertex2i(0, WindowHeight);
+
+    glEnd();
+
+    SwapBuffers(DeviceContext);
 }
 
 internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer,
@@ -1002,6 +1062,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         if (Window)
         {
+            Win32InitOpenGl(Window);
             HDC RefreshDC = GetDC(Window);
             win32_sound_output SoundOutput = {};
             ReleaseDC(Window, RefreshDC);
