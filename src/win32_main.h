@@ -5,28 +5,28 @@ typedef struct _win32_offscreen_buffer
 {
     BITMAPINFO Info;
     void  *Memory;
-    int32 Width;
-    int32 Height;
-    int32 Pitch;
-    int32 BytesPerPixel;
+    i32 Width;
+    i32 Height;
+    i32 Pitch;
+    i32 BytesPerPixel;
 }
 win32_offscreen_buffer;
 
 typedef struct _win32_window_dimensions
 {
-    int32 Width;
-    int32 Height;
+    i32 Width;
+    i32 Height;
 }
 win32_window_dimensions;
 
 typedef struct _win32_sound_output
 {
-    int32  SamplesPerSecond;
-    int32  BytesPerSample;
-    uint32 RunningSampleIndex;
+    i32  SamplesPerSecond;
+    i32  BytesPerSample;
+    u32 RunningSampleIndex;
     DWORD  SecondaryBufferSize;
     DWORD  SafetyBytes;
-    real32 SineT;
+    r32 SineT;
     //todo
     //  maths will get easier with a "BytesPerSecond" field
 }
@@ -56,7 +56,7 @@ typedef struct _win32_game_code
     game_update_and_render *UpdateAndRender;
     game_get_sound_samples *GetSoundSamples;
 
-  bool32 IsValid;
+    b32 IsValid;
 }
 win32_game_code;
 
@@ -73,15 +73,15 @@ win32_replay_buffer;
 
 typedef struct _win32_state
 {
-    uint64 TotalSize;
+    u64 TotalSize;
     void *GameMemoryBlock;
     win32_replay_buffer ReplayBuffers[2];
 
     HANDLE RecordingHandle;
-    int32  InputRecordingIndex;
+    i32  InputRecordingIndex;
 
     HANDLE PlaybackHandle;
-    int32  InputPlaybackIndex;
+    i32  InputPlaybackIndex;
 
     char EXEFileName[WIN32_STATE_FILENAME_COUNT];
     char *OnePastLastEXEFileNameSlash;

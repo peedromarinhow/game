@@ -23,19 +23,19 @@
 
 #define PI32 3.14159265359f
 
-typedef int8_t  int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef int32   bool32;
+typedef int8_t  i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef i32     b32;
 
-typedef uint8_t  uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+typedef uint8_t  u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
 
-typedef float  real32;
-typedef double real64;
+typedef float  r32;
+typedef double r64;
 
 #if BUILD_SLOW
 #   define Assert(Expression) if (!(Expression)) { *(int *)0 = 0; }
@@ -50,10 +50,10 @@ typedef double real64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-inline uint32 SafeTruncateUInt64(uint64 Value)
+inline u32 SafeTruncateUInt64(u64 Value)
 {
-    uint32 Result = 0;
-    if (Value <= 0xFFFFFFFF) Result = (uint32)Value;
+    u32 Result = 0;
+    if (Value <= 0xFFFFFFFF) Result = (u32)Value;
     return Result;
 }
 
@@ -67,7 +67,7 @@ thread_context;
 
 typedef struct DEBUG_read_file_result
 {
-    uint64 ContentsSize;
+    u64 ContentsSize;
     void *Contents;
 }
 DEBUG_read_file_result;
@@ -83,7 +83,7 @@ typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUG_platform_free_entire_file);
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUG_platform_read_entire_file);
 
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) \
-    bool32 name(thread_context *Thread, char *Filename, uint64 Size, void *Memory)
+    b32 name(thread_context *Thread, char *Filename, u64 Size, void *Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUG_platform_write_entire_file);
 
 #endif
@@ -91,37 +91,37 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUG_platform_write_entire_file);
 typedef struct _game_video_buffer
 {
     void *Memory;
-    int32 Width;
-    int32 Height;
-    int32 Pitch;
-    int32 BytesPerPixel;
+    i32 Width;
+    i32 Height;
+    i32 Pitch;
+    i32 BytesPerPixel;
 }
 game_video_buffer;
 
 typedef struct _game_sound_buffer
 {
-    int32 SamplesPerSecond;
-    int32 SampleCount;
-    int16 *Samples;
+    i32 SamplesPerSecond;
+    i32 SampleCount;
+    i16 *Samples;
 }
 game_sound_buffer;
 
 typedef struct _game_button_state
 {
-    int32 HalfTransitionCount;
-    bool32 EndedDown;
+    i32 HalfTransitionCount;
+    b32 EndedDown;
 }
 game_button_state;
 
 typedef struct _game_controller_input
 {
-    bool32 IsConnected;
-    bool32 IsAnalog;
-    real32 StickAverageX;
-    real32 StickAverageY;
-    int32 MouseX;
-    int32 MouseY;
-    int32 MouseZ;
+    b32 IsConnected;
+    b32 IsAnalog;
+    r32 StickAverageX;
+    r32 StickAverageY;
+    i32 MouseX;
+    i32 MouseY;
+    i32 MouseZ;
 
     
     game_button_state MouseButtons[5];
@@ -157,12 +157,12 @@ game_controller_input;
 
 typedef struct _game_input
 {
-    real32 dtForFrame;
+    r32 dtForFrame;
     game_controller_input Controllers[5];
 }
 game_input;
 
-inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex)
+inline game_controller_input *GetController(game_input *Input, u32 ControllerIndex)
 {
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     return &Input->Controllers[ControllerIndex];
@@ -170,11 +170,11 @@ inline game_controller_input *GetController(game_input *Input, uint32 Controller
 
 typedef struct _game_memory
 {
-    bool32 IsInitialized;
-    uint64 PermanentStorageSize;
+    b32 IsInitialized;
+    u64 PermanentStorageSize;
     void  *PermanentStorageBytes;   //note
                                     //  required to be cleared to zero
-    uint64 TransientStorageSize;
+    u64 TransientStorageSize;
     void  *TransientStorageBytes;   //note
                                     //  required to be cleared to zero
     DEBUG_platform_free_entire_file  *DEBUGPlatformFreeEntireFile;
@@ -198,8 +198,8 @@ typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 typedef struct _game_state
 {
-    real32 PlayerX;
-    real32 PlayerY;
+    r32 PlayerX;
+    r32 PlayerY;
 }
 game_state;
 
