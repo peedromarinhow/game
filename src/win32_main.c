@@ -9,12 +9,12 @@
  *      III - casey dumps the whole win32_state::GameMemoryBlock to ram
  *            instead of to disk in https://youtu.be/es-Bou2dIdY?t=2000
  *            this computer cannot handle that, so skipping this
- * 
+ *
  *  todo:
  *      // II  - process mouse messages together with the rest of the input
  *      III - maybe separate all these functions to different files
- * 
- *            
+ *
+ *
  *  this whole thing seems wicked
  */
 
@@ -127,7 +127,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
     DEBUG_read_file_result Res = {0};
 
-    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, 
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ,
                                     FILE_SHARE_READ, NULL,
                                     OPEN_EXISTING, 0, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE)
@@ -542,6 +542,12 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0,
                  GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
     
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
     glEnable(GL_TEXTURE_2D);
 
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
@@ -569,7 +575,7 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
 
     glTexCoord2f(1.0f, 1.0f);
     glVertex2f(P, P);
-    
+
     // higher tri
     glTexCoord2f(0.0f, 0.0f);
     glVertex2f(-P, -P);
@@ -739,7 +745,7 @@ internal void Win32BeginRecordingInput(win32_state *State, i32 InputRecordingInd
                                              CREATE_ALWAYS, 0, NULL);
 
 #if 0
-        LARGE_INTEGER FilePosition;  
+        LARGE_INTEGER FilePosition;
         FilePosition.QuadPart = State->TotalSize;
         SetFilePointerEx(State->RecordingHandle, FilePosition, 0, FILE_BEGIN);
 #endif
@@ -766,7 +772,7 @@ internal void Win32BeginInputPlayback(win32_state *State, i32 InputPlaybackIndex
                                             NULL, NULL,
                                             OPEN_EXISTING,0, NULL);
 #if 0
-        LARGE_INTEGER FilePosition;  
+        LARGE_INTEGER FilePosition;
         FilePosition.QuadPart = State->TotalSize;
         SetFilePointerEx(State->PlaybackHandle, FilePosition, 0, FILE_BEGIN);
 #endif
@@ -917,7 +923,7 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
         }
     }
 
-    // for some reason these messages don't seem go get caught above 
+    // for some reason these messages don't seem go get caught above
     Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[0],
                                  GetKeyState(VK_LBUTTON) & (1 << 15));
     Win32ProcessKeyboardMessage(&KeyboardController->MouseButtons[1],
@@ -955,7 +961,7 @@ internal void Win32DrawVertical (
     u32 Color
 )
 {
-    if (Top <= 0) 
+    if (Top <= 0)
     {
         Top = 0;
     }
@@ -971,7 +977,7 @@ internal void Win32DrawVertical (
         {
             *(u32 *)Pixel = Color;
             Pixel += BackBuffer->Pitch;
-        }   
+        }
     }
 }
 
@@ -1020,7 +1026,7 @@ internal void DEBUGWin32SyncDisplay (
         DWORD WriteColor = 0xFFFFFFFF;
         DWORD ExpectedFlipColor = 0x000000FF;
         DWORD PlayWindowColor = 0xFFFF00FF;
-                                                                                                                                 
+
         i32 Top = PadY;
         i32 Bottom = Top + LineHeight;
         if (MarkerIndex == CurrentMarkerIndex)
@@ -1031,13 +1037,13 @@ internal void DEBUGWin32SyncDisplay (
 
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputPlayCursor,  PlayColor);
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputWriteCursor, WriteColor);
-            
+
             Top += LineHeight + PadY;
             Bottom += LineHeight + PadY;
 
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation,  PlayColor);
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation + ThisMarker->OutputByteCount, WriteColor);
-            
+
             Top += LineHeight + PadY;
             Bottom += LineHeight + PadY;
 
@@ -1056,7 +1062,7 @@ internal void DEBUGWin32SyncDisplay (
 
 // the actual stuff
 int CALLBACK WinMain(HINSTANCE Instance,
-                     HINSTANCE PrevInstance, 
+                     HINSTANCE PrevInstance,
                      LPSTR CmdLine, int CmdShow)
 {
     win32_state Win32State = {};
@@ -1118,7 +1124,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
             SoundOutput.SecondaryBufferSize = SoundOutput.BytesPerSample * SoundOutput.SamplesPerSecond;
             // todo
             //  actually compute this variance and figure out lowest reasonable value is
-            SoundOutput.SafetyBytes = (i32)(((r32)SoundOutput.SamplesPerSecond * 
+            SoundOutput.SafetyBytes = (i32)(((r32)SoundOutput.SamplesPerSecond *
                 (r32)SoundOutput.BytesPerSample / GameRefreshFrequency) / 3.0f);
 
             Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
@@ -1556,7 +1562,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
 #if 0
                         u64 EndCycleCount = __rdtsc();
-                        u64 CyclesElapsed = EndCycleCount - LastCycleCount;  
+                        u64 CyclesElapsed = EndCycleCount - LastCycleCount;
                         LastCycleCount = EndCycleCount;
 
                         r32 FramesPerSecond = 0.0f;
