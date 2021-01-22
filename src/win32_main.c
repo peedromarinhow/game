@@ -562,6 +562,13 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
+    glScalef(1.0f, -1.0f, 1.0f);
+    // todo
+    //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
+    //  down for some reason, wich I couldn't find
+    // note
+    //  stupidity
+
     glBegin(GL_TRIANGLES);
 
     r32 P = 1.0f;

@@ -280,7 +280,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (r32)VideoBuffer->Width, (r32)VideoBuffer->Width, 0.5f, 0.75f, 1.0f);
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (r32)VideoBuffer->Width, (r32)VideoBuffer->Height, 0.5f, 0.75f, 1.0f);
     RenderFire(Input, VideoBuffer);
 
     for (i32 Row = 0; Row < TileMap.CountY; Row++)
@@ -307,6 +307,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                           PlayerR, PlayerG, PlayerB);
         }
     }
+
+    DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
