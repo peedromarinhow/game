@@ -564,7 +564,7 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
 
     glBegin(GL_TRIANGLES);
 
-    r32 P = 0.9f;
+    r32 P = 1.0f;
 
     // lower tri
     glTexCoord2f(0.0f, 0.0f);
@@ -602,7 +602,7 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer,
 
     Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
     Buffer->Info.bmiHeader.biWidth = Width;
-    Buffer->Info.bmiHeader.biHeight = -Height; // negative because of bug, see observation I
+    Buffer->Info.bmiHeader.biHeight = Height;
     Buffer->Info.bmiHeader.biPlanes = 1;
     Buffer->Info.bmiHeader.biBitCount = 32;
     Buffer->Info.bmiHeader.biCompression = BI_RGB;
