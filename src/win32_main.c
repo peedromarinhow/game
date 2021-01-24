@@ -35,6 +35,37 @@ global b32 GlobalPause;
 global win32_offscreen_buffer GlobalBackBuffer;
 global LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global i64 GlobalPerfCounterFrequency;
+global b32 GlobalShowCursor;
+global WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
+
+internal void Win23ToggleFullScreen(HWND Window)
+{
+    // note
+    //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+    //  by Raymond Chen
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if (GetWindowPlacement(Window, &GlobalWindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
 
 
 
@@ -125,7 +156,7 @@ DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUGPlatformFreeEntireFile)
 
 DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
-    DEBUG_read_file_result Res = {0};
+    debug_read_file_result Res = {0};
 
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ,
                                     FILE_SHARE_READ, NULL,
@@ -541,7 +572,7 @@ internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceConte
     glBindTexture(GL_TEXTURE_2D, TextureHandle);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0,
                  GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
-    
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
@@ -632,12 +663,8 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
 
     switch (Message)
     {
-    case WM_SIZE:
-    {
-    }
-    break;
-    case WM_ACTIVATEAPP:
-    {
+        case WM_ACTIVATEAPP:
+        {
 #if 0
             if (WParam == TRUE)
             {
@@ -648,43 +675,56 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                 SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
             }
 #endif
-    }
-    break;
-    case WM_CLOSE:
-    {
-        GlobalRunning = false;
-    }
-    break;
-    case WM_DESTROY:
-    {
-        GlobalRunning = false;
-    }
-    break;
+        }
+        break;
+        case WM_CLOSE:
+        {
+            GlobalRunning = false;
+        }
+        break;
+        case WM_DESTROY:
+        {
+            GlobalRunning = false;
+        }
+        break;
 
-    case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-    case WM_KEYDOWN:
-    case WM_KEYUP:
-    {
-        Assert(!"NOOOOOOOOOOOOO!!!");
-        // keyboad message came from non dispatch message
-    }
-    break;
+        case WM_SETCURSOR:
+        {
+            if (GlobalShowCursor)
+            {
+                Result = DefWindowProcA(Window, Message, WParam, LParam);
+            }
+            else
+            {
+                SetCursor(0);
+            }
+        }
+        break;
 
-    case WM_PAINT:
-    {
-        PAINTSTRUCT Paint;
-        HDC DeviceContext = BeginPaint(Window, &Paint);
-        win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
-        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
-        EndPaint(Window, &Paint);
-    }
-    break;
-    default:
-    {
-        Result = DefWindowProcA(Window, Message, WParam, LParam);
-    }
-    break;
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            Assert(!"NOOOOOOOOOOOOO!!!");
+            // keyboad message came from non dispatch message
+        }
+        break;
+
+        case WM_PAINT:
+        {
+            PAINTSTRUCT Paint;
+            HDC DeviceContext = BeginPaint(Window, &Paint);
+            win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
+            Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
+            EndPaint(Window, &Paint);
+        }
+        break;
+        default:
+        {
+            Result = DefWindowProcA(Window, Message, WParam, LParam);
+        }
+        break;
     }
     return Result;
 }
@@ -915,6 +955,16 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
                 {
                     Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
                 }
+                else if (VKCode == VK_F11)
+                {
+                    if (IsDown)
+                    {
+                        if (Message.hwnd)
+                        {
+                            Win23ToggleFullScreen(Message.hwnd);
+                        }
+                    }
+                }
             }
             b32 AltKeyWasDown = Message.lParam & (1 << 29);
             if ((VKCode == VK_F4) && AltKeyWasDown)
@@ -1007,7 +1057,7 @@ inline void Win32DrawSoundBufferMarker (
 internal void DEBUGWin32SyncDisplay (
     win32_offscreen_buffer  *BackBuffer,
     i32                    MarkerCount,
-    DEBUG_win32_time_marker *Markers,
+    debug_win32_time_marker *Markers,
     i32                    CurrentMarkerIndex,
     win32_sound_output      *SoundOutput,
     r32                   TargetSecondsPerFrame
@@ -1021,7 +1071,7 @@ internal void DEBUGWin32SyncDisplay (
     r32 C = (r32)(BackBuffer->Width - 2 * PadX) / (r32)SoundOutput->SecondaryBufferSize;
     for (i32 MarkerIndex = 0; MarkerIndex < MarkerCount; MarkerIndex++)
     {
-        DEBUG_win32_time_marker *ThisMarker = &Markers[MarkerIndex];
+        debug_win32_time_marker *ThisMarker = &Markers[MarkerIndex];
         Assert(ThisMarker->OutputPlayCursor  < SoundOutput->SecondaryBufferSize);
         Assert(ThisMarker->OutputWriteCursor < SoundOutput->SecondaryBufferSize);
         Assert(ThisMarker->OutputLocation    < SoundOutput->SecondaryBufferSize);
@@ -1093,6 +1143,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     Win32LoadXInput();
 
+    GlobalShowCursor = true;
+
     WNDCLASSA WindowClass = {0};
 
     Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
@@ -1101,6 +1153,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = "game";
+    WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
 
     if (RegisterClassA(&WindowClass))
     {
@@ -1218,7 +1271,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 LARGE_INTEGER FlipWallClock = Win32GetWallClockTime();
 
                 i32 DEBUGTimeMarkerIndex = 0;
-                DEBUG_win32_time_marker DEBUGTimeMarkers[30] = {};
+                debug_win32_time_marker DEBUGTimeMarkers[30] = {};
 
                 DWORD AudioLatencyBytes = 0;
                 r32 AudioLatencySeconds = 0.0f;
@@ -1462,7 +1515,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             if (Game.GetSoundSamples)
                                 Game.GetSoundSamples(&Thread, &GameMemory, &SoundBuffer);
 #if BUILD_INTERNAL
-                            DEBUG_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
+                            debug_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
                             Marker->OutputPlayCursor = PlayCursor;
                             Marker->OutputWriteCursor = WriteCursor;
                             Marker->OutputLocation = ByteToLock;
@@ -1556,7 +1609,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             if (GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor) == DS_OK)
                             {
                                 Assert(DEBUGTimeMarkerIndex < ArrayCount(DEBUGTimeMarkers));
-                                DEBUG_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
+                                debug_win32_time_marker *Marker = &DEBUGTimeMarkers[DEBUGTimeMarkerIndex];
                                 Marker->FlipPlayCursor = PlayCursor;
                                 Marker->FlipWriteCursor = WriteCursor;
                             }

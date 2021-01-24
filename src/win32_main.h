@@ -32,7 +32,7 @@ typedef struct _win32_sound_output
 }
 win32_sound_output;
 
-typedef struct _DEBUG_win32_time_marker
+typedef struct _debug_win32_time_marker
 {
     DWORD OutputPlayCursor;
     DWORD OutputWriteCursor;
@@ -43,7 +43,7 @@ typedef struct _DEBUG_win32_time_marker
     DWORD FlipPlayCursor;
     DWORD FlipWriteCursor;
 }
-DEBUG_win32_time_marker;
+debug_win32_time_marker;
 
 typedef struct _win32_game_code
 {

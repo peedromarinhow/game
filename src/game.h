@@ -5,7 +5,7 @@
     BUILD_INTERNAL:
         0: for public release
         1: for development
-   
+
     BUILD_SLOW:
         0: no slow code allowed
         1: slow code allowed
@@ -17,9 +17,9 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define internal         static
-#define global           static
-#define local_persistent static
+#define internal static
+#define global   static
+#define localper static
 
 #define PI32 3.14159265359f
 
@@ -38,9 +38,9 @@ typedef float  r32;
 typedef double r64;
 
 #if BUILD_SLOW
-#   define Assert(Expression) if (!(Expression)) { *(int *)0 = 0; }
+#define Assert(Expression) if (!(Expression)) { *(int *)0 = 0; }
 #else
-#   define Assert(Expression)
+#define Assert(Expression)
 #endif
 
 #define Kilobytes(Value) ((Value)* 1024)
@@ -65,26 +65,26 @@ thread_context;
 
 #if BUILD_INTERNAL
 
-typedef struct DEBUG_read_file_result
+typedef struct debug_read_file_result
 {
     u64 ContentsSize;
     void *Contents;
 }
-DEBUG_read_file_result;
+debug_read_file_result;
 
 // pass these as pointers on game_memory
 //  and make a snippet for these function pointer macros
 #define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) \
     void name(thread_context *Thread, void *Memory)
-typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUG_platform_free_entire_file);
+typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(debug_platform_free_entire_file);
 
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) \
-    DEBUG_read_file_result name(thread_context *Thread, char *Filename)
-typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUG_platform_read_entire_file);
+    debug_read_file_result name(thread_context *Thread, char *Filename)
+typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) \
     b32 name(thread_context *Thread, char *Filename, u64 Size, void *Memory)
-typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUG_platform_write_entire_file);
+typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 #endif
 
@@ -123,7 +123,7 @@ typedef struct _game_controller_input
     i32 MouseY;
     i32 MouseZ;
 
-    
+
     game_button_state MouseButtons[5];
 
     union
@@ -177,9 +177,9 @@ typedef struct _game_memory
     u64 TransientStorageSize;
     void  *TransientStorageBytes;   //note
                                     //  required to be cleared to zero
-    DEBUG_platform_free_entire_file  *DEBUGPlatformFreeEntireFile;
-    DEBUG_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
-    DEBUG_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
+    debug_platform_free_entire_file  *DEBUGPlatformFreeEntireFile;
+    debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
+    debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 
 }
 game_memory;
