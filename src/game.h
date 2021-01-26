@@ -38,7 +38,7 @@ typedef float  r32;
 typedef double r64;
 
 #if BUILD_SLOW
-#define Assert(Expression) if (!(Expression)) { *(int *)0 = 0; }
+#define Assert(Expression) if (!(Expression)) { *(i32 *)0 = 0; }
 #else
 #define Assert(Expression)
 #endif
@@ -204,3 +204,8 @@ typedef struct _game_state
 game_state;
 
 #endif//GAHE_H
+
+int main(int Argc, char **Argv)
+{
+    return 0;
+}

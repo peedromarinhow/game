@@ -48,7 +48,7 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, i32 ToneFrequency)
     i16* SampleOut = SoundBuffer->Samples;
     for (i32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
-#if 0   
+#if 0
         r32 SineValue = sinf(GameState->SineT);
         i16 SampleValue = (i16)(SineValue * ToneVolume);
 #else
@@ -86,7 +86,7 @@ internal u32 TruncateR32ToUI32(r32 Real32)
     return (u32)(Real32);
 }
 
-void DrawRectangle(game_video_buffer *Buffer, 
+void DrawRectangle(game_video_buffer *Buffer,
                    r32 RealMinX, r32 RealMinY,
                    r32 RealMaxX, r32 RealMaxY,
                    r32 R, r32 G, r32 B)
@@ -120,7 +120,7 @@ void DrawRectangle(game_video_buffer *Buffer,
         {
             *Pixel++ = Color;
         }
-        
+
         Row += Buffer->Pitch;
     }
 }
@@ -155,7 +155,7 @@ void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
                 Decay = rand() % 2;
                 Tile = Below - Decay >= 0? Below - Decay : 0;
             }
-            
+
             TileMap[Row][Column - Decay] = Tile;
 
             r32 Red = (r32)FirePalette[Tile][0]/255.0f;
@@ -171,6 +171,7 @@ void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
         }
     }
 }
+
 
 typedef struct _tile_map
 {
@@ -205,7 +206,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
              ArrayCount(Input->Controllers[0].Buttons));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
-    
+
 #define TILEMAP_COUNT_X 16
 #define TILEMAP_COUNT_Y 9
     u32 Tiles[TILEMAP_COUNT_Y][TILEMAP_COUNT_X] =
@@ -228,7 +229,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     TileMap.TileHeight = 30;
 
     TileMap.Tiles = (u32 *)Tiles;
-    
+
     r32 PlayerWidth = 0.75f * TileMap.TileWidth;
     r32 PlayerHeight = 0.75f * TileMap.TileHeight;
 
@@ -269,7 +270,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             // diagonals are faster, fix with vectors
             r32 NewPlayerX = State->PlayerX + Input->dtForFrame * dPlayerX;
             r32 NewPlayerY = State->PlayerY + Input->dtForFrame * dPlayerY;
-        
+
             if (IsTileMapPointEmpty(&TileMap, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
                 IsTileMapPointEmpty(&TileMap, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
                 IsTileMapPointEmpty(&TileMap, NewPlayerX, NewPlayerY))
