@@ -216,8 +216,8 @@ typedef struct _bitmap_header
     u16 BitsPerPixel;
 } bitmap_header;
 #pragma pack(pop)
-
-internal u32 *DEBUGLoadBMP(debug_platform_read_entire_file  *ReadEntireFile,
+/*
+internal u32 *DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
                            thread_context *Thread, char *Filename)
 {
     u32 *Result = 0;
@@ -227,9 +227,36 @@ internal u32 *DEBUGLoadBMP(debug_platform_read_entire_file  *ReadEntireFile,
         bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
         u32 *Pixels = (u32 *)((u8 *)ReadResult.Contents + Header->BitmapOffset);
         Result = Pixels;
+        
+        u32 *SourceDest = Pixels;
+        for (i32 Y = 0; Y < Header->Height; ++Y)
+        {
+            for (i32 X = 0; X <= Header->Width; ++X)
+            {
+                *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+                ++SourceDest;
+            }
+        }        
     }
+
     return Result;
+}*/
+
+internal u32 *
+DEBUGLoadBMP(debug_platform_read_entire_file ReadFile, thread_context *Thread, char *FileName) {
+  u32 *Result = NULL;
+  debug_read_file_result ReadResult = ReadFile(Thread, FileName);
+  if(ReadResult.Contents) {
+    bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
+    Result = (u32 *)((u8 *)ReadResult.Contents + Header->BitmapOffset);
+  }
+
+  return Result;
 }
+
+// summa gratias https://github.com/nothings/stb
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
 
 extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 {
@@ -266,7 +293,11 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     app_state *State = (app_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized)
     {
-        State->PixelPointer = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "cavesofgallet_tiles.bmp");
+        // https://opengameart.org/content/forest-graveyard-tileset
+        // note:
+        //    this bitmap is not working, so downloaded official bitmap
+        //    from https://github.com/cj1128/handmade-hero, maybe illegal.
+        Memory->PixelPointer = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "test_background.bmp");
         Memory->IsInitialized = true;
         State->PlayerX = 80.0f;
         State->PlayerY = 80.0f;
@@ -341,17 +372,14 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
-#if 1
-    u32 *Source = State->PixelPointer;
-    u32 *Dest = (u32 *)VideoBuffer->Memory;
-    for (i32 Y = 0; Y < VideoBuffer->Height; ++Y)
-    {
-        for (i32 X = 0; X <= VideoBuffer->Width; ++X)
-        {
-            *Dest++ = *Source++;
-        }
+
+  u32 *Source = Memory->PixelPointer;
+  u32 *Dest = (u32 *)VideoBuffer->Memory;
+  for(int Y = 0; Y < VideoBuffer->Height; Y++) {
+    for(int X = 0; X < VideoBuffer->Width; X++) {
+      *Dest++ = *Source++;
     }
-#endif
+  }
 }
 
 extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)

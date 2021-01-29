@@ -181,6 +181,7 @@ typedef struct _app_memory
     debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
     debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 
+    u32 *PixelPointer;
 }
 app_memory;
 
@@ -200,8 +201,6 @@ typedef struct _app_state
 {
     r32 PlayerX;
     r32 PlayerY;
-    
-    u32 *PixelPointer;
 }
 app_state;
 

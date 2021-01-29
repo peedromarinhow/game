@@ -154,9 +154,52 @@ DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUGPlatformFreeEntireFile)
         VirtualFree(Memory, 0, MEM_RELEASE);
 }
 
+DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile) {
+  debug_read_file_result Result = {};
+
+  HANDLE File = CreateFileA(
+    Filename,
+    GENERIC_READ,
+    0,
+    0,
+    OPEN_EXISTING,
+    FILE_ATTRIBUTE_NORMAL,
+    0
+  );
+
+  LARGE_INTEGER FileSize;
+
+  if(File != INVALID_HANDLE_VALUE) {
+    if(GetFileSizeEx(File, &FileSize)) {
+      u32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
+      void *Memory = VirtualAlloc(0, FileSize32, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+      if(Memory) {
+        DWORD BytesRead;
+        if(ReadFile(File, Memory, FileSize32, &BytesRead, 0) && BytesRead == FileSize32){
+          Result.ContentsSize = FileSize32;
+          Result.Contents = Memory;
+        } else {
+          // TODO: logging
+        }
+      } else {
+        // TODO: logging
+      }
+    } else {
+      // TODO: logging
+    }
+
+    CloseHandle(File);
+  } else {
+    // TODO: logging
+  }
+
+  return Result;
+}
+
+/*
 DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
-    debug_read_file_result Res = {0};
+    debug_read_file_result Result = {0};
 
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ,
                                     FILE_SHARE_READ, NULL,
@@ -167,26 +210,26 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
         if (GetFileSizeEx(FileHandle, &FileSize))
         {
             Assert(FileSize.QuadPart <= 0xFFFFFFFF);
-            Res.Contents =
+            Result.Contents =
                 VirtualAlloc(0, (size_t)FileSize.QuadPart,
                              MEM_RESERVE | MEM_COMMIT,
                              PAGE_READWRITE);
             u32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
-            if (Res.Contents)
+            if (Result.Contents)
             {
                 DWORD BytesRead;
-                if (ReadFile(FileHandle, Res.Contents, FileSize32, &BytesRead, 0) &&
+                if (ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) &&
                     (FileSize32 == BytesRead))
                 {
                     // sucess
-                    Res.ContentsSize = FileSize32;
+                    Result.ContentsSize = FileSize32;
                 }
                 else
                 {
                     // todo
                     //  logging
-                    DEBUGPlatformFreeEntireFile(Thread, Res.Contents);
-                    Res.Contents = 0;
+                    DEBUGPlatformFreeEntireFile(Thread, Result.Contents);
+                    Result.Contents = 0;
                 }
             }
             else
@@ -209,8 +252,8 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
         //  logging
     }
 
-    return Res;
-}
+    return Result;
+}*/
 
 DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 {
