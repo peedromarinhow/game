@@ -16,6 +16,6 @@ REM 32bit build
 REM cl %CommonCompilerFlags% win32_main.cpp -link -subsystem:windows,5.1 %CommonLinkerFlags%
 
 REM 64bit build
-cl %CommonCompilerFlags% game.cpp -Fmgame.map -LD -link -incremental:no -PDB:"game_%random%.pdb" -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
-cl %CommonCompilerFlags% win32_main.cpp -Fmwin32_main.map -link %CommonLinkerFlags%
+cl %CommonCompilerFlags% app.cpp -Fmapp.map -LD -link -incremental:no -PDB:"app_%random%.pdb" -EXPORT:AppGetSoundSamples -EXPORT:AppUpdateAndRender
+cl %CommonCompilerFlags% win32_main.cpp -Fmwin32_main.map -link %CommonLinkerFlags%  /SUBSYSTEM:WINDOWS
 popd

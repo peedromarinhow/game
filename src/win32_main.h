@@ -45,20 +45,20 @@ typedef struct _debug_win32_time_marker
 }
 debug_win32_time_marker;
 
-typedef struct _win32_game_code
+typedef struct _win32_app_code
 {
-    HMODULE GameCodeDLL;
+    HMODULE AppCodeDLL;
     FILETIME DLLLastWriteTime;
 
     // important
     //  either of these functions can be null!
     //  check before calling!
-    game_update_and_render *UpdateAndRender;
-    game_get_sound_samples *GetSoundSamples;
+    app_update_and_render *UpdateAndRender;
+    app_get_sound_samples *GetSoundSamples;
 
     b32 IsValid;
 }
-win32_game_code;
+win32_app_code;
 
 #define WIN32_STATE_FILENAME_COUNT MAX_PATH
 
@@ -74,7 +74,7 @@ win32_replay_buffer;
 typedef struct _win32_state
 {
     u64 TotalSize;
-    void *GameMemoryBlock;
+    void *AppMemoryBlock;
     win32_replay_buffer ReplayBuffers[2];
 
     HANDLE RecordingHandle;

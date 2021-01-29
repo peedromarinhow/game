@@ -1,5 +1,5 @@
-#ifndef GAME_H
-#define GAME_H
+#ifndef APP_H
+#define APP_H
 
 /*
     BUILD_INTERNAL:
@@ -72,7 +72,7 @@ typedef struct debug_read_file_result
 }
 debug_read_file_result;
 
-// pass these as pointers on game_memory
+// pass these as pointers on app_memory
 //  and make a snippet for these function pointer macros
 #define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) \
     void name(thread_context *Thread, void *Memory)
@@ -88,7 +88,7 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 #endif
 
-typedef struct _game_video_buffer
+typedef struct _app_video_buffer
 {
     void *Memory;
     i32 Width;
@@ -96,24 +96,24 @@ typedef struct _game_video_buffer
     i32 Pitch;
     i32 BytesPerPixel;
 }
-game_video_buffer;
+app_video_buffer;
 
-typedef struct _game_sound_buffer
+typedef struct _app_sound_buffer
 {
     i32 SamplesPerSecond;
     i32 SampleCount;
     i16 *Samples;
 }
-game_sound_buffer;
+app_sound_buffer;
 
-typedef struct _game_button_state
+typedef struct _app_button_state
 {
     i32 HalfTransitionCount;
     b32 EndedDown;
 }
-game_button_state;
+app_button_state;
 
-typedef struct _game_controller_input
+typedef struct _app_controller_input
 {
     b32 IsConnected;
     b32 IsAnalog;
@@ -124,51 +124,51 @@ typedef struct _game_controller_input
     i32 MouseZ;
 
 
-    game_button_state MouseButtons[5];
+    app_button_state MouseButtons[5];
 
     union
     {
-        game_button_state Buttons[12];
+        app_button_state Buttons[12];
         struct
         {
-            game_button_state MoveUp;
-            game_button_state MoveDown;
-            game_button_state MoveLeft;
-            game_button_state MoveRight;
+            app_button_state MoveUp;
+            app_button_state MoveDown;
+            app_button_state MoveLeft;
+            app_button_state MoveRight;
 
-            game_button_state ActionUp;
-            game_button_state ActionDown;
-            game_button_state ActionLeft;
-            game_button_state ActionRight;
+            app_button_state ActionUp;
+            app_button_state ActionDown;
+            app_button_state ActionLeft;
+            app_button_state ActionRight;
 
-            game_button_state LeftShoulder;
-            game_button_state RightShoulder;
+            app_button_state LeftShoulder;
+            app_button_state RightShoulder;
 
-            game_button_state Start;
-            game_button_state Back;
+            app_button_state Start;
+            app_button_state Back;
 
             // all buttons should be added above this terminator button
 
-            game_button_state Terminator;
+            app_button_state Terminator;
         };
     };
 }
-game_controller_input;
+app_controller_input;
 
-typedef struct _game_input
+typedef struct _app_input
 {
     r32 dtForFrame;
-    game_controller_input Controllers[5];
+    app_controller_input Controllers[5];
 }
-game_input;
+app_input;
 
-inline game_controller_input *GetController(game_input *Input, u32 ControllerIndex)
+inline app_controller_input *GetController(app_input *Input, u32 ControllerIndex)
 {
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     return &Input->Controllers[ControllerIndex];
 }
 
-typedef struct _game_memory
+typedef struct _app_memory
 {
     b32 IsInitialized;
     u64 PermanentStorageSize;
@@ -182,26 +182,28 @@ typedef struct _game_memory
     debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 
 }
-game_memory;
+app_memory;
 
-#define GAME_UPDATE_AND_RENDER(name)                       \
-    void name(thread_context *Thread, game_memory *Memory, \
-              game_input *Input, game_video_buffer *VideoBuffer)
-typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+#define APP_UPDATE_AND_RENDER(name)                       \
+    void name(thread_context *Thread, app_memory *Memory, \
+              app_input *Input, app_video_buffer *VideoBuffer)
+typedef APP_UPDATE_AND_RENDER(app_update_and_render);
 
 //note
 //  at the moment, this funcion should be very fast, < 1ms or so
-#define GAME_GET_SOUND_SAMPLES(name)                       \
-    void name(thread_context *Thread, game_memory *Memory, \
-              game_sound_buffer *SoundBuffer)
-typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+#define APP_GET_SOUND_SAMPLES(name)                       \
+    void name(thread_context *Thread, app_memory *Memory, \
+              app_sound_buffer *SoundBuffer)
+typedef APP_GET_SOUND_SAMPLES(app_get_sound_samples);
 
-typedef struct _game_state
+typedef struct _app_state
 {
     r32 PlayerX;
     r32 PlayerY;
+    
+    u32 *PixelPointer;
 }
-game_state;
+app_state;
 
 #endif//GAHE_H
 

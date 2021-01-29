@@ -1,4 +1,4 @@
-#include "game.h"
+#include "app.h"
 
 const u8 FirePalette[][3] = {
     {7,   7,   7},
@@ -40,7 +40,7 @@ const u8 FirePalette[][3] = {
     {255, 255, 255}
 };
 
-void OutputSineWave(game_sound_buffer *SoundBuffer, i32 ToneFrequency)
+void OutputSineWave(app_sound_buffer *SoundBuffer, i32 ToneFrequency)
 {
     i16 ToneVolume = 3000;
     i32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneFrequency;
@@ -49,7 +49,7 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, i32 ToneFrequency)
     for (i32 SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
 #if 0
-        r32 SineValue = sinf(GameState->SineT);
+        r32 SineValue = sinf(AppState->SineT);
         i16 SampleValue = (i16)(SineValue * ToneVolume);
 #else
         i16 SampleValue = 0;
@@ -57,10 +57,10 @@ void OutputSineWave(game_sound_buffer *SoundBuffer, i32 ToneFrequency)
         *SampleOut++ = SampleValue;
         *SampleOut++ = SampleValue;
 #if 0
-        GameState->SineT += 2.0f * PI32 / (r32)WavePeriod;
-        if (GameState->SineT > (2.0f * PI32))
+        AppState->SineT += 2.0f * PI32 / (r32)WavePeriod;
+        if (AppState->SineT > (2.0f * PI32))
         {
-            GameState->SineT -= 2.0f * PI32;
+            AppState->SineT -= 2.0f * PI32;
         }
 #endif
     }
@@ -86,7 +86,7 @@ internal u32 TruncateR32ToUI32(r32 Real32)
     return (u32)(Real32);
 }
 
-void DrawRectangle(game_video_buffer *Buffer,
+void DrawRectangle(app_video_buffer *Buffer,
                    r32 RealMinX, r32 RealMinY,
                    r32 RealMaxX, r32 RealMaxY,
                    r32 R, r32 G, r32 B)
@@ -125,7 +125,7 @@ void DrawRectangle(game_video_buffer *Buffer,
     }
 }
 
-void RenderFire(game_input *Input, game_video_buffer *VideoBuffer)
+void RenderFire(app_input *Input, app_video_buffer *VideoBuffer)
 {
     r32 TileWidth  = 5.0f;
     r32 TileHeight = 5.0f;
@@ -201,11 +201,41 @@ internal b32 IsTileMapPointEmpty(tile_map *TileMap, r32 TestX, r32 TestY)
     return Empty;
 }
 
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+#pragma pack(push, 1)
+typedef struct _bitmap_header
+{
+    u16 FileType;
+    u32 FileSize;
+    u16 Reserved1;
+    u16 Reserved2;
+    u32 BitmapOffset;
+    u32 Size;
+    i32 Width;
+    i32 Height;
+    u16 Planes;
+    u16 BitsPerPixel;
+} bitmap_header;
+#pragma pack(pop)
+
+internal u32 *DEBUGLoadBMP(debug_platform_read_entire_file  *ReadEntireFile,
+                           thread_context *Thread, char *Filename)
+{
+    u32 *Result = 0;
+    debug_read_file_result ReadResult = ReadEntireFile(Thread, Filename);
+    if (ReadResult.ContentsSize != 0)
+    {
+        bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
+        u32 *Pixels = (u32 *)((u8 *)ReadResult.Contents + Header->BitmapOffset);
+        Result = Pixels;
+    }
+    return Result;
+}
+
+extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
              ArrayCount(Input->Controllers[0].Buttons));
-    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+    Assert(sizeof(app_state) <= Memory->PermanentStorageSize);
 
 #define TILEMAP_COUNT_X 16
 #define TILEMAP_COUNT_Y 9
@@ -233,9 +263,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     r32 PlayerWidth = 0.75f * TileMap.TileWidth;
     r32 PlayerHeight = 0.75f * TileMap.TileHeight;
 
-    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    app_state *State = (app_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized)
     {
+        State->PixelPointer = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "cavesofgallet_tiles.bmp");
         Memory->IsInitialized = true;
         State->PlayerX = 80.0f;
         State->PlayerY = 80.0f;
@@ -245,7 +276,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     for (i32 ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
     {
-        game_controller_input *Controller = GetController(Input, ControllerIndex);
+        app_controller_input *Controller = GetController(Input, ControllerIndex);
         if (Controller->IsAnalog)
         {
             // analog movement tuning
@@ -310,18 +341,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
+#if 1
+    u32 *Source = State->PixelPointer;
+    u32 *Dest = (u32 *)VideoBuffer->Memory;
+    for (i32 Y = 0; Y < VideoBuffer->Height; ++Y)
+    {
+        for (i32 X = 0; X <= VideoBuffer->Width; ++X)
+        {
+            *Dest++ = *Source++;
+        }
+    }
+#endif
 }
 
-extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
+extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)
 {
-    game_state *State = (game_state *)Memory->PermanentStorageBytes;
+    app_state *State = (app_state *)Memory->PermanentStorageBytes;
     OutputSineWave(SoundBuffer, 400);
 }
 
 
 
 #if 0
-void RenderWeirdGradient(game_video_buffer *Buffer, i32 BlueOffset, i32 GreenOffset)
+void RenderWeirdGradient(app_video_buffer *Buffer, i32 BlueOffset, i32 GreenOffset)
 {
     u8 *Row = (u8 *)Buffer->Memory;
     for (int Y = 0;Y < Buffer->Height; Y++)
