@@ -209,6 +209,8 @@ typedef struct _app_state
     r32 PlayerY;
     
     loaded_bitmap Backdrop;
+    
+    r32 FontScale;
 }
 app_state;
 

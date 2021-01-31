@@ -252,10 +252,10 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 #define TILEMAP_COUNT_X 16
 #define TILEMAP_COUNT_Y 9
     u32 Tiles[TILEMAP_COUNT_Y][TILEMAP_COUNT_X] =
-        {{1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
-         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-         {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
          {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
          {1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
          {1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -286,6 +286,7 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         State->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "test_background.bmp");
         State->PlayerX = 80.0f;
         State->PlayerY = 80.0f;
+        State->FontScale = 3.0f;
     }
 
     i32 Increment = 10;
@@ -300,6 +301,11 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         }
         else
         {
+            if (Controller->ActionUp.EndedDown)
+                State->FontScale += 0.1f;
+            if (Controller->ActionDown.EndedDown)
+                State->FontScale -= 0.1f;
+
             r32 dPlayerX = 0.0f;
             r32 dPlayerY = 0.0f;
             if (Controller->MoveUp.EndedDown)
@@ -386,11 +392,11 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
     
     stbtt_fontinfo Font;
-    debug_read_file_result FontFile = Memory->DEBUGPlatformReadEntireFile(Thread, "c:/windows/fonts/arialbd.ttf");
+    debug_read_file_result FontFile = Memory->DEBUGPlatformReadEntireFile(Thread, "d:/fontes/JetBrainsMonoSlashed-2.002/JetBrainsMonoSlashed-Regular.ttf");
     stbtt_InitFont(&Font, (unsigned char *)FontFile.Contents, 0);
     unsigned char *FontBitmap;
     int w,h,c = 'a', s = 20;
-    FontBitmap = stbtt_GetCodepointBitmap(&Font, 0.0f, stbtt_ScaleForPixelHeight(&Font, s), c, &w, &h, 0,0);
+    FontBitmap = stbtt_GetCodepointBitmap(&Font, 0.0f, stbtt_ScaleForPixelHeight(&Font, s)*State->FontScale, c, &w, &h, 0, 0);
     u8 *OtherDestRow = (u8 *)VideoBuffer->Memory;
     for(int Y = 0; Y < h; Y++)
     {
@@ -398,7 +404,7 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         for(int X = 0; X < w; X++)
         {
             u8 Color = FontBitmap[Y*w+X];
-            *Dest++ = Color == 0? 0xFFFFFFFF : 0x00000000;
+            *Dest++ |= Color | (Color << 8) | (Color << 16);
         }
         
         OtherDestRow += VideoBuffer->Pitch;
