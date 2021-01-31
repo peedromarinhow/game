@@ -216,45 +216,30 @@ typedef struct _bitmap_header
     u16 BitsPerPixel;
 } bitmap_header;
 #pragma pack(pop)
-/*
-internal u32 *DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
-                           thread_context *Thread, char *Filename)
-{
-    u32 *Result = 0;
-    debug_read_file_result ReadResult = ReadEntireFile(Thread, Filename);
-    if (ReadResult.ContentsSize != 0)
-    {
+
+internal loaded_bitmap DEBUGLoadBMP(debug_platform_read_entire_file ReadFile, thread_context *Thread, char *FileName) {
+    loaded_bitmap Result = {};
+    debug_read_file_result ReadResult = ReadFile(Thread, FileName);
+    if(ReadResult.Contents) {
         bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
         u32 *Pixels = (u32 *)((u8 *)ReadResult.Contents + Header->BitmapOffset);
-        Result = Pixels;
-        
+        Result.Width = Header->Width;
+        Result.Height = Header->Height;
+        Result.Pixels = Pixels;
         u32 *SourceDest = Pixels;
         for (i32 Y = 0; Y < Header->Height; ++Y)
         {
-            for (i32 X = 0; X <= Header->Width; ++X)
+            for (i32 X = 0; X < Header->Width; ++X)
             {
                 *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
                 ++SourceDest;
             }
-        }        
+        }
     }
 
     return Result;
-}*/
-
-internal u32 *
-DEBUGLoadBMP(debug_platform_read_entire_file ReadFile, thread_context *Thread, char *FileName) {
-  u32 *Result = NULL;
-  debug_read_file_result ReadResult = ReadFile(Thread, FileName);
-  if(ReadResult.Contents) {
-    bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
-    Result = (u32 *)((u8 *)ReadResult.Contents + Header->BitmapOffset);
-  }
-
-  return Result;
 }
 
-// summa gratias https://github.com/nothings/stb
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -278,8 +263,8 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
          {1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1}};
     tile_map TileMap;
     TileMap.CountX = TILEMAP_COUNT_X;
-    TileMap.CountY = TILEMAP_COUNT_Y;
 
+    TileMap.CountY = TILEMAP_COUNT_Y;
     TileMap.UpperLeftX = -15;
     TileMap.UpperLeftY = 0;
     TileMap.TileWidth  = 30;
@@ -293,12 +278,12 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     app_state *State = (app_state *)Memory->PermanentStorageBytes;
     if (!Memory->IsInitialized)
     {
+        Memory->IsInitialized = true;
         // https://opengameart.org/content/forest-graveyard-tileset
         // note:
-        //    this bitmap is not working, so downloaded official bitmap
-        //    from https://github.com/cj1128/handmade-hero, maybe illegal.
-        Memory->PixelPointer = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "test_background.bmp");
-        Memory->IsInitialized = true;
+        //    this bitmap is not working, so downloaded "official" bitmap
+        //    from https://github.com/cj1128/handmade-hero, is this allowed?
+        State->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "test_background.bmp");
         State->PlayerX = 80.0f;
         State->PlayerY = 80.0f;
     }
@@ -344,7 +329,34 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 0.0f, 0.0f, (r32)VideoBuffer->Width, (r32)VideoBuffer->Height, 0.5f, 0.75f, 1.0f);
-    RenderFire(Input, VideoBuffer);
+    //RenderFire(Input, VideoBuffer);
+    
+    loaded_bitmap Backdrop = State->Backdrop;
+    i32 BlitWidth = Backdrop.Width;
+    i32 BlitHeight = Backdrop.Height;
+    if (BlitWidth > VideoBuffer->Width)
+    {
+        BlitWidth = VideoBuffer->Width;
+    }
+    if (BlitHeight > VideoBuffer->Height)
+    {
+        BlitHeight = VideoBuffer->Height;
+    }
+
+    u32 *SourceRow = Backdrop.Pixels + Backdrop.Width * (Backdrop.Height - 1);
+    u8 *DestRow = (u8 *)VideoBuffer->Memory;
+    for(int Y = 0; Y < BlitHeight; Y++)
+    {
+        u32 *Dest = (u32 *)DestRow;
+        u32 *Source = SourceRow;
+        for(int X = 0; X < BlitWidth; X++)
+        {
+            *Dest++ = *Source++;
+        }
+        
+        DestRow += VideoBuffer->Pitch;
+        SourceRow -= Backdrop.Width;
+    }
 
     for (i32 Row = 0; Row < TileMap.CountY; Row++)
     {
@@ -372,14 +384,26 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
-
-  u32 *Source = Memory->PixelPointer;
-  u32 *Dest = (u32 *)VideoBuffer->Memory;
-  for(int Y = 0; Y < VideoBuffer->Height; Y++) {
-    for(int X = 0; X < VideoBuffer->Width; X++) {
-      *Dest++ = *Source++;
+    
+    stbtt_fontinfo Font;
+    debug_read_file_result FontFile = Memory->DEBUGPlatformReadEntireFile(Thread, "c:/windows/fonts/arialbd.ttf");
+    stbtt_InitFont(&Font, (unsigned char *)FontFile.Contents, 0);
+    unsigned char *FontBitmap;
+    int w,h,c = 'a', s = 20;
+    FontBitmap = stbtt_GetCodepointBitmap(&Font, 0.0f, stbtt_ScaleForPixelHeight(&Font, s), c, &w, &h, 0,0);
+    u8 *OtherDestRow = (u8 *)VideoBuffer->Memory;
+    for(int Y = 0; Y < h; Y++)
+    {
+        u32 *Dest = (u32 *)OtherDestRow;
+        for(int X = 0; X < w; X++)
+        {
+            u8 Color = FontBitmap[Y*w+X];
+            *Dest++ = Color == 0? 0xFFFFFFFF : 0x00000000;
+        }
+        
+        OtherDestRow += VideoBuffer->Pitch;
     }
-  }
+
 }
 
 extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)

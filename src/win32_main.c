@@ -154,49 +154,6 @@ DEBUG_PLATFORM_FREE_ENTIRE_FILE(DEBUGPlatformFreeEntireFile)
         VirtualFree(Memory, 0, MEM_RELEASE);
 }
 
-DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile) {
-  debug_read_file_result Result = {};
-
-  HANDLE File = CreateFileA(
-    Filename,
-    GENERIC_READ,
-    0,
-    0,
-    OPEN_EXISTING,
-    FILE_ATTRIBUTE_NORMAL,
-    0
-  );
-
-  LARGE_INTEGER FileSize;
-
-  if(File != INVALID_HANDLE_VALUE) {
-    if(GetFileSizeEx(File, &FileSize)) {
-      u32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
-      void *Memory = VirtualAlloc(0, FileSize32, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
-      if(Memory) {
-        DWORD BytesRead;
-        if(ReadFile(File, Memory, FileSize32, &BytesRead, 0) && BytesRead == FileSize32){
-          Result.ContentsSize = FileSize32;
-          Result.Contents = Memory;
-        } else {
-          // TODO: logging
-        }
-      } else {
-        // TODO: logging
-      }
-    } else {
-      // TODO: logging
-    }
-
-    CloseHandle(File);
-  } else {
-    // TODO: logging
-  }
-
-  return Result;
-}
-
-/*
 DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
     debug_read_file_result Result = {0};
@@ -253,7 +210,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
     }
 
     return Result;
-}*/
+}
 
 DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 {

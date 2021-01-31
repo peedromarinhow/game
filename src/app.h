@@ -180,8 +180,6 @@ typedef struct _app_memory
     debug_platform_free_entire_file  *DEBUGPlatformFreeEntireFile;
     debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
     debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
-
-    u32 *PixelPointer;
 }
 app_memory;
 
@@ -197,10 +195,20 @@ typedef APP_UPDATE_AND_RENDER(app_update_and_render);
               app_sound_buffer *SoundBuffer)
 typedef APP_GET_SOUND_SAMPLES(app_get_sound_samples);
 
+typedef struct _loaded_bitmap
+{
+    i32 Width;
+    i32 Height;
+    u32 *Pixels;
+}
+loaded_bitmap;
+
 typedef struct _app_state
 {
     r32 PlayerX;
     r32 PlayerY;
+    
+    loaded_bitmap Backdrop;
 }
 app_state;
 
