@@ -1,5 +1,8 @@
 #include "app.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
 const u8 FirePalette[][3] = {
     {7,   7,   7},
     {31,  7,   7},
@@ -125,6 +128,39 @@ void DrawRectangle(app_video_buffer *Buffer,
     }
 }
 
+typedef struct _font
+{
+    stbtt_fontinfo Info;
+    debug_read_file_result File;
+} font;
+
+// note:
+//    it looks kinda bad, is this how stb_truetype is supposed to be?
+internal void RenderGlyph(thread_context *Thread, app_video_buffer *Buffer,
+                          font *Font, char Codepoint, r32 GlyphScale, u32 Color)
+{
+    stbtt_InitFont(&Font->Info, (u8 *)Font->File.Contents, 0);
+
+    i32 GlyphWidth;
+    i32 GlyphHeight;
+    u8 *Bitmap = stbtt_GetCodepointBitmap(&Font->Info, 0.0f, stbtt_ScaleForPixelHeight(&Font->Info, 10)*GlyphScale,
+                                           Codepoint, &GlyphWidth, &GlyphHeight, 0, 0);
+    u8 *DestRow = (u8 *)Buffer->Memory;
+    for(int Y = 0; Y < GlyphHeight; Y++)
+    {
+        u32 *Dest = (u32 *)DestRow;
+        for(int X = 0; X < GlyphWidth; X++)
+        {
+            Color = Bitmap[Y*GlyphWidth+X];
+            // todo:
+            //    figure how to color this
+            *Dest++ |= Color | (Color << 8) | (Color << 16);
+        }
+        
+        DestRow += Buffer->Pitch;
+    }
+}
+
 void RenderFire(app_input *Input, app_video_buffer *VideoBuffer)
 {
     r32 TileWidth  = 5.0f;
@@ -240,9 +276,6 @@ internal loaded_bitmap DEBUGLoadBMP(debug_platform_read_entire_file ReadFile, th
     return Result;
 }
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
 extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
@@ -334,8 +367,10 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         }
     }
 
-    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (r32)VideoBuffer->Width, (r32)VideoBuffer->Height, 0.5f, 0.75f, 1.0f);
-    //RenderFire(Input, VideoBuffer);
+    DrawRectangle(VideoBuffer, 0.0f, 0.0f, (r32)VideoBuffer->Width, (r32)VideoBuffer->Height, 0.0f, 0.0f, 0.0f);
+    
+#if 1
+    RenderFire(Input, VideoBuffer);
     
     loaded_bitmap Backdrop = State->Backdrop;
     i32 BlitWidth = Backdrop.Width;
@@ -390,26 +425,11 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     }
 
     DrawRectangle(VideoBuffer, 10.0f, 10.0f, 20.0f, 20.0f, 0.5f, 0.75f, 1.0f);
+#endif
     
-    stbtt_fontinfo Font;
-    debug_read_file_result FontFile = Memory->DEBUGPlatformReadEntireFile(Thread, "d:/fontes/JetBrainsMonoSlashed-2.002/JetBrainsMonoSlashed-Regular.ttf");
-    stbtt_InitFont(&Font, (unsigned char *)FontFile.Contents, 0);
-    unsigned char *FontBitmap;
-    int w,h,c = 'a', s = 20;
-    FontBitmap = stbtt_GetCodepointBitmap(&Font, 0.0f, stbtt_ScaleForPixelHeight(&Font, s)*State->FontScale, c, &w, &h, 0, 0);
-    u8 *OtherDestRow = (u8 *)VideoBuffer->Memory;
-    for(int Y = 0; Y < h; Y++)
-    {
-        u32 *Dest = (u32 *)OtherDestRow;
-        for(int X = 0; X < w; X++)
-        {
-            u8 Color = FontBitmap[Y*w+X];
-            *Dest++ |= Color | (Color << 8) | (Color << 16);
-        }
-        
-        OtherDestRow += VideoBuffer->Pitch;
-    }
-
+    font JetBrainsMono = {};
+    JetBrainsMono.File = Memory->DEBUGPlatformReadEntireFile(Thread, "d:/fontes/JetBrainsMonoSlashed-2.002/JetBrainsMonoSlashed-Regular.ttf");
+    RenderGlyph(Thread, VideoBuffer, &JetBrainsMono, '@', State->FontScale, 0xFFFFFFFF);
 }
 
 extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)
