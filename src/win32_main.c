@@ -541,23 +541,7 @@ internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
 }
 
 internal void Win32DisplayBuffer(HDC DeviceContext,
-                                 i32 WindowWidth, i32 WindowHeight)
-{
-#if 0
-    i32 OffsetX = 10;
-    i32 OffsetY = 10;
-
-    PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
-    PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
-    PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
-    PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
-
-    StretchDIBits(DeviceContext, OffsetX, OffsetY,
-                  Buffer->Width, Buffer->Height, 0, 0,
-                  Buffer->Width, Buffer->Height,
-                  Buffer->Memory, &Buffer->Info,
-                  DIB_RGB_COLORS, SRCCOPY);
-#endif
+                                 i32 WindowWidth, i32 WindowHeight) {
     glViewport(0, 0, WindowWidth, WindowHeight);
 
     // todo
@@ -628,33 +612,6 @@ internal void Win32DisplayBuffer(HDC DeviceContext,
     glEnd();
 
     SwapBuffers(DeviceContext);
-}
-
-internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer,
-                                    i32 Width, i32 Height)
-{
-    if (Buffer->Memory)
-        VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
-
-    Buffer->Width = Width;
-    Buffer->Height = Height;
-
-    Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
-    Buffer->Info.bmiHeader.biWidth = Width;
-    Buffer->Info.bmiHeader.biHeight = Height;
-    Buffer->Info.bmiHeader.biPlanes = 1;
-    Buffer->Info.bmiHeader.biBitCount = 32;
-    Buffer->Info.bmiHeader.biCompression = BI_RGB;
-
-    i32 BytesPerPixel = 4;
-    Buffer->BytesPerPixel = BytesPerPixel;
-
-    i32 BitmapMemSize = (Width * Height) * BytesPerPixel;
-    Buffer->Memory = VirtualAlloc(0, BitmapMemSize, MEM_COMMIT, PAGE_READWRITE);
-    Buffer->Pitch = Width * BytesPerPixel;
-
-    // todo
-    //  clear to black
 }
 
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,

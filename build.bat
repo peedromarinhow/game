@@ -7,15 +7,12 @@ set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib winmm.lib op
 
 pushd build\debug
 
-REM I don't like pink, so no .cpp files on the github repo are allowed (dumb)
 del *.pdb > NUL 2> NUL
-copy ..\..\src\*.c *.cpp > NUL 2> NUL
-copy ..\..\src\*.h *.h > NUL 2> NUL
 
 REM 32bit build
 REM cl %CommonCompilerFlags% win32_main.cpp -link -subsystem:windows,5.1 %CommonLinkerFlags%
 
 REM 64bit build
-cl %CommonCompilerFlags% app.cpp -Fmapp.map -LD -link -incremental:no opengl32.lib -PDB:"app_%random%.pdb" -EXPORT:AppGetSoundSamples -EXPORT:AppUpdateAndRender
-cl %CommonCompilerFlags% win32_main.cpp -Fmwin32_main.map -link %CommonLinkerFlags%  /SUBSYSTEM:WINDOWS
+cl %CommonCompilerFlags% app.c -Fmapp.map -LD -link -incremental:no opengl32.lib -PDB:"app_%random%.pdb" -EXPORT:AppGetSoundSamples -EXPORT:AppUpdateAndRender
+cl %CommonCompilerFlags% win32_main.c -Fmwin32_main.map -link %CommonLinkerFlags%  /SUBSYSTEM:WINDOWS
 popd
