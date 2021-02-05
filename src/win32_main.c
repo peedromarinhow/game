@@ -32,7 +32,6 @@
 
 global b32 GlobalRunning;
 global b32 GlobalPause;
-global win32_offscreen_buffer GlobalBackBuffer;
 global LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global i64 GlobalPerfCounterFrequency;
 global b32 GlobalShowCursor;
@@ -140,6 +139,8 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 }
 global x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
+
+
 
 #define DIRECT_SOUND_CREATE(name) \
     HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
@@ -539,7 +540,7 @@ internal win32_window_dimensions Win32GetWindowDimensions(HWND Window)
     return Result;
 }
 
-internal void Win32DisplayBuffer(win32_offscreen_buffer *Buffer, HDC DeviceContext,
+internal void Win32DisplayBuffer(HDC DeviceContext,
                                  i32 WindowWidth, i32 WindowHeight)
 {
 #if 0
@@ -716,7 +717,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
             PAINTSTRUCT Paint;
             HDC DeviceContext = BeginPaint(Window, &Paint);
             win32_window_dimensions Dimensions = Win32GetWindowDimensions(Window);
-            Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext, Dimensions.Width, Dimensions.Height);
+            Win32DisplayBuffer(DeviceContext, Dimensions.Width, Dimensions.Height);
             EndPaint(Window, &Paint);
         }
         break;
@@ -1009,112 +1010,6 @@ inline r32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
         (r32)GlobalPerfCounterFrequency;
 }
 
-#if 0
-internal void Win32DrawVertical (
-    win32_offscreen_buffer *BackBuffer,
-    i32  X,
-    i32  Top,
-    i32  Bottom,
-    u32 Color
-)
-{
-    if (Top <= 0)
-    {
-        Top = 0;
-    }
-    if (Bottom > BackBuffer->Height)
-    {
-        Bottom = BackBuffer->Height;
-    }
-
-    if ((X >= 0) && (X < BackBuffer->Width))
-    {
-        u8 *Pixel = (u8 *)BackBuffer->Memory + X*BackBuffer->BytesPerPixel + Top*BackBuffer->Pitch;
-        for (i32 Y = Top; Y < Bottom; Y++)
-        {
-            *(u32 *)Pixel = Color;
-            Pixel += BackBuffer->Pitch;
-        }
-    }
-}
-
-inline void Win32DrawSoundBufferMarker (
-    win32_offscreen_buffer *BackBuffer,
-    win32_sound_output     *SoundOutput,
-    r32 C,
-    i32  PadX,
-    i32  Top,
-    i32  Bottom,
-    DWORD  Value,
-    u32 Color
-)
-{
-    r32 Real32X = (C * (r32)Value);
-    i32 X = PadX + (i32)Real32X;
-    Win32DrawVertical(BackBuffer, X, Top, Bottom, Color);
-}
-
-internal void DEBUGWin32SyncDisplay (
-    win32_offscreen_buffer  *BackBuffer,
-    i32                    MarkerCount,
-    debug_win32_time_marker *Markers,
-    i32                    CurrentMarkerIndex,
-    win32_sound_output      *SoundOutput,
-    r32                   TargetSecondsPerFrame
-)
-{
-    i32 PadX = 16;
-    i32 PadY = 16;
-
-    i32 LineHeight = 64;
-
-    r32 C = (r32)(BackBuffer->Width - 2 * PadX) / (r32)SoundOutput->SecondaryBufferSize;
-    for (i32 MarkerIndex = 0; MarkerIndex < MarkerCount; MarkerIndex++)
-    {
-        debug_win32_time_marker *ThisMarker = &Markers[MarkerIndex];
-        Assert(ThisMarker->OutputPlayCursor  < SoundOutput->SecondaryBufferSize);
-        Assert(ThisMarker->OutputWriteCursor < SoundOutput->SecondaryBufferSize);
-        Assert(ThisMarker->OutputLocation    < SoundOutput->SecondaryBufferSize);
-        Assert(ThisMarker->OutputByteCount   < SoundOutput->SecondaryBufferSize);
-        Assert(ThisMarker->FlipPlayCursor    < SoundOutput->SecondaryBufferSize);
-        Assert(ThisMarker->FlipWriteCursor   < SoundOutput->SecondaryBufferSize);
-
-        DWORD PlayColor = 0x0000FF00;
-        DWORD WriteColor = 0xFFFFFFFF;
-        DWORD ExpectedFlipColor = 0x000000FF;
-        DWORD PlayWindowColor = 0xFFFF00FF;
-
-        i32 Top = PadY;
-        i32 Bottom = Top + LineHeight;
-        if (MarkerIndex == CurrentMarkerIndex)
-        {
-            Top += LineHeight + PadY;
-            Bottom += LineHeight + PadY;
-            i32 FirstTop = Top;
-
-            Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputPlayCursor,  PlayColor);
-            Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputWriteCursor, WriteColor);
-
-            Top += LineHeight + PadY;
-            Bottom += LineHeight + PadY;
-
-            Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation,  PlayColor);
-            Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation + ThisMarker->OutputByteCount, WriteColor);
-
-            Top += LineHeight + PadY;
-            Bottom += LineHeight + PadY;
-
-            Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, FirstTop, Bottom, ThisMarker->ExpectedFlipPlayCursor, ExpectedFlipColor);
-        }
-
-        Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipPlayCursor,  PlayColor);
-        Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipPlayCursor + (480 * SoundOutput->BytesPerSample),  PlayColor);
-        Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipWriteCursor, WriteColor);
-    }
-}
-
-#endif
-
 
 
 // the actual stuff
@@ -1147,7 +1042,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     WNDCLASSA WindowClass = {0};
 
-    Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
+    //sWin32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
 
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
@@ -1409,21 +1304,16 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
                         thread_context Thread;
 
-                        app_video_buffer VideoBuffer = {};
-                        VideoBuffer.Memory = GlobalBackBuffer.Memory;
-                        VideoBuffer.Width = GlobalBackBuffer.Width;
-                        VideoBuffer.Height = GlobalBackBuffer.Height;
-                        VideoBuffer.Pitch = GlobalBackBuffer.Pitch;
-                        VideoBuffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
-
                         if (Win32State.InputRecordingIndex)
                             Win32RecordInput(&Win32State, NewInput);
 
                         if (Win32State.InputPlaybackIndex)
                             Win32PlaybackInput(&Win32State, NewInput);
 
+                        // here
+
                         if (App.UpdateAndRender)
-                            App.UpdateAndRender(&Thread, &AppMemory, NewInput, &VideoBuffer);
+                            App.UpdateAndRender(&Thread, &AppMemory, NewInput);
 
                         LARGE_INTEGER AudioWallClock = Win32GetWallClockTime();
                         r32 FromBeginToAudioSeconds =
@@ -1599,7 +1489,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         // Win32SyncDisplay was here
 
                         HDC DeviceContext = GetDC(Window);
-                        Win32DisplayBuffer(&GlobalBackBuffer, DeviceContext , Dimension.Width, Dimension.Height);
+                        Win32DisplayBuffer(DeviceContext , Dimension.Width, Dimension.Height);
                         ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClockTime();
