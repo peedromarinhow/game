@@ -63,8 +63,9 @@ typedef struct _thread_context
 }
 thread_context;
 
-#if BUILD_INTERNAL
 
+
+#if BUILD_INTERNAL
 typedef struct debug_read_file_result
 {
     u64 ContentsSize;
@@ -74,19 +75,20 @@ debug_read_file_result;
 
 // pass these as pointers on app_memory
 //  and make a snippet for these function pointer macros
-#define DEBUG_PLATFORM_FREE_ENTIRE_FILE(name) \
-    void name(thread_context *Thread, void *Memory)
+#define DEBUG_PLATFORM_FREE_ENTIRE_FILE(Name) \
+    void Name(thread_context *Thread, void *Memory)
 typedef DEBUG_PLATFORM_FREE_ENTIRE_FILE(debug_platform_free_entire_file);
 
-#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) \
-    debug_read_file_result name(thread_context *Thread, char *Filename)
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(Name) \
+    debug_read_file_result Name(thread_context *Thread, char *Filename)
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) \
-    b32 name(thread_context *Thread, char *Filename, u64 Size, void *Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(Name) \
+    b32 Name(thread_context *Thread, char *Filename, u64 Size, void *Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
-
 #endif
+
+
 
 typedef struct _app_video_buffer
 {
@@ -183,15 +185,15 @@ typedef struct _app_memory
 }
 app_memory;
 
-#define APP_UPDATE_AND_RENDER(name)                       \
-    void name(thread_context *Thread, app_memory *Memory, \
+#define APP_UPDATE_AND_RENDER(Name)                       \
+    void Name(thread_context *Thread, app_memory *Memory, \
               app_input *Input, app_video_buffer *VideoBuffer)
 typedef APP_UPDATE_AND_RENDER(app_update_and_render);
 
 //note
 //  at the moment, this funcion should be very fast, < 1ms or so
-#define APP_GET_SOUND_SAMPLES(name)                       \
-    void name(thread_context *Thread, app_memory *Memory, \
+#define APP_GET_SOUND_SAMPLES(Name)                       \
+    void Name(thread_context *Thread, app_memory *Memory, \
               app_sound_buffer *SoundBuffer)
 typedef APP_GET_SOUND_SAMPLES(app_get_sound_samples);
 
@@ -205,11 +207,6 @@ loaded_bitmap;
 
 typedef struct _app_state
 {
-    r32 PlayerX;
-    r32 PlayerY;
-    
-    loaded_bitmap Backdrop;
-    
     r32 FontScale;
 }
 app_state;
