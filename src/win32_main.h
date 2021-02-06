@@ -23,10 +23,9 @@ typedef struct _win32_sound_output
 {
     i32  SamplesPerSecond;
     i32  BytesPerSample;
-    u32 RunningSampleIndex;
-    DWORD  SecondaryBufferSize;
-    DWORD  SafetyBytes;
-    r32 SineT;
+    u32  RunningSampleIndex;
+    DWORD SecondaryBufferSize;
+    DWORD SafetyBytes;
     //todo
     //  maths will get easier with a "BytesPerSecond" field
 }

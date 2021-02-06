@@ -1,3 +1,5 @@
+//note: not going to do gamepad output for now
+
 #include "lingo.h"
 
 #include <xinput.h>
@@ -46,60 +48,8 @@ internal void Win32InitXInput(void) {
     }
 }
 
-typedef struct button_state {
-    i32 HalfTransitionCount;
-    b32 EndedDown;
-} button_state;
-
-typedef struct _app_controller_input {
-    b32 IsConnected;
-    b32 IsAnalog;
-
-    r32 StickAverageX;
-    r32 StickAverageY;
-
-    // todo: mouse wheel
-    i32 MouseX;
-    i32 MouseY;
-    i32 MouseZ;
-    union {
-        button_state MouseButtons[5];
-        struct {
-            button_state MouseLeft;
-            button_state MouseRight;
-            button_state MouseMiddle;
-            button_state MouseEtc1;
-            button_state MouseEtc2;
-        }
-    }
-
-    union {
-        button_state Buttons[12];
-        struct {
-            button_state MoveUp;
-            button_state MoveDown;
-            button_state MoveLeft;
-            button_state MoveRight;
-
-            button_state ActionUp;
-            button_state ActionDown;
-            button_state ActionLeft;
-            button_state ActionRight;
-
-            button_state LeftShoulder;
-            button_state RightShoulder;
-
-            button_state Start;
-            button_state Back;
-
-            // all buttons should be added above this terminator button
-            button_state Terminator;
-        };
-    };
-} app_controller_input;
-
 // pass some state
-internal void Win32UpdateXInput(void) {
+internal void Win32UpdateXInput(platform_state *State) {
     for(u32 i = 0; i < W32_MAX_GAMEPADS; ++i) {
         if(i < XUSER_MAX_COUNT) {
             XINPUT_STATE controller_state = {0};
