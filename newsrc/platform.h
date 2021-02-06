@@ -9,13 +9,12 @@ typedef struct _button_state {
 } button_state;
 
 //note:
-//  this is how the platform and the app communicate with
-//  each other.
+//  this is how the platform and the app communicate with each other.
 typedef struct _platform {
     // metadata
-    char *ExecutableFolderPath;
-    char *ExecutableAbsolutePath;
-    char *WorkingDirectoryPath;
+    char ExecutableFolderPath  [MAX_PATH];
+    char ExecutableAbsolutePath[MAX_PATH];
+    char WorkingDirectoryPath  [MAX_PATH];
 
     // options
     b32 Fullscreen;
@@ -32,17 +31,15 @@ typedef struct _platform {
         //todo: gamepad
     
     // sound
-    i32  SamplesPerSecond;
-    i32  SampleCount;
-    i16 *Samples;
+    //todo
 
     // memory
-    //todo: permanent and transient
+    //todo
 
     // functions
-    //todo: debug file IO
+    //todo
 } platform;
 
-#define APP_UPDATE(Name) \
-    void Name(platform *Platform)
+#define APP_UPDATE(Name) void Name(platform *Platform)
 typedef APP_UPDATE(app_update_callback);
+APP_UPDATE(AppUpdateStub)
