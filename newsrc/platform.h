@@ -12,13 +12,13 @@ typedef struct _button_state {
 //  this is how the platform and the app communicate with each other.
 typedef struct _platform {
     // metadata
-    char ExecutableFolderPath  [MAX_PATH];
-    char ExecutableAbsolutePath[MAX_PATH];
-    char WorkingDirectoryPath  [MAX_PATH];
+    char ExecutablePath      [MAX_PATH];
+    char WorkingDirectoryPath[MAX_PATH];
 
     // options
     b32 Fullscreen;
-    r32 dtForTrame;
+    b32 Running;
+    r32 dtForFrame;
         //todo: window dimensions, etc  
 
     // input

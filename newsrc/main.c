@@ -73,6 +73,21 @@ internal void Win32BuildEXEPathFilename(char *Dest, i32 DestCount, char *Filenam
                DestCount, Dest);
 }
 
+inline LARGE_INTEGER Win32GetCounterTime(void) {
+    LARGE_INTEGER Result;
+    QueryPerformanceCounter(&Result);
+    return Result;
+}
+
+inline void Win32BeginFrameTiming(win32_timer *Timer) {
+    QueryPerformanceCounter(&Timer->FrameBegin);
+}
+
+inline f32 Win32EndFrameTiming(win32_timer *Timer) {
+    return (f32)(Timer->FrameBegin.QuadPart - Win32GetCounterTime().QuadPart) /
+           (f32) Timer->CountsPerSecond;
+}
+
 int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
                      LPSTR CmdLine, int CmdShow)
@@ -80,12 +95,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
     // timing
     win32_timer Timer;
     QueryPerformanceFrequency(&Timer.CountsPerSecond);
+    Timer.SleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
 
     // get paths for dlls filename for executable and working directory
     char ExecutablePath  [MAX_PATH];
+    char WorkingDirectory[MAX_PATH];
     char AppDLLPath      [MAX_PATH];
     char TempAppDLLPath  [MAX_PATH];
-    char WorkingDirectory[MAX_PATH];
     {
         // path for the executable
         DWORD SizeofFileName =
@@ -150,6 +166,27 @@ int CALLBACK WinMain(HINSTANCE Instance,
         if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
             MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
         }
+    }
+
+   // initialize platform  
+    platform Platform = {}; {
+        Platform.ExecutablePath       = ExecutablePath;
+        Platform.WorkingDirectoryPath = WorkingDirectory;
+
+        Platform.Running = 1;
+        //note: other fields are updated pre frame
+    }
+
+    ShowWindow(WindowHandle, CmdShow);
+    UpdateWindow(WindowHandle);
+
+    while (Platform.Running) {
+        Win32BeginFrameTiming(&Timer);
+
+        // updates
+        // stuff is going to go in here
+
+        Platform.dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
     return 0;
