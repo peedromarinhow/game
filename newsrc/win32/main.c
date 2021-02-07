@@ -10,46 +10,8 @@
 #include "lingo.h"
 #include "platform.h"
 
-global platform Platorm;
-
-typedef struct _win32_timer {
-    LARGE_INTEGER CountsPerSecond;
-    LARGE_INTEGER FrameBegin;
-    b32           SleepIsGranular;
-} win32_timer;
-
-typedef struct _win32_app_code {
-    HMODULE              DLL;
-    FILETIME             LastDLLWriteTime;
-    app_update_callback *Update;
-} win32_app_code;
-
-internal b32 Win32LoadAppCode(win32_app_code *Code,
-                              char *DLLPath, char *TempDLLPath)
-{
-    b32 Success = 1;
-    
-    while (true) {
-        if (CopyFileA(DLLPath, TempDLLPath, FALSE))
-            break;
-    }
-
-    Code->DLL = LoadLibraryA(TempDLLPath);
-    Code->LastDLLWriteTime = GetLastFileWriteTime(DLLPath);
-    if (!Code->DLL) {
-        Success = 0;
-        return Success;
-    }
-
-    Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
-    if (!Code->Update) {
-        Code->Update = AppUpdateStub;
-        Success = 0;
-        return Success;
-    }
-
-    return Success;
-}
+#include "code.c"
+#include "timing.c"
 
 void CatStrings(size_t SourceACount, char *SourceA,
                 size_t SourceBCount, char *SourceB,
@@ -73,19 +35,56 @@ internal void Win32BuildEXEPathFilename(char *Dest, i32 DestCount, char *Filenam
                DestCount, Dest);
 }
 
-inline LARGE_INTEGER Win32GetCounterTime(void) {
-    LARGE_INTEGER Result;
-    QueryPerformanceCounter(&Result);
-    return Result;
+internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
+    if (State->EndedDown != IsDown) {
+        State->EndedDown = IsDown;
+        ++State->HalfTransitionCount;
+    }
 }
 
-inline void Win32BeginFrameTiming(win32_timer *Timer) {
-    QueryPerformanceCounter(&Timer->FrameBegin);
-}
+internal void Win32ProcessPendingMessages(platform *Platform) {
+    MSG Message;
+    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+        switch (Message.message) {
+            case WM_QUIT: {
+                Platform->Running = 0;
+                break;
+            }
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP:
+            case WM_KEYDOWN:
+            case WM_KEYUP: {
+                b32 AltKeyWasDown = Message.lParam & (1 << 29);
+                b32 WasDown = ((Message.lParam & (1 << 30)) != 0);
+                b32 IsDown = ((Message.lParam & (1 << 31)) == 0);
+                u32 VKCode = (u32)Message.wParam;
+                if (WasDown != IsDown) {
+                    //note: macro for these?
+                    if (VKCode == 'A')
+                        Win32ProcessKeyboardMessage(&Platform->KeyboardButtons[1], IsDown);
 
-inline f32 Win32EndFrameTiming(win32_timer *Timer) {
-    return (f32)(Timer->FrameBegin.QuadPart - Win32GetCounterTime().QuadPart) /
-           (f32) Timer->CountsPerSecond;
+                    if (VKCode == VK_F11)
+                        if (Message.hwnd)
+                            Win23ToggleFullScreen(Message.hwnd);
+                }
+
+                if ((VKCode == VK_F4) && AltKeyWasDown)
+                    Platform->Running = false;
+
+                break;
+            }
+            default: {
+                TranslateMessage(&Message);
+                DispatchMessage(&Message);
+                break;
+            }
+        }
+    }
+
+    // for some reason these messages don't seem go get caught above
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON)  & (1 << 15));
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON)  & (1 << 15));
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON)  & (1 << 15));
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
@@ -182,6 +181,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     while (Platform.Running) {
         Win32BeginFrameTiming(&Timer);
+        Win32ProcessPendingMessages(&Platform)
 
         // updates
         // stuff is going to go in here

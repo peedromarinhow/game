@@ -1,3 +1,6 @@
+#ifndef LINGO_H
+#define LINGO_H
+
 #include <stdint.h>
 
 #define internal static
@@ -28,3 +31,5 @@ typedef r64 f64;
 #define Megabytes(n)  (n << 20)
 #define Gigabytes(n)  (((u64)n) << 30)
 #define Terabytes(n)  (((u64)n) << 40)
+
+#endif
