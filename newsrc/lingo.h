@@ -32,4 +32,10 @@ typedef r64 f64;
 #define Gigabytes(n)  (((u64)n) << 30)
 #define Terabytes(n)  (((u64)n) << 40)
 
+#if BUILD_SLOW
+    #define Assert(Expression) if (!(Expression)) { *(i32 *)0 = 0; }
+#else
+    #define Assert(Expression)
+#endif
+
 #endif

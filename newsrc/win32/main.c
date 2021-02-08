@@ -6,6 +6,7 @@
 #define DEFAULT_WINDOW_HEIGHT  720
 
 #include <windows.h>
+#include <gl/gl.h>
 
 #include "lingo.h"
 #include "platform.h"
@@ -64,6 +65,37 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON)  & (1 << 15));
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON)  & (1 << 15));
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON)  & (1 << 15));
+}
+
+internal void Win32InitOpenGl(HWND Window) {
+    HDC WindowDC = GetDC(Window);
+
+    // todo wtf
+    //  cColorBits supposed to exclude alpha bits?
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {0};
+    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+    DesiredPixelFormat.nVersion = 1;
+    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
+    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+    DesiredPixelFormat.cColorBits = 32;
+    DesiredPixelFormat.cAlphaBits = 8;
+    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+    i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
+                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+        //note: success!
+    }
+    else {
+        Assert(!"NOOOOOOOOOOOO!!");
+        // invalid code path
+    }
+    ReleaseDC(Window, WindowDC);
 }
 
 internal void Win23ToggleFullScreen(HWND Window) {
@@ -184,7 +216,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //note: other fields are updated pre frame
     }
 
-    // Win32InitOpenGl();
+    Win32InitOpenGl(WindowHandle);
 
     ShowWindow(WindowHandle, CmdShow);
     UpdateWindow(WindowHandle);
