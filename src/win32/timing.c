@@ -18,5 +18,5 @@ inline void Win32BeginFrameTiming(win32_timer *Timer) {
 
 inline f32 Win32EndFrameTiming(win32_timer *Timer) {
     return (f32)(Timer->FrameBegin.QuadPart - Win32GetCounterTime().QuadPart) /
-           (f32) Timer->CountsPerSecond;
+           (f32) Timer->CountsPerSecond.QuadPart;
 }

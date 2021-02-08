@@ -16,8 +16,8 @@ typedef struct _button_state {
 //  this is how the platform and the app communicate with each other.
 typedef struct _platform {
     // metadata
-    char ExecutablePath      [MAX_PATH];
-    char WorkingDirectoryPath[MAX_PATH];
+    char ExecutablePath      [256];
+    char WorkingDirectoryPath[256];
 
     // options
     b32 Fullscreen;
@@ -49,6 +49,6 @@ typedef struct _platform {
 
 #define APP_UPDATE(Name) void Name(platform *Platform)
 typedef APP_UPDATE(app_update_callback);
-APP_UPDATE(AppUpdateStub)
+APP_UPDATE(AppUpdateStub);
 
 #endif

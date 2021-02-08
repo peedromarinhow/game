@@ -15,6 +15,34 @@
 #include "timing.c"
 #include "paths.c"
 
+internal void Win23ToggleFullScreen(HWND Window) {
+    localper WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
+    // note
+    //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+    //  by Raymond Chen
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if (GetWindowPlacement(Window, &WindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &WindowPosition);
+        SetWindowPos(Window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
+
 internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
     if (State->EndedDown != IsDown) {
         State->EndedDown = IsDown;
@@ -49,7 +77,7 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
                 }
 
                 if ((VKCode == VK_F4) && AltKeyWasDown)
-                    Platform->Running = false;
+                    Platform->Running = FALSE;
 
                 break;
             }
@@ -98,34 +126,77 @@ internal void Win32InitOpenGl(HWND Window) {
     ReleaseDC(Window, WindowDC);
 }
 
-internal void Win23ToggleFullScreen(HWND Window) {
-    localper WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
-    // note
-    //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
-    //  by Raymond Chen
-    DWORD Style = GetWindowLong(Window, GWL_STYLE);
-    if (Style & WS_OVERLAPPEDWINDOW) {
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if (GetWindowPlacement(Window, &WindowPosition) &&
-            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+/*
+internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
+                                                  WPARAM WParam, LPARAM LParam)
+{
+    LRESULT Result = 0;
+
+    switch (Message)
+    {
+        case WM_ACTIVATEAPP:
         {
-            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+#if 0
+            if (WParam == TRUE)
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+            }
+            else
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
+            }
+#endif
+        }
+        break;
+        case WM_CLOSE:
+        {
+            GlobalRunning = false;
+        }
+        break;
+        case WM_DESTROY:
+        {
+            GlobalRunning = false;
+        }
+        break;
+
+        case WM_SETCURSOR:
+        {
+            if (GlobalShowCursor)
+            {
+                Result = DefWindowProcA(Window, Message, WParam, LParam);
+            }
+            else
+            {
+                SetCursor(0);
+            }
+        }
+        break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            Assert(!"NOOOOOOOOOOOOO!!!");
+            // keyboad message came from non dispatch message
+        }
+        break;
+
+        case WM_PAINT:
+        {
+            PAINTSTRUCT Paint;
+            HDC DeviceContext = BeginPaint(Window, &Paint);
+            EndPaint(Window, &Paint);
+            break;
+        }
+        default: {
+            Result = DefWindowProcA(Window, Message, WParam, LParam);
+            break;
         }
     }
-    else {
-        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &WindowPosition);
-        SetWindowPos(Window, NULL, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    }
+    return Result;
 }
-
+*/
 
 int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
@@ -137,10 +208,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
     Timer.SleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
 
     // get paths for dlls filename for executable and working directory
-    char ExecutablePath  [MAX_PATH];
-    char WorkingDirectory[MAX_PATH];
-    char AppDLLPath      [MAX_PATH];
-    char TempAppDLLPath  [MAX_PATH];
+    char ExecutablePath  [256];
+    char WorkingDirectory[256];
+    char AppDLLPath      [256];
+    char TempAppDLLPath  [256];
     {
         // path for the executable
         DWORD SizeofFileName =
@@ -208,7 +279,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     }
 
    // initialize platform  
-    platform Platform = {}; {
+    platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
 
@@ -253,17 +324,17 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
             // update fullscreen condition if necessary
             if (WasFullscreen != Platform.Fullscreen)
-                Win23ToggleFullScreen(WindowHandle)
+                Win23ToggleFullScreen(WindowHandle);
         }
 
-        Win32UpdateAppCode(AppCode, AppDLLPath, TempAppDLLPath);
+        Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
 
         Platform.dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
     ShowWindow(WindowHandle, SW_HIDE);
 
-    Win32UnloadAppCode(AppCode);
+    Win32UnloadAppCode(&AppCode);
     // Win32DeinitOpenGl();
 
     return 0;
