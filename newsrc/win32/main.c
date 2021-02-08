@@ -12,28 +12,7 @@
 
 #include "code.c"
 #include "timing.c"
-
-void CatStrings(size_t SourceACount, char *SourceA,
-                size_t SourceBCount, char *SourceB,
-                size_t DestCount, char *Dest)
-{
-    for (size_t Index = 0; Index < SourceACount; Index++) {
-        *Dest++ = *SourceA++;
-    }
-    for (size_t Index = 0; Index < SourceBCount; Index++) {
-        *Dest++ = *SourceB++;
-    }
-
-    *Dest++ = '\0';
-}
-
-internal void Win32BuildEXEPathFilename(char *Dest, i32 DestCount, char *Filename,
-                                        char *OnePastLastSlash, char *ExecutablePath)
-{
-    CatStrings(OnePastLastSlash - ExecutablePath,
-               ExecutablePath, StringLenght(Filename), Filename,
-               DestCount, Dest);
-}
+#include "paths.c"
 
 internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
     if (State->EndedDown != IsDown) {
@@ -181,9 +160,16 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     while (Platform.Running) {
         Win32BeginFrameTiming(&Timer);
-        Win32ProcessPendingMessages(&Platform)
+        Win32ProcessPendingMessages(&Platform);
 
-        // updates
+        // get window dimensions
+        {
+            RECT ClientRect;
+            GetClientRect(WindowHandle, &ClientRect);
+            Platform.WindowSize.X = ClientRect.right  - ClientRect.left;
+            Platform.WindowSize.Y = ClientRect.bottom - ClientRect.top;
+        }
+
         // stuff is going to go in here
 
         Platform.dtForFrame = Win32EndFrameTiming(&Timer);

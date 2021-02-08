@@ -1,4 +1,8 @@
 #include "lingo.h"
+#include "maths.h"
+
+#ifndef PLATFORM_H
+#define PLATFORM_H
 
 #define KEYBOARD_MAX_BUTTONS 30
 #define MOUSE_MAX_BUTTONS    3
@@ -18,6 +22,7 @@ typedef struct _platform {
     // options
     b32 Fullscreen;
     b32 Running;
+    iv2 WindowSize;
     r32 dtForFrame;
         //todo: window dimensions, etc  
 
@@ -43,3 +48,5 @@ typedef struct _platform {
 #define APP_UPDATE(Name) void Name(platform *Platform)
 typedef APP_UPDATE(app_update_callback);
 APP_UPDATE(AppUpdateStub)
+
+#endif
