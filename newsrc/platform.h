@@ -23,6 +23,8 @@ typedef struct _platform {
     b32 Fullscreen;
     b32 Running;
     iv2 WindowSize;
+    rv2 MousePos;
+        //todo: mouse wheel
     r32 dtForFrame;
         //todo: window dimensions, etc  
 

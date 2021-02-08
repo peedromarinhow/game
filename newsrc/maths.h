@@ -17,4 +17,18 @@ typedef union _iv2 {
     i32 Components[2];
 } iv2;
 
+typedef union _rv2 {
+    struct {
+        r32 X;
+        r32 Y;
+    };
+
+    // struct {
+    //     r32 Width;
+    //     r32 Height;
+    // };
+
+    r32 Components[2];
+} rv2;
+
 #endif

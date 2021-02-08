@@ -32,3 +32,19 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
 
     return Success;
 }
+
+internal void Win32UnloadAppCode(win32_app_code *Code)
+{
+    if(Code->DLL)
+        FreeLibrary(Code->DLL);
+    Code->DLL = 0;
+    Code->Update = AppUpdateStub;
+}
+
+internal void Win32UpdateAppCode(win32_app_code *Code, char *DLLPath, char *TempDLLPath) {
+    FILETIME LastDLLWriteTime = GetLastFileWriteTime(DLLPath);
+    if(CompareFileTime(&LastDLLWriteTime, &Code->LastDLLWriteTime)) {
+        Win32UnloadAppCode(Code);
+        Win32LoadAppCode(Code, DLLPath, TempDLLPath);
+    }
+}

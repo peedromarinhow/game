@@ -66,6 +66,35 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON)  & (1 << 15));
 }
 
+internal void Win23ToggleFullScreen(HWND Window) {
+    localper WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
+    // note
+    //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+    //  by Raymond Chen
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if (GetWindowPlacement(Window, &WindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &WindowPosition);
+        SetWindowPos(Window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
+
+
 int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
                      LPSTR CmdLine, int CmdShow)
@@ -127,7 +156,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     // load app code
     win32_app_code AppCode = {0}; {
-        if(!Win32LoadAppCode(&AppCode)) {
+        if(!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath)) {
             //note: ERROR!! App code failed to load
             //todo: logging
         }
@@ -155,6 +184,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //note: other fields are updated pre frame
     }
 
+    // Win32InitOpenGl();
+
     ShowWindow(WindowHandle, CmdShow);
     UpdateWindow(WindowHandle);
 
@@ -170,10 +201,38 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Platform.WindowSize.Y = ClientRect.bottom - ClientRect.top;
         }
 
-        // stuff is going to go in here
+        // update input for stuff that doesn't come trough the messages, see Win32ProcessPendingMessages
+        {
+            POINT MousePoint;
+            GetCursorPos(&MousePoint);
+            ScreenToClient(WindowHandle, &MousePoint);
+            Platform.MousePos.X = MousePoint.x;
+            Platform.MousePos.Y = MousePoint.y;
+                //todo: mouse wheel
+        }
+
+        //todo: sound
+
+        // call the app layer to update
+        {
+            b32 WasFullscreen = Platform.Fullscreen;
+
+            AppCode.Update(&Platform);
+
+            // update fullscreen condition if necessary
+            if (WasFullscreen != Platform.Fullscreen)
+                Win23ToggleFullScreen(WindowHandle)
+        }
+
+        Win32UpdateAppCode(AppCode, AppDLLPath, TempAppDLLPath);
 
         Platform.dtForFrame = Win32EndFrameTiming(&Timer);
     }
+
+    ShowWindow(WindowHandle, SW_HIDE);
+
+    Win32UnloadAppCode(AppCode);
+    // Win32DeinitOpenGl();
 
     return 0;
 }
