@@ -38,4 +38,11 @@ typedef r64 f64;
     #define Assert(Expression)
 #endif
 
+internal int StringLenght(char *String) {
+    int Count = 0;
+    while (*String++)
+        Count++;
+    return Count;
+}
+
 #endif

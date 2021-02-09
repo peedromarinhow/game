@@ -1,4 +1,5 @@
 //note: maybe do something like Win32ErrorAndDie for logging
+//note: this is very inspired by https://github.com/ryanfleury/app_template
 
 #define WINDOW_TITLE          "Application"
 #define PROGRAM_FILENAME      "app"
@@ -11,13 +12,13 @@
 #include "lingo.h"
 #include "platform.h"
 
-#include "code.c"
-#include "timing.c"
 #include "paths.c"
+#include "timing.c"
+#include "code.c"
 
 internal void Win23ToggleFullScreen(HWND Window) {
-    localper WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
-    // note
+    localper WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
+    //note:
     //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
     //  by Raymond Chen
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
@@ -90,113 +91,120 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     }
 
     // for some reason these messages don't seem go get caught above
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON)  & (1 << 15));
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON)  & (1 << 15));
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON)  & (1 << 15));
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
 }
 
-internal void Win32InitOpenGl(HWND Window) {
+internal b32 Win32InitOpenGl(HWND Window) {
+    b32 Success = 0;
     HDC WindowDC = GetDC(Window);
 
-    // todo wtf
-    //  cColorBits supposed to exclude alpha bits?
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {0};
-    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-    DesiredPixelFormat.nVersion = 1;
-    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
-    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-    DesiredPixelFormat.cColorBits = 32;
-    DesiredPixelFormat.cAlphaBits = 8;
-    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+    //todo: cColorBits supposed to exclude alpha bits?
+    PIXELFORMATDESCRIPTOR PixelFormatDescriptor =
+    {
+        sizeof(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        32,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        24,
+        8,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
 
-    i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
-                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+    i32 PixelFormat = ChoosePixelFormat(WindowDC, &PixelFormatDescriptor);
+    if (PixelFormat) {
+        SetPixelFormat(WindowDC, PixelFormat, &PixelFormatDescriptor);
+        HGLRC RenderContext = wglCreateContext(WindowDC);
+        wglMakeCurrent(WindowDC, RenderContext);
+        Success = 1;
+    }
 
-    HGLRC OpenGLRC = wglCreateContext(WindowDC);
-    if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        //note: success!
-    }
-    else {
-        Assert(!"NOOOOOOOOOOOO!!");
-        // invalid code path
-    }
     ReleaseDC(Window, WindowDC);
+
+    return Success;
 }
 
-/*
+//note: hope the demiurge is having fun
+//note: this may not work and a actual global variable may be necessary
+global platform *GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY;
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM WParam, LPARAM LParam)
 {
     LRESULT Result = 0;
+    if(Message == WM_CLOSE || Message == WM_DESTROY || Message == WM_QUIT) {
+        GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY->Running = 0;
+        Result = 0;
+    }
 
-    switch (Message)
-    {
-        case WM_ACTIVATEAPP:
+    if (Message == WM_PAINT) {
+        PAINTSTRUCT Paint;
+        HDC DeviceContext = BeginPaint(Window, &Paint);
         {
-#if 0
-            if (WParam == TRUE)
-            {
-                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+            glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+            // todo
+            //  remove this
+            GLuint TextureHandle = 0;
+            static b32 Init = 0;
+            if (!Init) {
+                glGenTextures(1, &TextureHandle);
+                Init = 1;
             }
-            else
-            {
-                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
-            }
-#endif
+            glBindTexture(GL_TEXTURE_2D, TextureHandle);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+            glEnable(GL_TEXTURE_2D);
+            glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glMatrixMode(GL_TEXTURE);
+            glLoadIdentity();
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            glScalef(1.0f, -1.0f, 1.0f);
+            // todo
+            //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
+            //  down for some reason, wich I couldn't find
+            // note
+            //  stupidity
+            glBegin(GL_TRIANGLES);
+            r32 P = 1.0f;
+            // lower tri
+            glTexCoord2f(0.0f, 0.0f);
+            glVertex2f(-P,-P);
+            glTexCoord2f(1.0f, 0.0f);
+            glVertex2f(P, -P);
+            glTexCoord2f(1.0f, 1.0f);
+            glVertex2f(P, P);
+            // higher tri
+            glTexCoord2f(0.0f, 0.0f);
+            glVertex2f(-P, -P);
+            glTexCoord2f(1.0f, 1.0f);
+            glVertex2f(P,P);
+            glTexCoord2f(0.0f, 1.0f);
+            glVertex2f(-P, P);
+            glEnd();
+            HDC DeviceContext = GetDC(Window);
+            SwapBuffers(DeviceContext);
+            ReleaseDC(Window, DeviceContext);
         }
-        break;
-        case WM_CLOSE:
-        {
-            GlobalRunning = false;
-        }
-        break;
-        case WM_DESTROY:
-        {
-            GlobalRunning = false;
-        }
-        break;
-
-        case WM_SETCURSOR:
-        {
-            if (GlobalShowCursor)
-            {
-                Result = DefWindowProcA(Window, Message, WParam, LParam);
-            }
-            else
-            {
-                SetCursor(0);
-            }
-        }
-        break;
-
-        case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP:
-        case WM_KEYDOWN:
-        case WM_KEYUP:
-        {
-            Assert(!"NOOOOOOOOOOOOO!!!");
-            // keyboad message came from non dispatch message
-        }
-        break;
-
-        case WM_PAINT:
-        {
-            PAINTSTRUCT Paint;
-            HDC DeviceContext = BeginPaint(Window, &Paint);
-            EndPaint(Window, &Paint);
-            break;
-        }
-        default: {
-            Result = DefWindowProcA(Window, Message, WParam, LParam);
-            break;
-        }
+        EndPaint(Window, &Paint);
     }
     return Result;
 }
-*/
 
 int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
@@ -232,9 +240,20 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectory(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
+   // initialize platform (up here because windows is great)
+    platform Platform = {0}; {
+        Platform.ExecutablePath       = ExecutablePath;
+        Platform.WorkingDirectoryPath = WorkingDirectory;
+
+        Platform.Running = 1;
+        //note: other fields are updated pre frame
+    }
+    GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY = &Platform;
+    // it's great
+
     WNDCLASS WindowClass = {0}; {
         WindowClass.style = CS_HREDRAW | CS_VREDRAW;
-        WindowClass.lpfnWndProc = Win32WindowProc;
+        WindowClass.lpfnWndProc = Win32MainWindowCallback;
             //todo: Win32WindowProc
         WindowClass.hInstance = Instance;
         WindowClass.lpszClassName = "ApplicationWindowClass";
@@ -276,15 +295,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
         if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
             MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
         }
-    }
-
-   // initialize platform  
-    platform Platform = {0}; {
-        Platform.ExecutablePath       = ExecutablePath;
-        Platform.WorkingDirectoryPath = WorkingDirectory;
-
-        Platform.Running = 1;
-        //note: other fields are updated pre frame
     }
 
     Win32InitOpenGl(WindowHandle);
