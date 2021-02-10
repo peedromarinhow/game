@@ -3,8 +3,8 @@
 
 #define WINDOW_TITLE          "Application"
 #define PROGRAM_FILENAME      "app"
-#define DEFAULT_WINDOW_WIDTH   1280
-#define DEFAULT_WINDOW_HEIGHT  720
+#define DEFAULT_WINDOW_WIDTH   1600
+#define DEFAULT_WINDOW_HEIGHT  900
 
 #include <windows.h>
 #include <gl/gl.h>
@@ -123,27 +123,21 @@ internal void Win32DumbRenderSomething (HWND WindowHandle) {
     glLoadIdentity();
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glScalef(1.0f, -1.0f, 1.0f);
-    // todo
-    //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
-    //  down for some reason, wich I couldn't find
-    // note
-    //  stupidity
     glBegin(GL_TRIANGLES);
     r32 P = 1.0f;
     // lower tri
-    glTexCoord2f(0.0f, 0.0f);
+    glColor3f(0.0f, 0.0f, 1.0f);
     glVertex2f(-P,-P);
-    glTexCoord2f(1.0f, 0.0f);
+    glColor3f(0.0f, 1.0f, 0.0f);
     glVertex2f(P, -P);
-    glTexCoord2f(1.0f, 1.0f);
+    glColor3f(1.0f, 0.0f, 0.0f);
     glVertex2f(P, P);
     // higher tri
-    glTexCoord2f(0.0f, 0.0f);
+    glColor3f(1.0f, 0.0f, 0.0f);
     glVertex2f(-P, -P);
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(P,P);
-    glTexCoord2f(0.0f, 1.0f);
+    glColor3f(0.0f, 1.0f, 0.0f);
+    glVertex2f(P, P);
+    glColor3f(0.0f, 0.0f, 1.0f);
     glVertex2f(-P, P);
     glEnd();
     HDC DeviceContext = GetDC(WindowHandle);
@@ -157,18 +151,78 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM wParam, LPARAM lParam)
 {
     LRESULT Result = 0;
-    b32 WasDown = ((lParam & (1 << 30)) != 0);
-    b32 IsDown  = ((lParam & (1 << 31)) == 0);
-    if (Message == WM_CLOSE || Message == WM_DESTROY || Message == WM_QUIT) {
+    if (Message == WM_ACTIVATEAPP) {
+        //
     }
     else
-    if (Message == WM_SYSKEYDOWN) {
-        Win32ToggleFullScreen(Window);
+    if (Message == WM_CLOSE || Message == WM_DESTROY) {
+        GlobalRunning = 0;
+    }
+    else
+    if (Message == WM_SETCURSOR) {
+
+    }
+    else
+    if (Message == WM_SYSKEYDOWN ||
+        Message == WM_SYSKEYUP   ||
+        Message == WM_KEYDOWN    ||
+        Message == WM_KEYUP)
+    {
+        Assert(!"NOOOOOOOOOOOOO!!!");
+        // keyboad message came from non dispatch message
     }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
+
     return Result;
+}
+
+internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
+    if (State->EndedDown != IsDown) {
+        State->EndedDown = IsDown;
+        ++State->HalfTransitionCount;
+    }
+}
+
+internal void Win32ProcessPendingMessages()
+{
+    MSG Message;
+    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+    {
+        if (Message.message == WM_SYSKEYDOWN ||
+            Message.message == WM_SYSKEYUP   ||
+            Message.message == WM_KEYDOWN    ||
+            Message.message == WM_KEYUP)
+        {
+            b32 WasDown = (Message.lParam & (1 << 30)) != 0;
+            b32 IsDown  = (Message.lParam & (1 << 31)) == 0;
+            u64 VKCode  =  Message.wParam;
+            if (WasDown != IsDown) {
+                if (VKCode == VK_F11) {
+                    if (IsDown && Message.hwnd)
+                        Win32ToggleFullScreen(Message.hwnd);
+                }
+
+                b32 AltKeyWasDown = Message.lParam & (1 << 29);
+                if (VKCode == VK_F4 && AltKeyWasDown) {
+                    GlobalRunning = 0;
+                }
+            }
+        }
+        else {
+            TranslateMessage(&Message);
+            DispatchMessage(&Message);
+        }
+    }
+
+    // for some reason these messages don't seem go get caught above
+    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Left,
+                                 GetKeyState(VK_LBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Middle,
+                                 GetKeyState(VK_MBUTTON) & (1 << 15));
+    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Right,
+                                 GetKeyState(VK_RBUTTON) & (1 << 15));
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
@@ -264,10 +318,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
     ShowWindow(WindowHandle, CmdShow);
     UpdateWindow(WindowHandle);
 
-    b32 Running = 1;
+    GlobalRunning = 1;
 
-    while (Running) {
+    while (GlobalRunning) {
         Win32BeginFrameTiming(&Timer);
+        Win32ProcessPendingMessages();
 
         // get window dimensions
         {
@@ -289,11 +344,49 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         //todo: sound
 
-        // call the app layer to update
         {
-            AppCode.Update(Platform);
-
-            Win32DumbRenderSomething(WindowHandle);
+            glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+            GLuint TextureHandle = 0;
+            static b32 Init = 0;
+            if (!Init) {
+                glGenTextures(1, &TextureHandle);
+                Init = 1;
+            }
+            glBindTexture(GL_TEXTURE_2D, TextureHandle);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+            glEnable(GL_TEXTURE_2D);
+            glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glMatrixMode(GL_TEXTURE);
+            glLoadIdentity();
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            glBegin(GL_TRIANGLES);
+            r32 P = 1.0f;
+            // lower tri
+            glColor3f(0.0f, 0.0f, 1.0f);
+            glVertex2f(-P,-P);
+            glColor3f(0.0f, 1.0f, 0.0f);
+            glVertex2f(P, -P);
+            glColor3f(1.0f, 0.0f, 0.0f);
+            glVertex2f(P, P);
+            // higher tri
+            glColor3f(1.0f, 0.0f, 0.0f);
+            glVertex2f(-P, -P);
+            glColor3f(0.0f, 1.0f, 0.0f);
+            glVertex2f(P, P);
+            glColor3f(0.0f, 0.0f, 1.0f);
+            glVertex2f(-P, P);
+            glEnd();
+            HDC DeviceContext = GetDC(WindowHandle);
+            SwapBuffers(DeviceContext);
+            ReleaseDC(WindowHandle, DeviceContext);
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);

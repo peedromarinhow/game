@@ -40,11 +40,7 @@ typedef struct _platform {
         } Mouse;
     };
 
-    i32 MouseX;
-    i32 MouseY;
-    i32 MouseZ;
-        //todo: mouse X and Y as vectors
-        //todo: gamepad
+    //todo: gamepad
     
     // sound
     //todo
