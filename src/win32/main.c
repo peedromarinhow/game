@@ -17,8 +17,9 @@
 #include "code.c"
 
 global b32 GlobalRunning;
+global platform GlobalPlatform;
 
-internal void Win23ToggleFullScreen(HWND Window) {
+internal void Win32ToggleFullScreen(HWND Window) {
     localper WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
     //note:
     //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
@@ -46,91 +47,12 @@ internal void Win23ToggleFullScreen(HWND Window) {
     }
 }
 
-internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
+internal void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
     if (State->EndedDown != IsDown) {
         State->EndedDown = IsDown;
         ++State->HalfTransitionCount;
     }
 }
-
-/*internal void Win32ProcessPendingMessages(platform *Platform) {
-    MSG Message;
-    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-        switch (Message.message) {
-            case WM_QUIT: {
-                GlobalRunning = 0;
-                break;
-            }
-            case WM_SYSKEYDOWN:
-            case WM_SYSKEYUP:
-            case WM_KEYDOWN:
-            case WM_KEYUP: {
-                b32 WasDown = ((Message.lParam & (1 << 30)) != 0);
-                b32 IsDown = ((Message.lParam & (1 << 31)) == 0);
-                u32 VKCode = (u32)Message.wParam;
-                if (WasDown != IsDown) {
-                    if (VKCode == 'A')
-                        Win32ProcessKeyboardMessage(&Platform->KeyboardButtons[1], IsDown);
-
-                    if (VKCode == VK_F11 && IsDown)
-                        if (Message.hwnd)
-                            Win23ToggleFullScreen(Message.hwnd);
-                }
-
-                b32 AltKeyWasDown = Message.lParam & (1 << 29);
-                if ((VKCode == VK_F4) && AltKeyWasDown)
-                    GlobalRunning = 0;
-                break;
-            }
-            default: {
-                break;
-            }
-        }
-    }
-
-    // for some reason these messages don't seem go get caught above
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
-    Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
-}*/
-
-/*internal b32 Win32InitOpenGl(HWND Window) {/
-    b32 Success = 0;
-    HDC WindowDC = GetDC(Window);
-
-    //todo: cColorBits supposed to exclude alpha bits?
-    PIXELFORMATDESCRIPTOR PixelFormatDescriptor =
-    {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-        PFD_TYPE_RGBA,
-        32,
-        0, 0, 0, 0, 0, 0,
-        0,
-        0,
-        0,
-        0, 0, 0, 0,
-        24,
-        8,
-        0,
-        PFD_MAIN_PLANE,
-        0,
-        0, 0, 0
-    };
-
-    i32 PixelFormat = ChoosePixelFormat(WindowDC, &PixelFormatDescriptor);
-    if (PixelFormat) {
-        SetPixelFormat(WindowDC, PixelFormat, &PixelFormatDescriptor);
-        HGLRC RenderContext = wglCreateContext(WindowDC);
-        wglMakeCurrent(WindowDC, RenderContext);
-        Success = 1;
-    }
-
-    ReleaseDC(Window, WindowDC);
-
-    return Success;
-}*/
 
 internal void Win32InitOpenGl(HWND Window) {
     HDC WindowDC = GetDC(Window);
@@ -230,22 +152,21 @@ internal void Win32DumbRenderSomething (HWND WindowHandle) {
 }
 
 //note: hope the demiurge is having fun
+//note: can i do all this in main instead of in here?
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
-                                                  WPARAM WParam, LPARAM LParam)
+                                                  WPARAM wParam, LPARAM lParam)
 {
     LRESULT Result = 0;
+    b32 WasDown = ((lParam & (1 << 30)) != 0);
+    b32 IsDown  = ((lParam & (1 << 31)) == 0);
     if (Message == WM_CLOSE || Message == WM_DESTROY || Message == WM_QUIT) {
-        GlobalRunning = 0;
-        Result = 0;
     }
-    //else if (Message == )
-    else if (Message == WM_PAINT) {
-        PAINTSTRUCT Paint;
-        Win32DumbRenderSomething(Window);
-        EndPaint(Window, &Paint);
+    else
+    if (Message == WM_SYSKEYDOWN) {
+        Win32ToggleFullScreen(Window);
     }
     else {
-        Result = DefWindowProcA(Window, Message, WParam, LParam);
+        Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
     return Result;
 }
@@ -285,9 +206,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
     }
 
    // initialize platform (up here because windows is great)
-    platform Platform = {0}; {
-        Platform.ExecutablePath       = ExecutablePath;
-        Platform.WorkingDirectoryPath = WorkingDirectory;
+    platform *Platform = &GlobalPlatform; {
+        Platform->ExecutablePath       = ExecutablePath;
+        Platform->WorkingDirectoryPath = WorkingDirectory;
         //note: other fields are updated per frame
     }
     // it's great
@@ -347,14 +268,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     while (Running) {
         Win32BeginFrameTiming(&Timer);
-        //Win32ProcessPendingMessages(&Platform);
 
         // get window dimensions
         {
             RECT ClientRect;
             GetClientRect(WindowHandle, &ClientRect);
-            Platform.WindowSize.X = ClientRect.right  - ClientRect.left;
-            Platform.WindowSize.Y = ClientRect.bottom - ClientRect.top;
+            Platform->WindowSize.X = ClientRect.right  - ClientRect.left;
+            Platform->WindowSize.Y = ClientRect.bottom - ClientRect.top;
         }
 
         // update input for stuff that doesn't come trough the messages, see Win32ProcessPendingMessages
@@ -362,8 +282,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
             POINT MousePoint;
             GetCursorPos(&MousePoint);
             ScreenToClient(WindowHandle, &MousePoint);
-            Platform.MousePos.X = MousePoint.x;
-            Platform.MousePos.Y = MousePoint.y;
+            Platform->MousePos.X = MousePoint.x;
+            Platform->MousePos.Y = MousePoint.y;
                 //todo: mouse wheel
         }
 
@@ -371,20 +291,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         // call the app layer to update
         {
-            b32 WasFullscreen = Platform.Fullscreen;
-
-            AppCode.Update(&Platform);
+            AppCode.Update(Platform);
 
             Win32DumbRenderSomething(WindowHandle);
-
-            // update fullscreen condition if necessary
-            if (WasFullscreen != Platform.Fullscreen)
-                Win23ToggleFullScreen(WindowHandle);
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
 
-        Platform.dtForFrame = Win32EndFrameTiming(&Timer);
+        Platform->dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
     ShowWindow(WindowHandle, SW_HIDE);
