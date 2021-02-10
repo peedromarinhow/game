@@ -16,7 +16,7 @@ REM popd
 
 set application_name=app
 set build_options= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
-set compile_flags= -nologo /Zi /FC /I ../src/
+set compile_flags= /nologo /Zi /FC /I ../src/
 set common_link_flags= opengl32.lib -opt:ref -incremental:no /Debug:fastlink
 set platform_link_flags= gdi32.lib user32.lib winmm.lib %common_link_flags%
 
@@ -26,6 +26,6 @@ if not exist build mkdir build
 
 pushd build
 del *.pdb > NUL 2> NUL
-start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/win32/main.c /link %platform_link_flags% /out:main.exe
-start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/app.c /LD /link %common_link_flags% /out:app.dll
+cl.exe %build_options% %compile_flags% ../src/win32/main.c /link %platform_link_flags% /out:main.exe
+cl.exe %build_options% %compile_flags% ../src/app.c /LD /link %common_link_flags% /out:app.dll /PDB:"app_%random%.pdb"
 popd
