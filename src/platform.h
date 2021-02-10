@@ -21,7 +21,8 @@ typedef struct _platform {
 
     // options
     b32 Fullscreen;
-    b32 Running;
+    // b32 Running;
+        //note: this running is actually necessary?
     iv2 WindowSize;
     rv2 MousePos;
         //todo: mouse wheel

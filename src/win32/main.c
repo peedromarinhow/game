@@ -16,6 +16,8 @@
 #include "timing.c"
 #include "code.c"
 
+global b32 GlobalRunning;
+
 internal void Win23ToggleFullScreen(HWND Window) {
     localper WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
     //note:
@@ -55,31 +57,31 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     MSG Message;
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         switch (Message.message) {
+            case WM_CLOSE:
+            case WM_DESTROY: 
             case WM_QUIT: {
-                Platform->Running = 0;
+                GlobalRunning = 0;
                 break;
             }
             case WM_SYSKEYDOWN:
             case WM_SYSKEYUP:
             case WM_KEYDOWN:
             case WM_KEYUP: {
-                b32 AltKeyWasDown = Message.lParam & (1 << 29);
                 b32 WasDown = ((Message.lParam & (1 << 30)) != 0);
                 b32 IsDown = ((Message.lParam & (1 << 31)) == 0);
                 u32 VKCode = (u32)Message.wParam;
                 if (WasDown != IsDown) {
-                    //note: macro for these?
                     if (VKCode == 'A')
                         Win32ProcessKeyboardMessage(&Platform->KeyboardButtons[1], IsDown);
 
-                    if (VKCode == VK_F11)
+                    if (VKCode == VK_F11 && IsDown)
                         if (Message.hwnd)
                             Win23ToggleFullScreen(Message.hwnd);
                 }
 
+                b32 AltKeyWasDown = Message.lParam & (1 << 29);
                 if ((VKCode == VK_F4) && AltKeyWasDown)
-                    Platform->Running = FALSE;
-
+                    GlobalRunning = 0;
                 break;
             }
             default: {
@@ -96,7 +98,7 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
 }
 
-internal b32 Win32InitOpenGl(HWND Window) {
+/*internal b32 Win32InitOpenGl(HWND Window) {/
     b32 Success = 0;
     HDC WindowDC = GetDC(Window);
 
@@ -132,76 +134,121 @@ internal b32 Win32InitOpenGl(HWND Window) {
     ReleaseDC(Window, WindowDC);
 
     return Success;
+}*/
+
+internal void Win32InitOpenGl(HWND Window) {
+    HDC WindowDC = GetDC(Window);
+
+    // todo wtf
+    //  cColorBits supposed to exclude alpha bits?
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {
+        sizeof(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        32,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        24,
+        8,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
+                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    if (wglMakeCurrent(WindowDC, OpenGLRC))
+    {
+        // note
+        // sucess!
+    }
+    else
+    {
+        Assert(!"NOOOOOOOOOOOO!!");
+        // invalid code path
+    }
+    ReleaseDC(Window, WindowDC);
+}
+
+internal void Win32DumbRenderSomething (HWND WindowHandle) {
+    glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+    // todo
+    //  remove this
+    GLuint TextureHandle = 0;
+    static b32 Init = 0;
+    if (!Init) {
+        glGenTextures(1, &TextureHandle);
+        Init = 1;
+    }
+    glBindTexture(GL_TEXTURE_2D, TextureHandle);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glEnable(GL_TEXTURE_2D);
+    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glScalef(1.0f, -1.0f, 1.0f);
+    // todo
+    //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
+    //  down for some reason, wich I couldn't find
+    // note
+    //  stupidity
+    glBegin(GL_TRIANGLES);
+    r32 P = 1.0f;
+    // lower tri
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2f(-P,-P);
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2f(P, -P);
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(P, P);
+    // higher tri
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2f(-P, -P);
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(P,P);
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2f(-P, P);
+    glEnd();
+    HDC DeviceContext = GetDC(WindowHandle);
+    SwapBuffers(DeviceContext);
+    ReleaseDC(WindowHandle, DeviceContext);
 }
 
 //note: hope the demiurge is having fun
-//note: this may not work and a actual global variable may be necessary
-global platform *GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY;
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM WParam, LPARAM LParam)
 {
     LRESULT Result = 0;
-    if(Message == WM_CLOSE || Message == WM_DESTROY || Message == WM_QUIT) {
-        GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY->Running = 0;
+    if (Message == WM_CLOSE || Message == WM_DESTROY || Message == WM_QUIT) {
+        GlobalRunning = 0;
         Result = 0;
     }
-
-    if (Message == WM_PAINT) {
+    else if (Message == WM_PAINT) {
         PAINTSTRUCT Paint;
-        HDC DeviceContext = BeginPaint(Window, &Paint);
-        {
-            glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-            // todo
-            //  remove this
-            GLuint TextureHandle = 0;
-            static b32 Init = 0;
-            if (!Init) {
-                glGenTextures(1, &TextureHandle);
-                Init = 1;
-            }
-            glBindTexture(GL_TEXTURE_2D, TextureHandle);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-            glEnable(GL_TEXTURE_2D);
-            glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glMatrixMode(GL_TEXTURE);
-            glLoadIdentity();
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            glScalef(1.0f, -1.0f, 1.0f);
-            // todo
-            //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
-            //  down for some reason, wich I couldn't find
-            // note
-            //  stupidity
-            glBegin(GL_TRIANGLES);
-            r32 P = 1.0f;
-            // lower tri
-            glTexCoord2f(0.0f, 0.0f);
-            glVertex2f(-P,-P);
-            glTexCoord2f(1.0f, 0.0f);
-            glVertex2f(P, -P);
-            glTexCoord2f(1.0f, 1.0f);
-            glVertex2f(P, P);
-            // higher tri
-            glTexCoord2f(0.0f, 0.0f);
-            glVertex2f(-P, -P);
-            glTexCoord2f(1.0f, 1.0f);
-            glVertex2f(P,P);
-            glTexCoord2f(0.0f, 1.0f);
-            glVertex2f(-P, P);
-            glEnd();
-            HDC DeviceContext = GetDC(Window);
-            SwapBuffers(DeviceContext);
-            ReleaseDC(Window, DeviceContext);
-        }
+        Win32DumbRenderSomething(Window);
         EndPaint(Window, &Paint);
+    }
+    else {
+        Result = DefWindowProcA(Window, Message, WParam, LParam);
     }
     return Result;
 }
@@ -244,11 +291,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
     platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
-
-        Platform.Running = 1;
-        //note: other fields are updated pre frame
+        //note: other fields are updated per frame
     }
-    GlobalWin32MainWindowCallbackPlatformPointer_WHY_WINDOWS_WHY = &Platform;
     // it's great
 
     WNDCLASS WindowClass = {0}; {
@@ -302,7 +346,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
     ShowWindow(WindowHandle, CmdShow);
     UpdateWindow(WindowHandle);
 
-    while (Platform.Running) {
+    GlobalRunning = 1;
+
+    while (GlobalRunning == 1) {
         Win32BeginFrameTiming(&Timer);
         Win32ProcessPendingMessages(&Platform);
 
@@ -332,6 +378,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
             AppCode.Update(&Platform);
 
+            Win32DumbRenderSomething(WindowHandle);
+
             // update fullscreen condition if necessary
             if (WasFullscreen != Platform.Fullscreen)
                 Win23ToggleFullScreen(WindowHandle);
@@ -340,6 +388,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
 
         Platform.dtForFrame = Win32EndFrameTiming(&Timer);
+
+        GlobalRunning = 0;
     }
 
     ShowWindow(WindowHandle, SW_HIDE);
