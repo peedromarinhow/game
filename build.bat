@@ -26,6 +26,6 @@ if not exist build mkdir build
 
 pushd build
 del *.pdb > NUL 2> NUL
-start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/win32/main.c /link %platform_link_flags% /out:%application_name%.exe
-start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/app.c /LD /link %common_link_flags% /out:%application_name%.dll
+start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/win32/main.c /link %platform_link_flags% /out:main.exe
+start /b /wait "" "cl.exe"  %build_options% %compile_flags% ../src/app.c /LD /link %common_link_flags% /out:app.dll
 popd

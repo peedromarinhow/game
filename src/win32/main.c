@@ -53,12 +53,10 @@ internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
     }
 }
 
-internal void Win32ProcessPendingMessages(platform *Platform) {
+/*internal void Win32ProcessPendingMessages(platform *Platform) {
     MSG Message;
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         switch (Message.message) {
-            case WM_CLOSE:
-            case WM_DESTROY: 
             case WM_QUIT: {
                 GlobalRunning = 0;
                 break;
@@ -85,8 +83,6 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
                 break;
             }
             default: {
-                TranslateMessage(&Message);
-                DispatchMessage(&Message);
                 break;
             }
         }
@@ -96,7 +92,7 @@ internal void Win32ProcessPendingMessages(platform *Platform) {
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
     Win32ProcessKeyboardMessage(&Platform->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
-}
+}*/
 
 /*internal b32 Win32InitOpenGl(HWND Window) {/
     b32 Success = 0;
@@ -242,6 +238,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         GlobalRunning = 0;
         Result = 0;
     }
+    //else if (Message == )
     else if (Message == WM_PAINT) {
         PAINTSTRUCT Paint;
         Win32DumbRenderSomething(Window);
@@ -346,11 +343,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
     ShowWindow(WindowHandle, CmdShow);
     UpdateWindow(WindowHandle);
 
-    GlobalRunning = 1;
+    b32 Running = 1;
 
-    while (GlobalRunning == 1) {
+    while (Running) {
         Win32BeginFrameTiming(&Timer);
-        Win32ProcessPendingMessages(&Platform);
+        //Win32ProcessPendingMessages(&Platform);
 
         // get window dimensions
         {
@@ -388,8 +385,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
 
         Platform.dtForFrame = Win32EndFrameTiming(&Timer);
-
-        GlobalRunning = 0;
     }
 
     ShowWindow(WindowHandle, SW_HIDE);
