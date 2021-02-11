@@ -20,7 +20,7 @@ global b32 GlobalRunning;
 global platform GlobalPlatform;
 
 internal void Win32ToggleFullScreen(HWND Window) {
-    localper WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
+    localpersist WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
     //note:
     //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
     //  by Raymond Chen
@@ -98,7 +98,7 @@ internal void Win32InitOpenGl(HWND Window) {
     ReleaseDC(Window, WindowDC);
 }
 
-internal void Win32DumbRenderSomething (HWND WindowHandle) {
+internal void Win32DumbRenderSomething(HWND Window, platform *Platform) {
     glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
     // todo
     //  remove this
@@ -124,7 +124,8 @@ internal void Win32DumbRenderSomething (HWND WindowHandle) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glBegin(GL_TRIANGLES);
-    r32 P = 1.0f;
+    localpersist r32 P = 1.0f;
+    P += ((r32)Platform->dMouseWheel*10);
     // lower tri
     glColor3f(0.0f, 0.0f, 1.0f);
     glVertex2f(-P,-P);
@@ -140,9 +141,9 @@ internal void Win32DumbRenderSomething (HWND WindowHandle) {
     glColor3f(0.0f, 0.0f, 1.0f);
     glVertex2f(-P, P);
     glEnd();
-    HDC DeviceContext = GetDC(WindowHandle);
+    HDC DeviceContext = GetDC(Window);
     SwapBuffers(DeviceContext);
-    ReleaseDC(WindowHandle, DeviceContext);
+    ReleaseDC(Window, DeviceContext);
 }
 
 //note: hope the demiurge is having fun
@@ -155,7 +156,10 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         //
     }
     else
-    if (Message == WM_CLOSE || Message == WM_DESTROY) {
+    if (Message == WM_QUIT  ||
+        Message == WM_CLOSE ||
+        Message == WM_DESTROY)
+    {
         GlobalRunning = 0;
     }
     else
@@ -163,13 +167,32 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
 
     }
     else
+    if (Message == WM_MOUSEHWHEEL) {
+        GlobalPlatform.dMouseWheel = 10;
+        OutputDebugStringA("mosue\n");
+    }
+    else
     if (Message == WM_SYSKEYDOWN ||
         Message == WM_SYSKEYUP   ||
         Message == WM_KEYDOWN    ||
         Message == WM_KEYUP)
     {
-        Assert(!"NOOOOOOOOOOOOO!!!");
-        // keyboad message came from non dispatch message
+        b32 AltKeyWasDown   = lParam & (1 << 29);
+        // b32 CtrlKeyWasDown  = lParam & (1 << (some obscure value));
+        // b32 ShiftKeyWasDown = lParam & (1 << (some obscure value));
+
+        b32 WasDown = (lParam & (1 << 30)) != 0;
+        b32 IsDown  = (lParam & (1 << 31)) == 0;
+        u64 VKCode  =  wParam;
+        if (WasDown != IsDown) {
+            if (VKCode == VK_F11) {
+                if (IsDown && Window)
+                    Win32ToggleFullScreen(Window);
+            }
+            if (VKCode == VK_F4 && AltKeyWasDown) {
+                GlobalRunning = 0;
+            }
+        }
     }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
@@ -185,44 +208,12 @@ internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
     }
 }
 
-internal void Win32ProcessPendingMessages()
-{
+internal void Win32ProcessPendingMessages(platform *Platform) {
     MSG Message;
-    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
-    {
-        if (Message.message == WM_SYSKEYDOWN ||
-            Message.message == WM_SYSKEYUP   ||
-            Message.message == WM_KEYDOWN    ||
-            Message.message == WM_KEYUP)
-        {
-            b32 WasDown = (Message.lParam & (1 << 30)) != 0;
-            b32 IsDown  = (Message.lParam & (1 << 31)) == 0;
-            u64 VKCode  =  Message.wParam;
-            if (WasDown != IsDown) {
-                if (VKCode == VK_F11) {
-                    if (IsDown && Message.hwnd)
-                        Win32ToggleFullScreen(Message.hwnd);
-                }
-
-                b32 AltKeyWasDown = Message.lParam & (1 << 29);
-                if (VKCode == VK_F4 && AltKeyWasDown) {
-                    GlobalRunning = 0;
-                }
-            }
-        }
-        else {
-            TranslateMessage(&Message);
-            DispatchMessage(&Message);
-        }
+    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&Message);
+        DispatchMessage(&Message);
     }
-
-    // for some reason these messages don't seem go get caught above
-    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Left,
-                                 GetKeyState(VK_LBUTTON) & (1 << 15));
-    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Middle,
-                                 GetKeyState(VK_MBUTTON) & (1 << 15));
-    Win32ProcessKeyboardMessage(&GlobalPlatform.Mouse.Right,
-                                 GetKeyState(VK_RBUTTON) & (1 << 15));
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
@@ -281,12 +272,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: logging
     }
 
-    HWND WindowHandle = CreateWindow("ApplicationWindowClass", WINDOW_TITLE,
+    HWND Window = CreateWindow("ApplicationWindowClass", WINDOW_TITLE,
                                       WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                                       DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
                                       0, 0, Instance, 0);
     
-    if(!WindowHandle)
+    if(!Window)
     {
         //note: ERROR!! Window failed to be created
         //todo: logging
@@ -313,21 +304,24 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
     }
 
-    Win32InitOpenGl(WindowHandle);
+    Win32InitOpenGl(Window);
 
-    ShowWindow(WindowHandle, CmdShow);
-    UpdateWindow(WindowHandle);
+    ShowWindow(Window, CmdShow);
+    UpdateWindow(Window);
 
     GlobalRunning = 1;
 
+    r32 P = 1.0f;
+    r32 X = 1.0f;
+
     while (GlobalRunning) {
         Win32BeginFrameTiming(&Timer);
-        Win32ProcessPendingMessages();
+        Win32ProcessPendingMessages(Platform);
 
         // get window dimensions
         {
             RECT ClientRect;
-            GetClientRect(WindowHandle, &ClientRect);
+            GetClientRect(Window, &ClientRect);
             Platform->WindowSize.X = ClientRect.right  - ClientRect.left;
             Platform->WindowSize.Y = ClientRect.bottom - ClientRect.top;
         }
@@ -336,7 +330,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         {
             POINT MousePoint;
             GetCursorPos(&MousePoint);
-            ScreenToClient(WindowHandle, &MousePoint);
+            ScreenToClient(Window, &MousePoint);
             Platform->MousePos.X = MousePoint.x;
             Platform->MousePos.Y = MousePoint.y;
                 //todo: mouse wheel
@@ -368,7 +362,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
             glMatrixMode(GL_PROJECTION);
             glLoadIdentity();
             glBegin(GL_TRIANGLES);
-            r32 P = 1.0f;
             // lower tri
             glColor3f(0.0f, 0.0f, 1.0f);
             glVertex2f(-P,-P);
@@ -379,14 +372,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
             // higher tri
             glColor3f(1.0f, 0.0f, 0.0f);
             glVertex2f(-P, -P);
-            glColor3f(0.0f, 1.0f, 0.0f);
+            glColor3f(0.0f, X, 0.0f);
             glVertex2f(P, P);
             glColor3f(0.0f, 0.0f, 1.0f);
             glVertex2f(-P, P);
             glEnd();
-            HDC DeviceContext = GetDC(WindowHandle);
+            HDC DeviceContext = GetDC(Window);
             SwapBuffers(DeviceContext);
-            ReleaseDC(WindowHandle, DeviceContext);
+            ReleaseDC(Window, DeviceContext);
+            X += (r32)Platform->dMouseWheel;
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
@@ -394,7 +388,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform->dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
-    ShowWindow(WindowHandle, SW_HIDE);
+    ShowWindow(Window, SW_HIDE);
 
     Win32UnloadAppCode(&AppCode);
     // Win32DeinitOpenGl();

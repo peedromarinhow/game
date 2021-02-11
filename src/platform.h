@@ -21,13 +21,11 @@ typedef struct _platform {
 
     // options
     b32 Fullscreen;
-    // b32 Running;
-        //note: this running is actually necessary?
+    b32 Running;
     iv2 WindowSize;
     rv2 MousePos;
-        //todo: mouse wheel
+    i16 dMouseWheel;
     r32 dtForFrame;
-        //todo: window dimensions, etc  
 
     // input
     button_state KeyboardButtons[KEYBOARD_MAX_BUTTONS];
@@ -43,13 +41,13 @@ typedef struct _platform {
     //todo: gamepad
     
     // sound
-    //todo
+    i16 *Samples;
+    i32 SamplesPerSecond;
+    i32 SampleCount;
 
-    // memory
-    //todo
+    //todo: memory
 
-    // functions
-    //todo
+    //todo: functions
 } platform;
 
 #define APP_UPDATE(Name) void Name(platform *Platform)

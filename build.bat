@@ -15,10 +15,10 @@ REM popd
 @echo off
 
 set application_name=app
-set build_options= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
-set compile_flags= /nologo /Zi /FC /I ../src/
-set common_link_flags= opengl32.lib -opt:ref -incremental:no /Debug:fastlink
-set platform_link_flags= gdi32.lib user32.lib winmm.lib %common_link_flags%
+set BuildOptions= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
+set CompileFlags= -nologo -FC -FS -Zi -MTd -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4701 -wd4244 -wd4505 -I ../src/
+set common_link_flags= -incremental:no -opt:ref -Debug:fastlink opengl32.lib
+set platform_link_flags= %common_link_flags% gdi32.lib user32.lib winmm.lib
 
 call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x86 > NUL 2> NUL
 
@@ -26,6 +26,6 @@ if not exist build mkdir build
 
 pushd build
 del *.pdb > NUL 2> NUL
-cl.exe %build_options% %compile_flags% ../src/win32/main.c /link %platform_link_flags% /out:main.exe
-cl.exe %build_options% %compile_flags% ../src/app.c /LD /link %common_link_flags% /out:app.dll /PDB:"app_%random%.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/win32/main.c /link %platform_link_flags% /out:main.exe /PDB:"main.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/app.c /LD /link %common_link_flags% /out:app.dll /PDB:"app_%random%.pdb"
 popd
