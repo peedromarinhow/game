@@ -3,8 +3,8 @@
 
 #define WINDOW_TITLE          "Application"
 #define PROGRAM_FILENAME      "app"
-#define DEFAULT_WINDOW_WIDTH   1600
-#define DEFAULT_WINDOW_HEIGHT  900
+#define DEFAULT_WINDOW_WIDTH   1280
+#define DEFAULT_WINDOW_HEIGHT  720
 
 #include <windows.h>
 #include <gl/gl.h>
@@ -163,13 +163,13 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         GlobalRunning = 0;
     }
     else
-    if (Message == WM_SETCURSOR) {
-
-    }
-    else
     if (Message == WM_MOUSEHWHEEL) {
         GlobalPlatform.dMouseWheel = 10;
-        OutputDebugStringA("mosue\n");
+        OutputDebugStringA("mouse\n");
+    }
+    else
+    if (Message == WM_SETCURSOR) {
+
     }
     else
     if (Message == WM_SYSKEYDOWN ||
@@ -177,6 +177,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         Message == WM_KEYDOWN    ||
         Message == WM_KEYUP)
     {
+        OutputDebugStringA("keyboard\n");
         b32 AltKeyWasDown   = lParam & (1 << 29);
         // b32 CtrlKeyWasDown  = lParam & (1 << (some obscure value));
         // b32 ShiftKeyWasDown = lParam & (1 << (some obscure value));
@@ -205,14 +206,6 @@ internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
     if (State->EndedDown != IsDown) {
         State->EndedDown = IsDown;
         ++State->HalfTransitionCount;
-    }
-}
-
-internal void Win32ProcessPendingMessages(platform *Platform) {
-    MSG Message;
-    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&Message);
-        DispatchMessage(&Message);
     }
 }
 
@@ -307,7 +300,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     Win32InitOpenGl(Window);
 
     ShowWindow(Window, CmdShow);
-    UpdateWindow(Window);
+    SetFocus(Window);
 
     GlobalRunning = 1;
 
@@ -316,7 +309,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     while (GlobalRunning) {
         Win32BeginFrameTiming(&Timer);
-        Win32ProcessPendingMessages(Platform);
+         
+         {
+            MSG Message;
+            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&Message);
+                DispatchMessage(&Message);
+            }
+         }
 
         // get window dimensions
         {
