@@ -1,3 +1,9 @@
+#include <windows.h>
+#include <gl/gl.h>
+#include <gl/glu.h>
+
+#include "lingo.h"
+#include "maths.h"
 #include "platform.h"
 
 void OutputSineWave(i16 *Samples, i32 SamplesPerSecond, i32 SampleCount,
@@ -19,6 +25,20 @@ void OutputSineWave(i16 *Samples, i32 SamplesPerSecond, i32 SampleCount,
 }
 
 __declspec(dllexport) APP_UPDATE(AppUpdate) {
-    localpersist f32 tSine = 0.0f;
-    OutputSineWave(Platform->Samples, Platform->SamplesPerSecond, Platform->SampleCount, 440+Platform->dMouseWheel, tSine);
+    // localpersist f32 tSine = 0.0f;
+    // OutputSineWave(Platform->Samples, Platform->SamplesPerSecond, Platform->SampleCount, 440+Platform->dMouseWheel, tSine);
+    glBegin(GL_LINES);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    glVertex2f(Platform->MousePos.X/(r32)(Platform->WindowSize.X)      , Platform->MousePos.Y/(r32)(Platform->WindowSize.Y));
+    glVertex2f(Platform->MousePos.X/(r32)(Platform->WindowSize.X + 100), Platform->MousePos.Y/(r32)(Platform->WindowSize.Y + 100));
+
+    // glVertex2f(-1.0f, 0.0f);
+    // glVertex2f( 1.0f, 0.0f);
+
+    // glVertex2f(0.0f, -1.0f);
+    // glVertex2f(0.0f,  1.0f);
+
+    glEnd();
 }

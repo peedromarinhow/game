@@ -3,8 +3,8 @@
 
 #define WINDOW_TITLE          "Application"
 #define PROGRAM_FILENAME      "app"
-#define DEFAULT_WINDOW_WIDTH   1280
-#define DEFAULT_WINDOW_HEIGHT  720
+#define DEFAULT_WINDOW_WIDTH   1600
+#define DEFAULT_WINDOW_HEIGHT  900
 
 #include <windows.h>
 #include <gl/gl.h>
@@ -47,35 +47,16 @@ internal void Win32ToggleFullScreen(HWND Window) {
     }
 }
 
-internal void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
-    if (State->EndedDown != IsDown) {
-        State->EndedDown = IsDown;
-        ++State->HalfTransitionCount;
-    }
-}
-
 internal void Win32InitOpenGl(HWND Window) {
     HDC WindowDC = GetDC(Window);
 
     // todo wtf
     //  cColorBits supposed to exclude alpha bits?
     PIXELFORMATDESCRIPTOR DesiredPixelFormat = {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-        PFD_TYPE_RGBA,
-        32,
-        0, 0, 0, 0, 0, 0,
-        0,
-        0,
-        0,
-        0, 0, 0, 0,
-        24,
-        8,
-        0,
-        PFD_MAIN_PLANE,
-        0,
-        0, 0, 0
+        sizeof(PIXELFORMATDESCRIPTOR), 1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER, PFD_TYPE_RGBA,
+        32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 8, 0, PFD_MAIN_PLANE, 0, 0,
+        0, 0
     };
 
     i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
@@ -87,75 +68,29 @@ internal void Win32InitOpenGl(HWND Window) {
     HGLRC OpenGLRC = wglCreateContext(WindowDC);
     if (wglMakeCurrent(WindowDC, OpenGLRC))
     {
-        // note
-        // sucess!
+        //note: sucess!
     }
     else
     {
         Assert(!"NOOOOOOOOOOOO!!");
-        // invalid code path
+        //note: invalid code path
     }
     ReleaseDC(Window, WindowDC);
 }
 
-internal void Win32DumbRenderSomething(HWND Window, platform *Platform) {
-    glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-    // todo
-    //  remove this
-    GLuint TextureHandle = 0;
-    static b32 Init = 0;
-    if (!Init) {
-        glGenTextures(1, &TextureHandle);
-        Init = 1;
+internal void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
+    if (State->EndedDown != IsDown) {
+        State->EndedDown = IsDown;
+        ++State->HalfTransitionCount;
     }
-    glBindTexture(GL_TEXTURE_2D, TextureHandle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glEnable(GL_TEXTURE_2D);
-    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glBegin(GL_TRIANGLES);
-    localpersist r32 P = 1.0f;
-    P += ((r32)Platform->dMouseWheel*10);
-    // lower tri
-    glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex2f(-P,-P);
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex2f(P, -P);
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glVertex2f(P, P);
-    // higher tri
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glVertex2f(-P, -P);
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex2f(P, P);
-    glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex2f(-P, P);
-    glEnd();
-    HDC DeviceContext = GetDC(Window);
-    SwapBuffers(DeviceContext);
-    ReleaseDC(Window, DeviceContext);
 }
 
 //note: hope the demiurge is having fun
-//note: can i do all this in main instead of in here?
+//note: can i do all this in main instead of in here? (seems like no)
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM wParam, LPARAM lParam)
 {
     LRESULT Result = 0;
-    if (Message == WM_ACTIVATEAPP) {
-        //
-    }
-    else
     if (Message == WM_QUIT  ||
         Message == WM_CLOSE ||
         Message == WM_DESTROY)
@@ -169,7 +104,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     }
     else
     if (Message == WM_SETCURSOR) {
-
+        SetCursor(LoadCursorA(0, IDC_ARROW));
     }
     else
     if (Message == WM_SYSKEYDOWN ||
@@ -177,7 +112,6 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         Message == WM_KEYDOWN    ||
         Message == WM_KEYUP)
     {
-        OutputDebugStringA("keyboard\n");
         b32 AltKeyWasDown   = lParam & (1 << 29);
         // b32 CtrlKeyWasDown  = lParam & (1 << (some obscure value));
         // b32 ShiftKeyWasDown = lParam & (1 << (some obscure value));
@@ -190,23 +124,26 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                 if (IsDown && Window)
                     Win32ToggleFullScreen(Window);
             }
+            else
+            if (VKCode == VK_UP)
+                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardButtons[1], IsDown);
+            else
             if (VKCode == VK_F4 && AltKeyWasDown) {
                 GlobalRunning = 0;
             }
         }
+    }
+    else
+    if (Message == WM_PAINT) {
+        PAINTSTRUCT Paint;
+        BeginPaint(Window, &Paint);
+        EndPaint(Window, &Paint);
     }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
 
     return Result;
-}
-
-internal void Win32ProcessKeyboardMessage(button_state *State, b32 IsDown) {
-    if (State->EndedDown != IsDown) {
-        State->EndedDown = IsDown;
-        ++State->HalfTransitionCount;
-    }
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
@@ -265,10 +202,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: logging
     }
 
-    HWND Window = CreateWindow("ApplicationWindowClass", WINDOW_TITLE,
-                                      WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                                      DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
-                                      0, 0, Instance, 0);
+    HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
+                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                  CW_USEDEFAULT, CW_USEDEFAULT,
+                                  DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, 
+                                  0, 0, Instance, 0);
     
     if(!Window)
     {
@@ -299,14 +237,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     Win32InitOpenGl(Window);
 
-    ShowWindow(Window, CmdShow);
-    SetFocus(Window);
+    // ShowWindow(Window, CmdShow);
+    // SetFocus(Window);
 
     GlobalRunning = 1;
-
-    r32 P = 1.0f;
-    r32 X = 1.0f;
-
     while (GlobalRunning) {
         Win32BeginFrameTiming(&Timer);
          
@@ -340,47 +274,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         {
             glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-            GLuint TextureHandle = 0;
-            static b32 Init = 0;
-            if (!Init) {
-                glGenTextures(1, &TextureHandle);
-                Init = 1;
-            }
-            glBindTexture(GL_TEXTURE_2D, TextureHandle);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-            glEnable(GL_TEXTURE_2D);
-            glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
-            glMatrixMode(GL_TEXTURE);
-            glLoadIdentity();
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            glBegin(GL_TRIANGLES);
-            // lower tri
-            glColor3f(0.0f, 0.0f, 1.0f);
-            glVertex2f(-P,-P);
-            glColor3f(0.0f, 1.0f, 0.0f);
-            glVertex2f(P, -P);
-            glColor3f(1.0f, 0.0f, 0.0f);
-            glVertex2f(P, P);
-            // higher tri
-            glColor3f(1.0f, 0.0f, 0.0f);
-            glVertex2f(-P, -P);
-            glColor3f(0.0f, X, 0.0f);
-            glVertex2f(P, P);
-            glColor3f(0.0f, 0.0f, 1.0f);
-            glVertex2f(-P, P);
-            glEnd();
+            glScalef(1.0f, -1.0f, 1.0f);
+
+            AppCode.Update(Platform);
+
             HDC DeviceContext = GetDC(Window);
             SwapBuffers(DeviceContext);
             ReleaseDC(Window, DeviceContext);
-            X += (r32)Platform->dMouseWheel;
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);

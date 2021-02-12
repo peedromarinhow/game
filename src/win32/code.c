@@ -31,7 +31,7 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
         return Success;
     }
 
-    Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
+    Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "AppUpdate");
     if (!Code->Update) {
         Code->Update = AppUpdateStub;
         Success = 0;
