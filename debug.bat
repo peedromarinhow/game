@@ -1,1 +1,1 @@
-devenv build\main.exe
+devenv build\win32_main.exe

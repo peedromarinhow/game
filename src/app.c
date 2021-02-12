@@ -27,18 +27,36 @@ void OutputSineWave(i16 *Samples, i32 SamplesPerSecond, i32 SampleCount,
 __declspec(dllexport) APP_UPDATE(AppUpdate) {
     // localpersist f32 tSine = 0.0f;
     // OutputSineWave(Platform->Samples, Platform->SamplesPerSecond, Platform->SampleCount, 440+Platform->dMouseWheel, tSine);
-    glBegin(GL_LINES);
+    glBegin(GL_LINES); {
 
-    glColor3f(1.0f, 1.0f, 1.0f);
+        glColor3f(1.0f, 1.0f, 1.0f);
 
-    glVertex2f(Platform->MousePos.X/(r32)(Platform->WindowSize.X)      , Platform->MousePos.Y/(r32)(Platform->WindowSize.Y));
-    glVertex2f(Platform->MousePos.X/(r32)(Platform->WindowSize.X + 100), Platform->MousePos.Y/(r32)(Platform->WindowSize.Y + 100));
+        rv2 LowerLeftCorner = {
+            (Platform->MousePos.X),
+            (Platform->MousePos.Y)
+        };
 
-    // glVertex2f(-1.0f, 0.0f);
-    // glVertex2f( 1.0f, 0.0f);
+        rv2 UpperRightCorner = {
+            (Platform->MousePos.X + 100.0f),
+            (Platform->MousePos.Y + 100.0f)
+        };
 
-    // glVertex2f(0.0f, -1.0f);
-    // glVertex2f(0.0f,  1.0f);
+        glVertex2f(LowerLeftCorner.X, LowerLeftCorner.Y);
+        glVertex2f(UpperRightCorner.X, UpperRightCorner.Y);
 
-    glEnd();
+    } glEnd();
+
+    glBegin(GL_TRIANGLES); {
+
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        rv2 P1 = {100, 100};
+        rv2 P2 = {200, 100};
+        rv2 P3 = {100, 200};
+
+        glVertex2f(P1.X, P1.Y);
+        glVertex2f(P2.X, P2.Y);
+        glVertex2f(P3.X, P3.Y);
+
+    } glEnd();
 }

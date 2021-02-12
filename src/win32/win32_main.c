@@ -12,9 +12,9 @@
 #include "lingo.h"
 #include "platform.h"
 
-#include "paths.c"
-#include "timing.c"
-#include "code.c"
+#include "win32_paths.c"
+#include "win32_timing.c"
+#include "win32_code.c"
 
 global b32 GlobalRunning;
 global platform GlobalPlatform;
@@ -276,7 +276,20 @@ int CALLBACK WinMain(HINSTANCE Instance,
             glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
-            glScalef(1.0f, -1.0f, 1.0f);
+
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            r32 a = 2.0f/Platform->WindowSize.X;
+            r32 b = 2.0f/Platform->WindowSize.Y;
+            r32 Proj[] = {
+                 a,  0,  0,  0,
+                 0, -b,  0,  0,
+                 0,  0,  1,  0,
+                -1,  1,  0,  1
+            };
+            glLoadMatrixf(Proj);
 
             AppCode.Update(Platform);
 
