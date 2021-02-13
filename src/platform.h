@@ -4,7 +4,7 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#define KEYBOARD_MAX_BUTTONS 30
+#define KEYBOARD_MAX_BUTTONS 4
 #define MOUSE_MAX_BUTTONS    3
 
 typedef struct _button_state {
@@ -28,7 +28,15 @@ typedef struct _platform {
     r32 dtForFrame;
 
     // input
-    button_state KeyboardButtons[KEYBOARD_MAX_BUTTONS];
+    union {
+        button_state Buttons[KEYBOARD_MAX_BUTTONS];
+        struct {
+            button_state Up;
+            button_state Down;
+            button_state Left;
+            button_state Right;
+        };
+    } Keyboard;
     union {
         button_state Buttons[MOUSE_MAX_BUTTONS];
         struct {
@@ -37,6 +45,7 @@ typedef struct _platform {
             button_state Middle;
         };
     } Mouse;
+    u64 CharacterInput;
 
     //todo: gamepad
     

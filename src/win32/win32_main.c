@@ -15,6 +15,7 @@
 #include "win32_paths.c"
 #include "win32_timing.c"
 #include "win32_code.c"
+#include "win32_sound.c"
 
 global b32 GlobalRunning;
 global platform GlobalPlatform;
@@ -101,66 +102,89 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     {
         GlobalRunning = 0;
     }
-    // MOUSE
-        else
-        if (Message == WM_MOUSEHWHEEL) {
-            GlobalPlatform.dMouseWheel = 10;
-            OutputDebugStringA("mouse\n");
-        }
-        else
-        if (Message == WM_LBUTTONDOWN) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 1);
-        }
-        else
-        if (Message == WM_LBUTTONUP) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 0);
-        }
-        else
-        if (Message == WM_RBUTTONDOWN) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 1);
-        }
-        else
-        if (Message == WM_RBUTTONUP) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 0);
-        }
-        else
-        if (Message == WM_MBUTTONDOWN) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 1);
-        }
-        else
-        if (Message == WM_MBUTTONUP) {
-            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 0);
-        }
-        else
-        if (Message == WM_SETCURSOR) {
-            SetCursor(LoadCursorA(0, IDC_ARROW));
-        }
-
-    //
+// MOUSE
+    else
+    if (Message == WM_MOUSEHWHEEL) {
+        GlobalPlatform.dMouseWheel = 10;
+        OutputDebugStringA("mouse\n");
+    }
+    else
+    if (Message == WM_LBUTTONDOWN) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 1);
+    }
+    else
+    if (Message == WM_LBUTTONUP) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 0);
+    }
+    else
+    if (Message == WM_RBUTTONDOWN) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 1);
+    }
+    else
+    if (Message == WM_RBUTTONUP) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 0);
+    }
+    else
+    if (Message == WM_MBUTTONDOWN) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 1);
+    }
+    else
+    if (Message == WM_MBUTTONUP) {
+        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 0);
+    }
+    else
+    if (Message == WM_SETCURSOR) {
+        SetCursor(LoadCursorA(0, IDC_ARROW));
+    }
+//
+// KEYBOARD
     else
     if (Message == WM_SYSKEYDOWN ||
         Message == WM_SYSKEYUP   ||
         Message == WM_KEYDOWN    ||
         Message == WM_KEYUP)
     {
-        b32 AltKeyWasDown   = lParam & (1 << 29);
-        // b32 CtrlKeyWasDown  = lParam & (1 << (some obscure value));
-        // b32 ShiftKeyWasDown = lParam & (1 << (some obscure value));
-        u64 VKCode  =  wParam;
+        b32 AltKeyWasDown = lParam & (1 << 29);
+        //todo: do this AltKeyWasDown differently
+        u64 VKCode = wParam;
         if (WasDown != IsDown) {
             if (VKCode == VK_F11) {
                 if (IsDown && Window)
                     Win32ToggleFullScreen(Window);
             }
+                //note:
+                // send this to the platform and let it decide how to handle
+                // fullscreen switching?
             else
             if (VKCode == VK_UP)
-                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardButtons[1], IsDown);
+                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Up, IsDown);
             else
-            if (VKCode == VK_F4 && AltKeyWasDown) {
-                GlobalRunning = 0;
+            if (VKCode == VK_DOWN)
+                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Down, IsDown);
+            else
+            if (VKCode == VK_LEFT)
+                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Left, IsDown);
+            else
+            if (VKCode == VK_RIGHT)
+                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Right, IsDown);
+            else
+            if (VKCode == VK_F4) {
+                if (AltKeyWasDown) GlobalRunning = 0;
             }
         }
     }
+    else
+    if (Message == WM_CHAR) {
+        u64 CharacterInput = wParam;
+        if(CharacterInput >= 32        && 
+           CharacterInput != 127       &&
+           CharacterInput != VK_RETURN &&
+           CharacterInput != VK_ESCAPE)
+        {
+            GlobalPlatform.CharacterInput = CharacterInput;
+        }
+    }
+//
     else
     if (Message == WM_PAINT) {
         PAINTSTRUCT Paint;
@@ -236,8 +260,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                                   DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, 
                                   0, 0, Instance, 0);
     
-    if(!Window)
-    {
+    if(!Window) {
         //note: ERROR!! Window failed to be created
         //todo: logging
     }
@@ -250,9 +273,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
     }
 
-    // sound
-    {
-        //todo
+    win32_sound_output SoundOutput = {0}; {
+        //todo: make this final
     }
 
     // get refresh rate

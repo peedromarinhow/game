@@ -69,14 +69,12 @@ __declspec(dllexport) APP_UPDATE(AppUpdate) {
 
         glColor3f(1.0f, 1.0f, 1.0f);
 
-        localpersist rv2 P1 = {200, 200};
-        localpersist rv2 P2 = {300, 300};
-
-        P2.X += (r32)Platform->dMouseWheel;
-        P2.Y += (r32)Platform->dMouseWheel;
+        rv2 P1 = {200, 200};
+        rv2 P2 = {300, 300};
 
         glVertex2f(P1.X, P1.Y);
-        glVertex2f(P2.X, P2.Y);
+        if (Platform->CharacterInput == 'a')
+            glVertex2f(P2.X, P2.Y);
 
     } glEnd();
 }
