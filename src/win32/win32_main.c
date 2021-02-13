@@ -91,21 +91,52 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM wParam, LPARAM lParam)
 {
     LRESULT Result = 0;
+
+    b32 WasDown = (lParam & (1 << 30)) != 0;
+    b32 IsDown  = (lParam & (1 << 31)) == 0;
+
     if (Message == WM_QUIT  ||
         Message == WM_CLOSE ||
         Message == WM_DESTROY)
     {
         GlobalRunning = 0;
     }
-    else
-    if (Message == WM_MOUSEHWHEEL) {
-        GlobalPlatform.dMouseWheel = 10;
-        OutputDebugStringA("mouse\n");
-    }
-    else
-    if (Message == WM_SETCURSOR) {
-        SetCursor(LoadCursorA(0, IDC_ARROW));
-    }
+    // MOUSE
+        else
+        if (Message == WM_MOUSEHWHEEL) {
+            GlobalPlatform.dMouseWheel = 10;
+            OutputDebugStringA("mouse\n");
+        }
+        else
+        if (Message == WM_LBUTTONDOWN) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 1);
+        }
+        else
+        if (Message == WM_LBUTTONUP) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 0);
+        }
+        else
+        if (Message == WM_RBUTTONDOWN) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 1);
+        }
+        else
+        if (Message == WM_RBUTTONUP) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 0);
+        }
+        else
+        if (Message == WM_MBUTTONDOWN) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 1);
+        }
+        else
+        if (Message == WM_MBUTTONUP) {
+            Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 0);
+        }
+        else
+        if (Message == WM_SETCURSOR) {
+            SetCursor(LoadCursorA(0, IDC_ARROW));
+        }
+
+    //
     else
     if (Message == WM_SYSKEYDOWN ||
         Message == WM_SYSKEYUP   ||
@@ -115,9 +146,6 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         b32 AltKeyWasDown   = lParam & (1 << 29);
         // b32 CtrlKeyWasDown  = lParam & (1 << (some obscure value));
         // b32 ShiftKeyWasDown = lParam & (1 << (some obscure value));
-
-        b32 WasDown = (lParam & (1 << 30)) != 0;
-        b32 IsDown  = (lParam & (1 << 31)) == 0;
         u64 VKCode  =  wParam;
         if (WasDown != IsDown) {
             if (VKCode == VK_F11) {

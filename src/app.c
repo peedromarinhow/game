@@ -46,17 +46,37 @@ __declspec(dllexport) APP_UPDATE(AppUpdate) {
 
     } glEnd();
 
-    glBegin(GL_TRIANGLES); {
+    if (Platform->Mouse.Left.EndedDown  ||
+        Platform->Mouse.Right.EndedDown ||
+        Platform->Mouse.Middle.EndedDown)
+    {
+        glBegin(GL_TRIANGLES); {
+
+            glColor3f(1.0f, 1.0f, 1.0f);
+
+            rv2 P1 = {100, 100};
+            rv2 P2 = {200, 100};
+            rv2 P3 = {100, 200};
+
+            glVertex2f(P1.X, P1.Y);
+            glVertex2f(P2.X, P2.Y);
+            glVertex2f(P3.X, P3.Y);
+
+        } glEnd();
+    }
+
+    glBegin(GL_LINES); {
 
         glColor3f(1.0f, 1.0f, 1.0f);
 
-        rv2 P1 = {100, 100};
-        rv2 P2 = {200, 100};
-        rv2 P3 = {100, 200};
+        localpersist rv2 P1 = {200, 200};
+        localpersist rv2 P2 = {300, 300};
+
+        P2.X += (r32)Platform->dMouseWheel;
+        P2.Y += (r32)Platform->dMouseWheel;
 
         glVertex2f(P1.X, P1.Y);
         glVertex2f(P2.X, P2.Y);
-        glVertex2f(P3.X, P3.Y);
 
     } glEnd();
 }

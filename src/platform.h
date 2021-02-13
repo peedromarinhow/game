@@ -30,13 +30,13 @@ typedef struct _platform {
     // input
     button_state KeyboardButtons[KEYBOARD_MAX_BUTTONS];
     union {
-        button_state MouseButtons[MOUSE_MAX_BUTTONS];
+        button_state Buttons[MOUSE_MAX_BUTTONS];
         struct {
             button_state Left;
             button_state Right;
             button_state Middle;
-        } Mouse;
-    };
+        };
+    } Mouse;
 
     //todo: gamepad
     
