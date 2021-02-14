@@ -1,4 +1,5 @@
-#include "external/vulkan/vulkan.h"
+#include <windows.h>
+#include <gl/gl.h>
 
 #include "lingo.h"
 #include "maths.h"
@@ -22,97 +23,88 @@ void OutputSineWave(i16 *Samples, i32 SamplesPerSecond, i32 SampleCount,
     }
 }
 
-#if 0
-internal b32 HasExtensions(VkPhysicalDevice *Device, char **RequiredExtensions, u32 ExtensionCount) {
-    u32 DeviceExtensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(Device, NULL, &DeviceExtensionCount, NULL);
-#define MAX_DEVICE_EXTENSION_COUNT 107
-    //todo: dynamically allocate memory
-    VkExtensionProperties Extensions[MAX_DEVICE_EXTENSION_COUNT/*DeviceExtensionCount*/] = {0};
-#undef  MAX_DEVICE_EXTENSION_COUNT
-    for (u32 ExtensionIndex;
-                ExtensionIndex < ExtensionCount;
-                ExtensionIndex++)
-    {
-        b32 HasExtension = 0;
-        for (u32 DeviceExtensionIndex = 0;
-                 DeviceExtensionIndex < DeviceExtensionCount;
-                 DeviceExtensionIndex++)
-        {
-            //todo: actually compare the strings of the device and the required extensions
-            //note: why are these strings?  
-        }
-    }
-}
-
-internal b32 GetQueuefamily(VkPhysicalDevice *Device, VkQueueFlags Flags, i32 QueueFamilyIndex) {
-    b32 Succes = 0;
-    u32 QueueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(*Device, &QueueFamilyCount, NULL);
-    VkQueueFamilyProperties QueueFamilies;
-}
-
-void VulkanTest(void) {
-    VkInstance Instance = {0};
-    VkApplicationInfo AppInfo = {0}; {
-        AppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        AppInfo.pNext = NULL;
-        AppInfo.pApplicationName = "app";
-        AppInfo.pEngineName = NULL;
-        AppInfo.engineVersion = 1;
-        AppInfo.apiVersion = VK_API_VERSION_1_0;
-    }
-    VkInstanceCreateInfo InstanceInfo = {0}; {
-        InstanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        InstanceInfo.pNext = NULL;
-        InstanceInfo.flags = 0;
-        InstanceInfo.pApplicationInfo = &AppInfo;
-        InstanceInfo.enabledLayerCount = 0;
-        InstanceInfo.ppEnabledLayerNames = NULL;
-        InstanceInfo.enabledExtensionCount = 0;
-        InstanceInfo.ppEnabledExtensionNames = NULL;
-    }
-
-    VkResult Result = vkCreateInstance(&InstanceInfo, NULL, &Instance);
-    if (Result != VK_SUCCESS) {
-        //note: ERROR!! Failed to create vulkan instance
-        //todo: logging
-        Assert(!"NOOOOOOOOOO!!");
-    }
-
-    u32 DeviceCount;
-    vkEnumeratePhysicalDevices(Instance, &DeviceCount, NULL);
-#define MAX_DEVICE_COUNT 1
-    //todo: dynamically allocate memory
-    VkPhysicalDevice Devices[MAX_DEVICE_COUNT/*DeviceCount*/] = {0};
-#undef  MAX_DEVICE_COUNT
-    vkEnumeratePhysicalDevices(Instance, &DeviceCount, Devices);
-
-    const u32 ExtensionCount = 1;
-    char *DeviceExtensions[ExtensionCount] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-    for (u32 DeviceIndex = 0;
-             DeviceIndex < DeviceCount;
-             DeviceIndex++)
-    {
-        // if (HasRequiredEstensions(...))
-        //note: assuming that my card has VK_KHR_SWAPCHAIN_EXTENSION_NAME
-        {
-            if (GetQueuefamily(Devices[DeviceIndex], 0, 0))
-
-        }
-    }
-
-    vkDestroyInstance(Instance, NULL);
-}
-#endif
-//note: vulkan is much harder than i expected
-
 //todo: APP_ONLOAD function that runs when the app is loaded
 //note:
 //  this will require app memory, so that the vulkan stuff
 //  can be stored in it and shared between the functions
 
 __declspec(dllexport) APP_UPDATE(AppUpdate) {
-    //
+    glViewport(0, 0, Platform->WindowSize.Width, Platform->WindowSize.Height);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    r32 a = 2.0f/Platform->WindowSize.x;
+    r32 b = 2.0f/Platform->WindowSize.y;
+    r32 Proj[] = {
+        a,  0,  0,  0,
+        0, -b,  0,  0,
+        0,  0,  1,  0,
+        -1,  1,  0,  1
+    };
+    glLoadMatrixf(Proj);
+
+    glBegin(GL_LINES); {
+
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        rv2 LowerLeftCorner = {
+            (Platform->MousePos.x),
+            (Platform->MousePos.y)
+        };
+
+        rv2 UpperRightCorner = {
+            (Platform->MousePos.x + 100.0f),
+            (Platform->MousePos.y + 100.0f)
+        };
+
+        glVertex2f(LowerLeftCorner.x, LowerLeftCorner.y);
+        glVertex2f(UpperRightCorner.x, UpperRightCorner.y);
+
+    } glEnd();
+
+    if (Platform->Mouse.Left.EndedDown  ||
+        Platform->Mouse.Right.EndedDown ||
+        Platform->Mouse.Middle.EndedDown)
+    {
+        glBegin(GL_TRIANGLES); {
+
+            glColor3f(1.0f, 1.0f, 1.0f);
+
+            rv2 P1 = {100, 100};
+            rv2 P2 = {200, 100};
+            rv2 P3 = {100, 200};
+
+            if ((100 <= Platform->MousePos.x && Platform->MousePos.x <= 200) &&
+                (100 <= Platform->MousePos.y && Platform->MousePos.y <= 200) &&
+                Platform->Mouse.Left.EndedDown)
+            {                
+                glColor3f(1.0f, 0.0f, 1.0f);
+            }
+
+            glVertex2f(P1.x, P1.y);
+            glVertex2f(P2.x, P2.y);
+            glVertex2f(P3.x, P3.y);
+
+        } glEnd();
+    }
+
+    glBegin(GL_LINES); {
+
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        rv2 P1 = {200, 200};
+        rv2 P2 = {300, 300};
+
+        glVertex2f(P1.x, P1.y);
+        if (Platform->CharacterInput == 'a')
+            glVertex2f(P2.x, P2.y);
+
+    } glEnd();
 }
