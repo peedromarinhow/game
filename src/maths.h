@@ -43,6 +43,20 @@ typedef union _c32 {
     r32 Components[2];
 } c32;
 
-inline c32 MulC32(c32 z, c32 w) { return {z.Real * w.Real, z.Imaginary * w. Imaginary}; }
+inline c32 MulC32(c32 z, c32 w) {
+    return {(z.a * w.a), (z.b * w.b)};
+}
+
+inline c32 ExpC32(c32 z) {
+    return {(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sen(z.b))};
+}
+
+inline c32 LogC32(c32 z) {
+    return {0, 0};
+}
+
+inline c32 PowC32(c32 z, c32 p) {
+    return ExpC32(MulC32(p, LogC32(z)));
+}
 
 #endif
