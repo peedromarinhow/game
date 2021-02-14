@@ -3,8 +3,8 @@
 
 #define WINDOW_TITLE          "Application"
 #define PROGRAM_FILENAME      "app"
-#define DEFAULT_WINDOW_WIDTH   1600
-#define DEFAULT_WINDOW_HEIGHT  900
+#define DEFAULT_WINDOW_WIDTH   1280
+#define DEFAULT_WINDOW_HEIGHT  720
 
 #include <windows.h>
 #include <gl/gl.h>
@@ -306,8 +306,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         {
             RECT ClientRect;
             GetClientRect(Window, &ClientRect);
-            Platform->WindowSize.X = ClientRect.right  - ClientRect.left;
-            Platform->WindowSize.Y = ClientRect.bottom - ClientRect.top;
+            Platform->WindowSize.x = ClientRect.right  - ClientRect.left;
+            Platform->WindowSize.y = ClientRect.bottom - ClientRect.top;
         }
 
         // update input for stuff that doesn't come trough the messages, see Win32ProcessPendingMessages
@@ -315,32 +315,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
             POINT MousePoint;
             GetCursorPos(&MousePoint);
             ScreenToClient(Window, &MousePoint);
-            Platform->MousePos.X = MousePoint.x;
-            Platform->MousePos.Y = MousePoint.y;
+            Platform->MousePos.x = MousePoint.x;
+            Platform->MousePos.y = MousePoint.y;
                 //todo: mouse wheel
         }
 
         //todo: sound
 
         {
-            glViewport(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            r32 a = 2.0f/Platform->WindowSize.X;
-            r32 b = 2.0f/Platform->WindowSize.Y;
-            r32 Proj[] = {
-                 a,  0,  0,  0,
-                 0, -b,  0,  0,
-                 0,  0,  1,  0,
-                -1,  1,  0,  1
-            };
-            glLoadMatrixf(Proj);
-
             AppCode.Update(Platform);
 
             HDC DeviceContext = GetDC(Window);

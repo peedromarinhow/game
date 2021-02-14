@@ -5,8 +5,8 @@
 
 typedef union _iv2 {
     struct {
-        i32 X;
-        i32 Y;
+        i32 x;
+        i32 y;
     };
 
     struct {
@@ -19,8 +19,8 @@ typedef union _iv2 {
 
 typedef union _rv2 {
     struct {
-        r32 X;
-        r32 Y;
+        r32 x;
+        r32 y;
     };
 
     // struct {
@@ -30,5 +30,19 @@ typedef union _rv2 {
 
     r32 Components[2];
 } rv2;
+
+typedef union _c32 {
+    struct {
+        r32 Real;
+        r32 Imaginary;
+    };
+    struct {
+        r32 a;
+        r32 b;
+    };
+    r32 Components[2];
+} c32;
+
+inline c32 MulC32(c32 z, c32 w) { return {z.Real * w.Real, z.Imaginary * w. Imaginary}; }
 
 #endif

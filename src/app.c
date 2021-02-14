@@ -25,20 +25,39 @@ void OutputSineWave(i16 *Samples, i32 SamplesPerSecond, i32 SampleCount,
 }
 
 __declspec(dllexport) APP_UPDATE(AppUpdate) {
-    // localpersist f32 tSine = 0.0f;
-    // OutputSineWave(Platform->Samples, Platform->SamplesPerSecond, Platform->SampleCount, 440+Platform->dMouseWheel, tSine);
+    glViewport(0, 0, Platform->WindowSize.Width, Platform->WindowSize.Height);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    r32 a = 2.0f/Platform->WindowSize.x;
+    r32 b = 2.0f/Platform->WindowSize.y;
+    r32 Proj[] = {
+        a,  0,  0,  0,
+        0, -b,  0,  0,
+        0,  0,  1,  0,
+        -1,  1,  0,  1
+    };
+    glLoadMatrixf(Proj);
+
     glBegin(GL_LINES); {
 
         glColor3f(1.0f, 1.0f, 1.0f);
 
         rv2 LowerLeftCorner = {
-            (Platform->MousePos.X),
-            (Platform->MousePos.Y)
+            (Platform->MousePos.x),
+            (Platform->MousePos.y)
         };
 
         rv2 UpperRightCorner = {
-            (Platform->MousePos.X + 100.0f),
-            (Platform->MousePos.Y + 100.0f)
+            (Platform->MousePos.x + 100.0f),
+            (Platform->MousePos.y + 100.0f)
         };
 
         glVertex2f(LowerLeftCorner.X, LowerLeftCorner.Y);
@@ -57,6 +76,13 @@ __declspec(dllexport) APP_UPDATE(AppUpdate) {
             rv2 P1 = {100, 100};
             rv2 P2 = {200, 100};
             rv2 P3 = {100, 200};
+
+            if ((100 <= Platform->MousePos.x && Platform->MousePos.x <= 200) &&
+                (100 <= Platform->MousePos.y && Platform->MousePos.y <= 200) &&
+                Platform->Mouse.Left.EndedDown)
+            {                
+                glColor3f(1.0f, 0.0f, 1.0f);
+            }
 
             glVertex2f(P1.X, P1.Y);
             glVertex2f(P2.X, P2.Y);
