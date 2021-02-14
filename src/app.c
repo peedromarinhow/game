@@ -43,9 +43,9 @@ __declspec(dllexport) APP_UPDATE(AppUpdate) {
     r32 a = 2.0f/Platform->WindowSize.x;
     r32 b = 2.0f/Platform->WindowSize.y;
     r32 Proj[] = {
-        a,  0,  0,  0,
-        0, -b,  0,  0,
-        0,  0,  1,  0,
+         a,  0,  0,  0,
+         0, -b,  0,  0,
+         0,  0,  1,  0,
         -1,  1,  0,  1
     };
     glLoadMatrixf(Proj);
@@ -106,5 +106,30 @@ __declspec(dllexport) APP_UPDATE(AppUpdate) {
         if (Platform->CharacterInput == 'a')
             glVertex2f(P2.x, P2.y);
 
+    } glEnd();
+
+    r32 ComplexProj[] = {
+        1,  0,  0,  0,
+        0,  1,  0,  0,
+        0,  0,  1,  0,
+        0,  0,  0,  1
+    };
+    glLoadMatrixf(ComplexProj);
+
+    glBegin(GL_LINES); {
+        glVertex2f(0,  1000);
+        glVertex2f(0, -1000);
+
+        glVertex2f( 1000, 0);
+        glVertex2f(-1000, 0);
+
+        c32 Origin = (c32){0, 0};
+        c32 z = (c32){100, 100};
+        glVertex2f(Origin.a, Origin.b);
+        glVertex2f(z.a, z.b);
+
+        c32 w = ExpITheta(Platform->MousePos.x/100);
+        glVertex2f(Origin.a, Origin.b);
+        glVertex2f(w.a, w.b);
     } glEnd();
 }

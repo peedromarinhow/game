@@ -1,3 +1,13 @@
+#include <math.h>
+//note: CRT because implementing the stuff is going to take too long
+
+#define Exp    expf
+#define Sin    sinf
+#define Cos    cosf
+#define Arctan atanf
+#define Log    logf
+#define Sqrt   sqrtf
+
 #include "lingo.h"
 
 #ifndef MATHS_H
@@ -43,20 +53,28 @@ typedef union _c32 {
     r32 Components[2];
 } c32;
 
-// inline c32 MulC32(c32 z, c32 w) {
-//     return {(z.a * w.a), (z.b * w.b)};
-// }
+inline c32 MulC32(c32 z, c32 w) {
+    return (c32){(z.a * w.a), (z.b * w.b)};
+}
 
-// inline c32 ExpC32(c32 z) {
-//     return {(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sen(z.b))};
-// }
+inline c32 ExpC32(c32 z) {
+    return (c32){(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sin(z.b))};
+}
 
-// inline c32 LogC32(c32 z) {
-//     return {0, 0};
-// }
+inline c32 ExpITheta(r32 Theta) {
+    return (c32){Cos(Theta), Sin(Theta)};
+}
 
-// inline c32 PowC32(c32 z, c32 p) {
-//     return ExpC32(MulC32(p, LogC32(z)));
-// }
+inline c32 LogC32(c32 z) {
+    r32 c = Sqrt(z.a*z.a + z.b*z.b);
+    r32 d = Arctan(z.b/z.a);
+        c = Log(c);
+    if (z.a < 0) d += PI32;
+    return (c32){c, d};
+}
+
+inline c32 PowC32(c32 z, c32 p) {
+    return ExpC32(MulC32(p, LogC32(z)));
+}
 
 #endif
