@@ -7,7 +7,6 @@
 #define DEFAULT_WINDOW_HEIGHT  720
 
 #include <windows.h>
-#include <gl/gl.h>
 
 #include "lingo.h"
 #include "platform.h"
@@ -17,7 +16,6 @@
 #include "win32_code.c"
 #include "win32_sound.c"
 
-global b32 GlobalRunning;
 global platform GlobalPlatform;
 
 internal void Win32ToggleFullScreen(HWND Window) {
@@ -48,37 +46,6 @@ internal void Win32ToggleFullScreen(HWND Window) {
     }
 }
 
-internal void Win32InitOpenGl(HWND Window) {
-    HDC WindowDC = GetDC(Window);
-
-    // todo wtf
-    //  cColorBits supposed to exclude alpha bits?
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {
-        sizeof(PIXELFORMATDESCRIPTOR), 1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER, PFD_TYPE_RGBA,
-        32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 8, 0, PFD_MAIN_PLANE, 0, 0,
-        0, 0
-    };
-
-    i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
-                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
-
-    HGLRC OpenGLRC = wglCreateContext(WindowDC);
-    if (wglMakeCurrent(WindowDC, OpenGLRC))
-    {
-        //note: sucess!
-    }
-    else
-    {
-        Assert(!"NOOOOOOOOOOOO!!");
-        //note: invalid code path
-    }
-    ReleaseDC(Window, WindowDC);
-}
-
 internal void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
     if (State->EndedDown != IsDown) {
         State->EndedDown = IsDown;
@@ -100,7 +67,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
         Message == WM_CLOSE ||
         Message == WM_DESTROY)
     {
-        GlobalRunning = 0;
+        GlobalPlatform.Running = 0;
     }
 // MOUSE
     else
@@ -169,7 +136,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                 Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Right, IsDown);
             else
             if (VKCode == VK_F4) {
-                if (AltKeyWasDown) GlobalRunning = 0;
+                if (AltKeyWasDown) GlobalPlatform.Running = 0;
             }
         }
     }
@@ -285,13 +252,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
     }
 
-    Win32InitOpenGl(Window);
-
-    // ShowWindow(Window, CmdShow);
-    // SetFocus(Window);
-
-    GlobalRunning = 1;
-    while (GlobalRunning) {
+    GlobalPlatform.Running = 1;
+    while (GlobalPlatform.Running) {
         Win32BeginFrameTiming(&Timer);
          
          {
