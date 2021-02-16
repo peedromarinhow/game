@@ -26,11 +26,16 @@ typedef r64 f64;
 
 #define ArrayCount(a) (sizeof(a) / sizeof((a)[0]))
 
-#define Bytes(n)      (n)
-#define Kilobytes(n)  (n << 10)
-#define Megabytes(n)  (n << 20)
-#define Gigabytes(n)  (((u64)n) << 30)
-#define Terabytes(n)  (((u64)n) << 40)
+#define Kilobytes(Value) ((Value)* 1024)
+#define Megabytes(Value) (Kilobytes(Value)* 1024)
+#define Gigabytes(Value) (Megabytes(Value)* 1024)
+#define Terabytes(Value) (Gigabytes(Value)* 1024)
+
+inline u32 SafeTruncateU64(u64 Value) {
+    u32 Result = 0;
+    if (Value <= 0xFFFFFFFF) Result = (u32)Value;
+    return Result;
+}
 
 #if BUILD_SLOW
     #define Assert(Expression) if (!(Expression)) { *(i32 *)0 = 0; }

@@ -10,6 +10,7 @@
 
 #include "lingo.h"
 #include "platform.h"
+#include "memory.h"
 
 #include "win32_paths.c"
 #include "win32_timing.c"
@@ -108,27 +109,27 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     }
     else
     if (Message == WM_LBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 1);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseLeft, 1);
     }
     else
     if (Message == WM_LBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Left, 0);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseLeft, 0);
     }
     else
     if (Message == WM_RBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 1);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseRight, 1);
     }
     else
     if (Message == WM_RBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Right, 0);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseRight, 0);
     }
     else
     if (Message == WM_MBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 1);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseMiddle, 1);
     }
     else
     if (Message == WM_MBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.Mouse.Middle, 0);
+        Win32ProcessButtonMessage(&GlobalPlatform.MouseMiddle, 0);
     }
     else
     if (Message == WM_SETCURSOR) {
@@ -155,16 +156,16 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                 // fullscreen switching?
             else
             if (VKCode == VK_UP)
-                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Up, IsDown);
+                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardUp, IsDown);
             else
             if (VKCode == VK_DOWN)
-                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Down, IsDown);
+                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardDown, IsDown);
             else
             if (VKCode == VK_LEFT)
-                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Left, IsDown);
+                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardLeft, IsDown);
             else
             if (VKCode == VK_RIGHT)
-                Win32ProcessButtonMessage(&GlobalPlatform.Keyboard.Right, IsDown);
+                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardRight, IsDown);
             else
             if (VKCode == VK_F4) {
                 if (AltKeyWasDown) GlobalPlatform.Running = 0;
@@ -230,12 +231,22 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectory(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
-   // initialize platform (up here because windows is great)
-    platform *Platform = &GlobalPlatform; {
-        Platform->ExecutablePath       = ExecutablePath;
-        Platform->WorkingDirectoryPath = WorkingDirectory;
-        //note: other fields are updated per frame
+    // initialize platform (up here because windows is great)
+    GlobalPlatform.ExecutablePath       = ExecutablePath;
+    GlobalPlatform.WorkingDirectoryPath = WorkingDirectory;
+#if BUILD_INTERNAL
+    LPVOID BaseAddress = (LPVOID)SafeTruncateU64(Terabytes((u64)1));
+#else
+    LPVOID BaseAddress = 0;
+#endif
+    GlobalPlatform.Memory.Size = Megabytes((u64)64);
+    GlobalPlatform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)GlobalPlatform.Memory.Size,
+                                                  MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!GlobalPlatform.Memory.Contents) {
+        //note: ERROR!! Could not allocate memory for the app
+        //todo: logging
     }
+    //note: other fields are updated per frame
     // it's great
 
     WNDCLASS WindowClass = {0}; {
@@ -276,16 +287,19 @@ int CALLBACK WinMain(HINSTANCE Instance,
     }
 
     // get refresh rate
-    f32 MonitorRefreshRate = 60.f; {
+    f32 MonitorRefreshRate = 60.0f; {
         DEVMODEA DeviceMode = {0};
         if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
             MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
         }
     }
 
+    GlobalPlatform.Running = 1;
+
     Win32InitOpenGl(Window);
 
-    GlobalPlatform.Running = 1;
+    AppCode.Init(&GlobalPlatform);
+
     while (GlobalPlatform.Running) {
         Win32BeginFrameTiming(&Timer);
          
@@ -301,8 +315,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         {
             RECT ClientRect;
             GetClientRect(Window, &ClientRect);
-            Platform->WindowSize.x = ClientRect.right  - ClientRect.left;
-            Platform->WindowSize.y = ClientRect.bottom - ClientRect.top;
+            GlobalPlatform.WindowSize.x = ClientRect.right  - ClientRect.left;
+            GlobalPlatform.WindowSize.y = ClientRect.bottom - ClientRect.top;
         }
 
         // update input for stuff that doesn't come trough the messages, see Win32ProcessPendingMessages
@@ -310,15 +324,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
             POINT MousePoint;
             GetCursorPos(&MousePoint);
             ScreenToClient(Window, &MousePoint);
-            Platform->MousePos.x = MousePoint.x;
-            Platform->MousePos.y = MousePoint.y;
+            GlobalPlatform.MousePos.x = MousePoint.x;
+            GlobalPlatform.MousePos.y = MousePoint.y;
                 //todo: mouse wheel
         }
 
         //todo: sound
 
         {
-            AppCode.Update(Platform);
+            AppCode.Update(&GlobalPlatform);
 
             HDC DeviceContext = GetDC(Window);
             SwapBuffers(DeviceContext);
@@ -327,7 +341,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
 
-        Platform->dtForFrame = Win32EndFrameTiming(&Timer);
+        GlobalPlatform.dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
     ShowWindow(Window, SW_HIDE);

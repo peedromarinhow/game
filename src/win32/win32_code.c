@@ -4,6 +4,7 @@ typedef struct _win32_app_code {
     HMODULE              DLL;
     FILETIME             LastDLLWriteTime;
     app_update_callback *Update;
+    app_init_callback   *Init;
 } win32_app_code;
 
 inline FILETIME GetFileLastWriteTime(char *Filename) {
@@ -31,7 +32,8 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
         return Success;
     }
 
-    Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "AppUpdate");
+    Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
+    Code->Init   = (app_init_callback *)  GetProcAddress(Code->DLL, "Init");
     if (!Code->Update) {
         Code->Update = AppUpdateStub;
         Success = 0;

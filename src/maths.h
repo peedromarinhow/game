@@ -1,3 +1,6 @@
+#ifndef MATHS_H
+#define MATHS_H
+
 #include <math.h>
 //note: CRT because implementing the stuff is going to take too long
 
@@ -9,9 +12,6 @@
 #define Sqrt   sqrtf
 
 #include "lingo.h"
-
-#ifndef MATHS_H
-#define MATHS_H
 
 typedef union _iv2 {
     struct {

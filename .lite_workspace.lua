@@ -1,1 +1,0 @@
-return {["type"]="leaf",["active_view"]=2,["views"]={[1]={["filename"]="src\\win32\\code.c",["scroll"]={["y"]=0,["x"]=0},["type"]="doc",["text"]=false,["active"]=false,["selection"]={[1]=1,[2]=1,[3]=1,[4]=1}},[2]={["filename"]="src\\win32\\main.c",["scroll"]={["y"]=6874,["x"]=0},["type"]="doc",["text"]=false,["active"]=true,["selection"]={[1]=388,[2]=19,[3]=388,[4]=19}}}}

@@ -1,8 +1,10 @@
-#include "lingo.h"
-#include "maths.h"
 
 #ifndef PLATFORM_H
 #define PLATFORM_H
+
+#include "lingo.h"
+#include "maths.h"
+#include "memory.h"
 
 #define KEYBOARD_MAX_BUTTONS 4
 #define MOUSE_MAX_BUTTONS    3
@@ -23,43 +25,51 @@ typedef struct _platform {
     b32 Fullscreen;
     b32 Running;
     iv2 WindowSize;
-    rv2 MousePos;
-    i16 dMouseWheel;
     r32 dtForFrame;
 
-    // input
+    // mouse input
+    i16 dMouseWheel;
+    rv2 MousePos;
     union {
-        button_state Buttons[KEYBOARD_MAX_BUTTONS];
+        button_state MouseButtons[MOUSE_MAX_BUTTONS];
         struct {
-            button_state Up;
-            button_state Down;
-            button_state Left;
-            button_state Right;
+            button_state MouseLeft;
+            button_state MouseRight;
+            button_state MouseMiddle;
         };
-    } Keyboard;
+    };
+
+    // keyboard input
     union {
-        button_state Buttons[MOUSE_MAX_BUTTONS];
+        button_state KeybardButtons[KEYBOARD_MAX_BUTTONS];
         struct {
-            button_state Left;
-            button_state Right;
-            button_state Middle;
+            button_state KeyboardUp;
+            button_state KeyboardDown;
+            button_state KeyboardLeft;
+            button_state KeyboardRight;
         };
-    } Mouse;
+    };
     u64 CharacterInput;
 
     //todo: gamepad
     
     // sound
+    //todo
     i16 *Samples;
     i32 SamplesPerSecond;
     i32 SampleCount;
 
-    //todo: memory
+    // memory
+    app_memory Memory;
 
     //todo: functions
 } platform;
 
-#define APP_UPDATE(Name) void Name(platform *Platform)
+#define APP_INIT(Name) void Name(platform *Plat)
+typedef APP_INIT(app_init_callback);
+APP_INIT(AppInitStub) {};
+
+#define APP_UPDATE(Name) void Name(platform *Plat)
 typedef APP_UPDATE(app_update_callback);
 APP_UPDATE(AppUpdateStub) {};
 
