@@ -16,6 +16,8 @@
 #include "win32_timing.c"
 #include "win32_code.c"
 #include "win32_sound.c"
+#include "win32_opengl.c"
+#include "win32_input.c"
 
 global platform GlobalPlatform;
 
@@ -47,46 +49,7 @@ internal void Win32ToggleFullScreen(HWND Window) {
     }
 }
 
-internal void Win32InitOpenGl(HWND Window) {
-    HDC WindowDC = GetDC(Window);
-
-    // todo wtf
-    //  cColorBits supposed to exclude alpha bits?
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {
-        sizeof(PIXELFORMATDESCRIPTOR), 1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER, PFD_TYPE_RGBA,
-        32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 8, 0, PFD_MAIN_PLANE, 0, 0,
-        0, 0
-    };
-
-    i32 SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
-                        sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
-
-    HGLRC OpenGLRC = wglCreateContext(WindowDC);
-    if (wglMakeCurrent(WindowDC, OpenGLRC))
-    {
-        //note: sucess!
-    }
-    else
-    {
-        Assert(!"NOOOOOOOOOOOO!!");
-        //note: invalid code path
-    }
-    ReleaseDC(Window, WindowDC);
-}
-
-internal void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
-    if (State->EndedDown != IsDown) {
-        State->EndedDown = IsDown;
-        ++State->HalfTransitionCount;
-    }
-}
-
-//note: hope the demiurge is having fun
-//note: can i do all this in main instead of in here? (seems like no)
+//note: hopefully the demiurge is having fun
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM wParam, LPARAM lParam)
 {
@@ -101,7 +64,8 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     {
         GlobalPlatform.Running = 0;
     }
-// MOUSE
+    //
+    // MOUSE
     else
     if (Message == WM_MOUSEHWHEEL) {
         GlobalPlatform.dMouseWheel = 10;
@@ -135,8 +99,8 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     if (Message == WM_SETCURSOR) {
         SetCursor(LoadCursorA(0, IDC_ARROW));
     }
-//
-// KEYBOARD
+    //
+    // KEYBOARD
     else
     if (Message == WM_SYSKEYDOWN ||
         Message == WM_SYSKEYUP   ||
@@ -183,7 +147,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
             GlobalPlatform.CharacterInput = CharacterInput;
         }
     }
-//
+    //
     else
     if (Message == WM_PAINT) {
         PAINTSTRUCT Paint;
@@ -231,7 +195,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectory(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
-    // initialize platform (up here because windows is great)
+    //note: global platform seems to be inevitable because windows
+    // it's great
     GlobalPlatform.ExecutablePath       = ExecutablePath;
     GlobalPlatform.WorkingDirectoryPath = WorkingDirectory;
 #if BUILD_INTERNAL
@@ -247,7 +212,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: logging
     }
     //note: other fields are updated per frame
-    // it's great
 
     WNDCLASS WindowClass = {0}; {
         WindowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -282,10 +246,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
     }
 
-    win32_sound_output SoundOutput = {0}; {
-        //todo: make this final
-    }
-
     // get refresh rate
     f32 MonitorRefreshRate = 60.0f; {
         DEVMODEA DeviceMode = {0};
@@ -293,6 +253,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
             MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
         }
     }
+
+    win32_sound_output SoundOutput = {0}; {
+        //todo: make this final
+    }
+    Win32InitDSound(Window, SoundOutput.SamplesPerSecond,
+                    SoundOutput.SecondaryBufferSize,
+                    SoundOutput.SecondaryBuffer);
 
     GlobalPlatform.Running = 1;
 
@@ -303,6 +270,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     while (GlobalPlatform.Running) {
         Win32BeginFrameTiming(&Timer);
          
+         // process messages
          {
             MSG Message;
             while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
@@ -331,16 +299,19 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         //todo: sound
 
+        // update
         {
             AppCode.Update(&GlobalPlatform);
 
-            HDC DeviceContext = GetDC(Window);
-            SwapBuffers(DeviceContext);
-            ReleaseDC(Window, DeviceContext);
+            // opengl swapbuffers
+            {
+                HDC DeviceContext = GetDC(Window);
+                SwapBuffers(DeviceContext);
+                ReleaseDC(Window, DeviceContext);
+            }
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
-
         GlobalPlatform.dtForFrame = Win32EndFrameTiming(&Timer);
     }
 
