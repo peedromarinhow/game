@@ -8,7 +8,6 @@
 
 typedef struct _app_state {
     rv2 PlayerPos;
-    memory_arena FreeTypeTestArena;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -19,6 +18,7 @@ __declspec(dllexport) APP_INIT(Init) {
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)Plat->Memory.Contents;
+    r32 Time = Plat->dtForFrame;
 
     glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
 

@@ -8,6 +8,10 @@
 
 #include <windows.h>
 
+#if BUILD_INTERNAL
+#include <stdio.h>
+#endif
+
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"
@@ -166,9 +170,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
                      LPSTR CmdLine, int CmdShow)
 {
     // timing
-    win32_timer Timer;
-    QueryPerformanceFrequency(&Timer.CountsPerSecond);
-    Timer.SleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
+    win32_timer Timer = {0}; {
+        QueryPerformanceFrequency(&Timer.CountsPerSecond);
+        Timer.SleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
+        Timer.TargetFPS       = 0;
+        //note: 0 for no fps capping
+    }
 
     // get paths for dlls filename for executable and working directory
     char ExecutablePath  [256];
@@ -254,12 +261,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
     }
 
-    win32_sound_output SoundOutput = {0}; {
-        //todo: make this final
-    }
-    Win32InitDSound(Window, SoundOutput.SamplesPerSecond,
-                    SoundOutput.SecondaryBufferSize,
-                    SoundOutput.SecondaryBuffer);
+    //todo: sound
 
     GlobalPlatform.Running = 1;
 
@@ -313,6 +315,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
         GlobalPlatform.dtForFrame = Win32EndFrameTiming(&Timer);
+
+#if BUILD_INTERNAL
+        char FPSBuffer[256];
+        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f ms/f\n", GlobalPlatform.dtForFrame);
+        OutputDebugStringA(FPSBuffer);
+#endif
     }
 
     ShowWindow(Window, SW_HIDE);
