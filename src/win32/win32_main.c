@@ -314,7 +314,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
-        GlobalPlatform.dtForFrame = Win32EndFrameTiming(&Timer);
+        Win32EndFrameTiming(&Timer);
+        // Sleep(1000);
 
 #if BUILD_INTERNAL
         char FPSBuffer[256];
