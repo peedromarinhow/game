@@ -17,7 +17,8 @@ REM popd
 set application_name=app
 set BuildOptions= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
 set CompileFlags= -nologo -FC -FS -Zi -MTd -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4701 -wd4244 -wd4505 -I ../src/
-set CommonLinkerFlags= -incremental:no -opt:ref opengl32.lib
+set CommonLinkerFlags= -incremental:no -opt:ref
+REM opengl32.lib
 set PlatformLinkFlags= %CommonLinkerFlags% gdi32.lib user32.lib winmm.lib
 
 call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x86 > NUL 2> NUL

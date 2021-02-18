@@ -17,10 +17,8 @@
 #include "memory.h"
 
 #include "win32_paths.c"
-#include "win32_timing.c"
 #include "win32_code.c"
 #include "win32_sound.c"
-#include "win32_opengl.c"
 #include "win32_input.c"
 
 global platform GlobalPlatform;
@@ -169,14 +167,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
                      LPSTR CmdLine, int CmdShow)
 {
-    // timing
-    win32_timer Timer = {0}; {
-        QueryPerformanceFrequency(&Timer.CountsPerSecond);
-        Timer.SleepIsGranular = (timeBeginPeriod(1) == TIMERR_NOERROR);
-        Timer.TargetFPS       = 0;
-        //note: 0 for no fps capping
-    }
-
     // get paths for dlls filename for executable and working directory
     char ExecutablePath  [256];
     char WorkingDirectory[256];
@@ -264,13 +254,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
     //todo: sound
 
     GlobalPlatform.Running = 1;
-
-    Win32InitOpenGl(Window);
-
     AppCode.Init(&GlobalPlatform);
 
+    LARGE_INTEGER FrameBegin;
+    LARGE_INTEGER FrameEnd;
+    LARGE_INTEGER CountsPerSecond;
+    QueryPerformanceFrequency(&CountsPerSecond);
+
     while (GlobalPlatform.Running) {
-        Win32BeginFrameTiming(&Timer);
+        QueryPerformanceCounter(&FrameBegin);
          
          // process messages
          {
@@ -304,30 +296,23 @@ int CALLBACK WinMain(HINSTANCE Instance,
         // update
         {
             AppCode.Update(&GlobalPlatform);
-
-            // opengl swapbuffers
-            {
-                HDC DeviceContext = GetDC(Window);
-                SwapBuffers(DeviceContext);
-                ReleaseDC(Window, DeviceContext);
-            }
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
-        Win32EndFrameTiming(&Timer);
-        // Sleep(1000);
+        QueryPerformanceCounter(&FrameEnd);
+        GlobalPlatform.dtForFrame = ((r64)(FrameEnd.QuadPart - FrameBegin.QuadPart) / (r32)(CountsPerSecond.QuadPart));
 
 #if BUILD_INTERNAL
         char FPSBuffer[256];
-        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f ms/f\n", GlobalPlatform.dtForFrame);
+        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f ms/f\n", GlobalPlatform.dtForFrame*1000.0);
         OutputDebugStringA(FPSBuffer);
 #endif
+
     }
 
     ShowWindow(Window, SW_HIDE);
 
     Win32UnloadAppCode(&AppCode);
-    // Win32DeinitOpenGl();
 
     return 0;
 }

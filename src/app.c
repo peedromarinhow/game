@@ -1,6 +1,3 @@
-#include <windows.h>
-#include <gl/gl.h>
-
 #include "lingo.h"
 #include "maths.h"
 #include "platform.h"
@@ -20,24 +17,24 @@ __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)Plat->Memory.Contents;
     r32 Time = Plat->dtForFrame;
 
-    glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
+    // glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    // glClear(GL_COLOR_BUFFER_BIT);
 
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+    // glMatrixMode(GL_MODELVIEW);
+    // glLoadIdentity();
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+    // glMatrixMode(GL_PROJECTION);
+    // glLoadIdentity();
 
-    r32 a = 2.0f/Plat->WindowSize.Width;
-    r32 b = 2.0f/Plat->WindowSize.Height;
-    r32 Proj[] = {
-         a,  0,  0,  0,
-         0, -b,  0,  0,
-         0,  0,  1,  0,
-        -1,  1,  0,  1
-    };
-    glLoadMatrixf(Proj);
+    // r32 a = 2.0f/Plat->WindowSize.Width;
+    // r32 b = 2.0f/Plat->WindowSize.Height;
+    // r32 Proj[] = {
+    //      a,  0,  0,  0,
+    //      0, -b,  0,  0,
+    //      0,  0,  1,  0,
+    //     -1,  1,  0,  1
+    // };
+    // glLoadMatrixf(Proj);
 }
