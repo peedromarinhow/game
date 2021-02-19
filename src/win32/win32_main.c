@@ -18,117 +18,124 @@
 #include "win32_utils.c"
 #include "win32_code.c"     //almost aligned all!
 
-global platform GlobalPlatform;
+global b32 *GlobalRunning;
 
 //note: hopefully the demiurge is having fun
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
                                                   WPARAM wParam, LPARAM lParam)
 {
     LRESULT Result = 0;
-
-    b32 WasDown = (lParam & (1 << 30)) != 0;
-    b32 IsDown  = (lParam & (1 << 31)) == 0;
     if (Message == WM_QUIT  ||
         Message == WM_CLOSE ||
         Message == WM_DESTROY)
     {
-        GlobalPlatform.Running = 0;
-    }
-    //
-    // MOUSE
-    else
-    if (Message == WM_MOUSEHWHEEL) {
-        GlobalPlatform.dMouseWheel = 10;
-        Assert(!"YESSS!!");
-    }
-    else
-    if (Message == WM_LBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseLeft, 1);
-    }
-    else
-    if (Message == WM_LBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseLeft, 0);
-    }
-    else
-    if (Message == WM_RBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseRight, 1);
-    }
-    else
-    if (Message == WM_RBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseRight, 0);
-    }
-    else
-    if (Message == WM_MBUTTONDOWN) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseMiddle, 1);
-    }
-    else
-    if (Message == WM_MBUTTONUP) {
-        Win32ProcessButtonMessage(&GlobalPlatform.MouseMiddle, 0);
-    }
-    else
-    if (Message == WM_SETCURSOR) {
-        SetCursor(LoadCursorA(0, IDC_ARROW));
-    }
-    //
-    // KEYBOARD
-    else
-    if (Message == WM_SYSKEYDOWN ||
-        Message == WM_SYSKEYUP   ||
-        Message == WM_KEYDOWN    ||
-        Message == WM_KEYUP)
-    {
-        b32 AltKeyWasDown = lParam & (1 << 29);
-        //todo: do this AltKeyWasDown differently if possible
-        u64 VKCode = wParam;
-        if (WasDown != IsDown) {
-            if (VKCode == VK_F11) {
-                if (IsDown && Window)
-                    Win32ToggleFullScreen(Window);
-                    //note:
-                    // send this to the platform and let it decide how to handle
-                    // fullscreen switching?
-            }
-            else
-            if (VKCode == VK_UP)
-                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardUp, IsDown);
-            else
-            if (VKCode == VK_DOWN)
-                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardDown, IsDown);
-            else
-            if (VKCode == VK_LEFT)
-                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardLeft, IsDown);
-            else
-            if (VKCode == VK_RIGHT)
-                Win32ProcessButtonMessage(&GlobalPlatform.KeyboardRight, IsDown);
-            else
-            if (VKCode == VK_F4) {
-                if (AltKeyWasDown) GlobalPlatform.Running = 0;
-            }
-        }
-    }
-    else
-    if (Message == WM_CHAR) {
-        u64 CharacterInput = wParam;
-        if(CharacterInput >= 32        && 
-           CharacterInput != 127       &&
-           CharacterInput != VK_RETURN &&
-           CharacterInput != VK_ESCAPE)
-        {
-            GlobalPlatform.CharacterInput = CharacterInput;
-        }
-    }
-    //
-    else
-    if (Message == WM_PAINT) {
-        PAINTSTRUCT Paint;
-        BeginPaint(Window, &Paint);
-        EndPaint(Window, &Paint);
+        *GlobalRunning = 0;
     }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
 
     return Result;
+}
+
+internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
+    MSG Message;
+    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
+        //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
+        /* mouse */
+        if (Message.message == WM_MOUSEHWHEEL) {
+            Platform->dMouseWheel = 10;
+            Assert(!"YESSS!!");
+        }
+        else
+        if (Message.message == WM_LBUTTONDOWN) {
+            Win32ProcessButtonMessage(&Platform->MouseLeft, 1);
+        }
+        else
+        if (Message.message == WM_LBUTTONUP) {
+            Win32ProcessButtonMessage(&Platform->MouseLeft, 0);
+        }
+        else
+        if (Message.message == WM_RBUTTONDOWN) {
+            Win32ProcessButtonMessage(&Platform->MouseRight, 1);
+        }
+        else
+        if (Message.message == WM_RBUTTONUP) {
+            Win32ProcessButtonMessage(&Platform->MouseRight, 0);
+        }
+        else
+        if (Message.message == WM_MBUTTONDOWN) {
+            Win32ProcessButtonMessage(&Platform->MouseMiddle, 1);
+        }
+        else
+        if (Message.message == WM_MBUTTONUP) {
+            Win32ProcessButtonMessage(&Platform->MouseMiddle, 0);
+        }
+        else
+        if (Message.message == WM_SETCURSOR) {
+            SetCursor(LoadCursorA(0, IDC_ARROW));
+        }
+        /* keyboard */
+        else
+        if (Message.message == WM_SYSKEYDOWN ||
+            Message.message == WM_SYSKEYUP   ||
+            Message.message == WM_KEYDOWN    ||
+            Message.message == WM_KEYUP)
+        {
+            b32 WasDown = (Message.lParam & (1 << 30)) != 0;
+            b32 IsDown  = (Message.lParam & (1 << 31)) == 0;
+            b32 AltKeyWasDown = Message.lParam & (1 << 29);
+            //todo: do this AltKeyWasDown differently if possible
+            u64 VKCode = Message.wParam;
+            if (WasDown != IsDown) {
+                if (VKCode == VK_F11) {
+                    if (IsDown && Window)
+                        Win32ToggleFullScreen(Window);
+                        //note:
+                        // send this to the platform and let it decide how to handle
+                        // fullscreen switching?
+                }
+                else
+                if (VKCode == VK_UP)
+                    Win32ProcessButtonMessage(&Platform->KeyboardUp, IsDown);
+                else
+                if (VKCode == VK_DOWN)
+                    Win32ProcessButtonMessage(&Platform->KeyboardDown, IsDown);
+                else
+                if (VKCode == VK_LEFT)
+                    Win32ProcessButtonMessage(&Platform->KeyboardLeft, IsDown);
+                else
+                if (VKCode == VK_RIGHT)
+                    Win32ProcessButtonMessage(&Platform->KeyboardRight, IsDown);
+                else
+                if (VKCode == VK_F4) {
+                    if (AltKeyWasDown) Platform->Running = 0;
+                }
+            }
+        }
+        else
+        if (Message.message == WM_CHAR) {
+            u64 CharacterInput = Message.wParam;
+            if(CharacterInput >= 32        && 
+               CharacterInput != 127       &&
+               CharacterInput != VK_RETURN &&
+               CharacterInput != VK_ESCAPE)
+            {
+                Platform->CharacterInput = CharacterInput;
+            }
+        }
+        else
+        /* windows' stuff */
+        if (Message.message == WM_PAINT) {
+            PAINTSTRUCT Paint;
+            BeginPaint(Window, &Paint);
+            EndPaint(Window, &Paint);
+        }
+        else {
+            TranslateMessage(&Message);
+            DispatchMessage(&Message);
+        }
+    }
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
@@ -161,19 +168,21 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     //note: global platform seems to be inevitable because windows
     // it's great
-    GlobalPlatform.ExecutablePath       = ExecutablePath;
-    GlobalPlatform.WorkingDirectoryPath = WorkingDirectory;
-    LPVOID BaseAddress = 0;
+    platform Platform; {
+        Platform.ExecutablePath       = ExecutablePath;
+        Platform.WorkingDirectoryPath = WorkingDirectory;
+        LPVOID BaseAddress = 0;
 #if BUILD_INTERNAL
-    BaseAddress = (LPVOID)SafeTruncateU64(Terabytes((u64)1));
+        BaseAddress = (LPVOID)SafeTruncateU64(Terabytes((u64)1));
 #endif
-    GlobalPlatform.Memory.Size = Megabytes((u64)64);
-    GlobalPlatform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)GlobalPlatform.Memory.Size,
-                                                  MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    if (!GlobalPlatform.Memory.Contents) {
-        Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
+        Platform.Memory.Size = Megabytes((u64)64);
+        Platform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)Platform.Memory.Size,
+                                                    MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        if (!Platform.Memory.Contents) {
+            Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
+        }
+        //note: other fields are updated per frame
     }
-    //note: other fields are updated per frame
 
     WNDCLASS WindowClass = {0}; {
         WindowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -215,28 +224,25 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     //todo: sound
 
-    GlobalPlatform.Running = 1;
-    AppCode.Init(&GlobalPlatform);
+    //note:
+    // this GlobalRunning is just to catch the window closeing messages
+    // in WindowProc
+    GlobalRunning = &Platform.Running;
+    *GlobalRunning = 1;
+    AppCode.Init(&Platform);
 
     win32_timer Timer;
     QueryPerformanceFrequency(&Timer.CountsPerSecond);
 
-    while (GlobalPlatform.Running) {
+    while (Platform.Running) {
         Win32BeginFrameTiming(&Timer);
-         
-         /* process messages */ {
-            MSG Message;
-            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-                TranslateMessage(&Message);
-                DispatchMessage(&Message);
-            }
-         }
+        Win32ProcessPendingMessages(Window, &Platform);
 
         /* get window dimensions */ {
             RECT ClientRect;
             GetClientRect(Window, &ClientRect);
-            GlobalPlatform.WindowSize.x = ClientRect.right  - ClientRect.left;
-            GlobalPlatform.WindowSize.y = ClientRect.bottom - ClientRect.top;
+            Platform.WindowSize.x = ClientRect.right  - ClientRect.left;
+            Platform.WindowSize.y = ClientRect.bottom - ClientRect.top;
         }
 
         /* update input for stuff that doesn't come trough the messages,
@@ -245,23 +251,23 @@ int CALLBACK WinMain(HINSTANCE Instance,
             POINT MousePoint;
             GetCursorPos(&MousePoint);
             ScreenToClient(Window, &MousePoint);
-            GlobalPlatform.MousePos.x = MousePoint.x;
-            GlobalPlatform.MousePos.y = MousePoint.y;
+            Platform.MousePos.x = MousePoint.x;
+            Platform.MousePos.y = MousePoint.y;
                 //todo: mouse wheel
         }
 
         //todo: sound
 
         /* update */ {
-            AppCode.Update(&GlobalPlatform);
+            AppCode.Update(&Platform);
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
-        GlobalPlatform.dtForFrame = Win32EndFrameTiming(&Timer, &GlobalPlatform);
+        Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
 #if BUILD_INTERNAL
         char FPSBuffer[256];
-        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f s/f\t%f ms/ts\n", GlobalPlatform.dtForFrame, ((1.0/60.0) - GlobalPlatform.dtForFrame));
+        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f s/f\t%f ms/ts\n", Platform.dtForFrame, ((1.0/60.0) - Platform.dtForFrame));
         OutputDebugStringA(FPSBuffer);
 #endif
 
