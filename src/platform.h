@@ -17,17 +17,17 @@ typedef struct _button_state {
 //note:
 //  this is how the platform and the app communicate with each other.
 typedef struct _platform {
-    // metadata
+    /* metadata */
     char *ExecutablePath;
     char *WorkingDirectoryPath;
 
-    // options
+    /* options */
     b32 Fullscreen;
     b32 Running;
     iv2 WindowSize;
-    r64 dtForFrame;
+    r32 dtForFrame;
 
-    // mouse input
+    /* mouse input */
     i16 dMouseWheel;
     rv2 MousePos;
     union {
@@ -39,7 +39,7 @@ typedef struct _platform {
         };
     };
 
-    // keyboard input
+    /* keyboard input */
     union {
         button_state KeybardButtons[KEYBOARD_MAX_BUTTONS];
         struct {
@@ -53,13 +53,12 @@ typedef struct _platform {
 
     //todo: gamepad
     
-    // sound
-    //todo
+    /* sound */
     i16 *Samples;
     i32 SamplesPerSecond;
     i32 SampleCount;
 
-    // memory
+    /* memory */
     app_memory Memory;
 
     //todo: functions

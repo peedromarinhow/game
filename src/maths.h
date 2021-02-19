@@ -33,10 +33,10 @@ typedef union _rv2 {
         r32 y;
     };
 
-    // struct {
-    //     r32 Width;
-    //     r32 Height;
-    // };
+    struct {
+        r32 Width;
+        r32 Height;
+    };
 
     r32 Components[2];
 } rv2;

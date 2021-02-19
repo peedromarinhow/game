@@ -1,6 +1,6 @@
 #include "lingo.h"
 
-//todo: put this on some string file
+//todo: put this on some string file and make it better
 void CatStrings(size_t SourceACount, char *SourceA,
                 size_t SourceBCount, char *SourceB,
                 size_t DestCount, char *Dest)
