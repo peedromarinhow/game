@@ -1,5 +1,2 @@
 .vscode/
 build/
-*.gmin
-*.out
-external/

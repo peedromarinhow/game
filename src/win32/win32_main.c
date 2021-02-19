@@ -31,6 +31,10 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     {
         *GlobalRunning = 0;
     }
+    else
+    if (Message == WM_MOUSEHWHEEL) {
+        Assert(!"YESSS!!");
+    }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
