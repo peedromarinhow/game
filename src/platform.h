@@ -51,7 +51,8 @@ typedef struct _platform {
     };
     u64 CharacterInput;
 
-    //todo: gamepad
+    /* gamepad */
+    //todo
     
     /* sound */
     i16 *Samples;
@@ -61,7 +62,8 @@ typedef struct _platform {
     /* memory */
     app_memory Memory;
 
-    //todo: functions
+    /* functions */
+    //todo
 } platform;
 
 #define APP_INIT(Name) void Name(platform *Plat)
