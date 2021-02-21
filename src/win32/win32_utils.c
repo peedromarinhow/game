@@ -21,18 +21,16 @@ PLATFORM_FREE_FILE(Win32FreeFile) {
 //note: basically copied from ryan's
 PLATFORM_LOAD_FILE(Win32LoadFile) {
     file Result;
-    HANDLE FileHandle = {0};
-    if (CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
-                    0, 0, OPEN_EXISTING, 0, 0) !=
-                    INVALID_HANDLE_VALUE)
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                                    0, 0, OPEN_EXISTING, 0, 0);
+    if (FileHandle != INVALID_HANDLE_VALUE)
     {
         DWORD ReadBytes = GetFileSize(FileHandle, 0);
         if (ReadBytes) {
             void *ReadData = PushToArena(Arena, ReadBytes + 1);
             DWORD BytesRead = 0;
-            OVERLAPPED Overlapped = {0};
 
-            ReadFile(FileHandle, ReadData, ReadBytes, &BytesRead, &Overlapped);
+            ReadFile(FileHandle, ReadData, ReadBytes, &BytesRead, NULL);
 
             ((u8 *)ReadData)[ReadBytes] = 0;
 
@@ -46,13 +44,12 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
 }
 
 PLATFORM_WRITE_FILE(Win32WriteFile) {
-    HANDLE FileHandle = {0};
-    if (CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
-                    0, 0, CREATE_ALWAYS, 0, 0) !=
-                    INVALID_HANDLE_VALUE)
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                                    0, 0, CREATE_ALWAYS, 0, 0);
+    if (FileHandle != INVALID_HANDLE_VALUE)
     {
-        void *DataToWrite     = File.Data;
-        DWORD DataToWriteSize = File.Size;
+        void *DataToWrite     = Data;
+        DWORD DataToWriteSize = Size;
         DWORD BytesWritten    = 0;
 
         WriteFile(FileHandle, DataToWrite, DataToWriteSize, &BytesWritten, NULL);

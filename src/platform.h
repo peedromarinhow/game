@@ -19,7 +19,7 @@ typedef PLATFORM_FREE_FILE(platform_free_file_callback);
 #define PLATFORM_LOAD_FILE(Name) file Name(memory_arena *Arena, char *Filename)
 typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
 
-#define PLATFORM_WRITE_FILE(Name) void Name(file File, char *Filename)
+#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, char *Filename)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
 #define PLATFORM_REPORT_ERROR(Name) void Name(char *Title, char *ErrorMessage)

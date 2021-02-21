@@ -5,12 +5,14 @@
 
 typedef struct _app_state {
     rv2 PlayerPos;
+    memory_arena Arena;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= Plat->Memory.Size);
     app_state *State = (app_state *)Plat->Memory.Contents;
     State->PlayerPos = (rv2){100, 100};
+    State->Arena = InitializeArena(Megabytes(4), ((u8 *)Plat->Memory.Contents + sizeof(app_state)));
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -20,6 +22,9 @@ __declspec(dllexport) APP_UPDATE(Update) {
     if (Plat->KeyboardDown.EndedDown) {
         Plat->ReportError("TEST", "no error, just a test...");
     }
+
+    file ThisFile = Plat->LoadFile(&State->Arena, __FILE__);
+    Plat->WriteFile(ThisFile.Data, ThisFile.Size, "a.c");
 
     // file BackgroundBmp = Plat->LoadFile(&Arena, "background.bmp");
 
