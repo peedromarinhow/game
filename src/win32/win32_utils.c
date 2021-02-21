@@ -1,10 +1,24 @@
 #include "lingo.h"
+#include "platform.h"
 
-internal void Win32ReportError(char *Title, char *ErrorMessage) {
+PLATFORM_LOAD_FILE(Win32LoadFile) {
+    //
+}
+
+PLATFORM_FREE_FILE(Win32FreeFile) {
+    //
+}
+
+PLATFORM_READ_FILE(Win32ReadFile) {
+    //
+}
+
+
+PLATFORM_REPORT_ERROR(Win32ReportError) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
 }
 
-internal void Win32ReportErrorAndDie(char *Title, char *ErrorMessage) {
+PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
     _Exit(1);
 }

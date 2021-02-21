@@ -17,6 +17,10 @@ __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)Plat->Memory.Contents;
     r32 Time = Plat->dtForFrame;
 
+    if (Plat->KeyboardDown.EndedDown) {
+        Plat->ReportError("TEST", "no error, just a test...");
+    }
+
     // glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);

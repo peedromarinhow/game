@@ -6,16 +6,30 @@
 #include "maths.h"
 #include "memory.h"
 
-#define KEYBOARD_MAX_BUTTONS 4
-#define MOUSE_MAX_BUTTONS    3
+//note: these functions are to be implemented in each platform and passed by the app via struct platform
+#define PLATFORM_LOAD_FILE(Name) void Name()
+typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
+
+#define PLATFORM_FREE_FILE(Name) void Name()
+typedef PLATFORM_FREE_FILE(platform_free_file_callback);
+
+#define PLATFORM_READ_FILE(Name) void Name()
+typedef PLATFORM_READ_FILE(platform_read_file_callback);
+
+#define PLATFORM_REPORT_ERROR(Name) void Name(char *Title, char *ErrorMessage)
+typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
+
+#define PLATFORM_REPORT_ERROR_AND_DIE(Name) void Name(char *Title, char *ErrorMessage)
+typedef PLATFORM_REPORT_ERROR_AND_DIE(platform_report_error_and_die_callback);
 
 typedef struct _button_state {
     i32 HalfTransitionCount;
     b32 EndedDown;
 } button_state;
 
-//note:
-//  this is how the platform and the app communicate with each other.
+//note: this is how the platform and the app communicate with each other.
+#define KEYBOARD_MAX_BUTTONS 4
+#define MOUSE_MAX_BUTTONS    3
 typedef struct _platform {
     /* metadata */
     char *ExecutablePath;
@@ -38,6 +52,7 @@ typedef struct _platform {
             button_state MouseMiddle;
         };
     };
+    //note: structure this? ie: Mouse.Buttons.Left or whatever?
 
     /* keyboard input */
     union {
@@ -50,6 +65,7 @@ typedef struct _platform {
         };
     };
     u64 CharacterInput;
+    //note: structure this? ie: Keboard.Buttons.Left or whatever?
 
     /* gamepad */
     //todo
@@ -63,15 +79,19 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
-    //todo
+    platform_load_file_callback            *LoadFile;
+    platform_free_file_callback            *FreeFile;
+    platform_read_file_callback            *ReadFile;
+    platform_report_error_callback         *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *Plat)
 typedef APP_INIT(app_init_callback);
-APP_INIT(AppInitStub) {};
+        APP_INIT(AppInitStub) {};
 
 #define APP_UPDATE(Name) void Name(platform *Plat)
 typedef APP_UPDATE(app_update_callback);
-APP_UPDATE(AppUpdateStub) {};
+        APP_UPDATE(AppUpdateStub) {};
 
 #endif

@@ -172,7 +172,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     //note: global platform seems to be inevitable because windows
     // it's great
-    platform Platform; {
+    platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
         LPVOID BaseAddress = 0;
@@ -181,11 +181,17 @@ int CALLBACK WinMain(HINSTANCE Instance,
 #endif
         Platform.Memory.Size = Megabytes((u64)64);
         Platform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)Platform.Memory.Size,
-                                                    MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+                                                MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
         if (!Platform.Memory.Contents) {
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
         }
-        //note: other fields are updated per frame
+        /* functions provided by platform */
+        Platform.LoadFile          = Win32LoadFile;
+        Platform.FreeFile          = Win32FreeFile;
+        Platform.ReadFile          = Win32ReadFile;
+        Platform.ReportError       = Win32ReportError;
+        Platform.ReportErrorAndDie = Win32ReportErrorAndDie;
+        //note: other fields are updated every frame
     }
 
     WNDCLASS WindowClass = {0}; {
