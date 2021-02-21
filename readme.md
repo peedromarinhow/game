@@ -5,3 +5,5 @@ Todo:
 - file IO;
 - mouse wheel;
 - gamepad.
+
+Adopting conventions from the [heroic school of programming](https://handmade.network/).
