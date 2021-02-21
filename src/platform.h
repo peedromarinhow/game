@@ -7,14 +7,20 @@
 #include "memory.h"
 
 //note: these functions are to be implemented in each platform and passed by the app via struct platform
-#define PLATFORM_LOAD_FILE(Name) void Name()
-typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
 
-#define PLATFORM_FREE_FILE(Name) void Name()
+typedef struct _file {
+    void *Data;
+    u64   Size;
+} file;
+
+#define PLATFORM_FREE_FILE(Name) void Name(memory_arena *Arena, file File)
 typedef PLATFORM_FREE_FILE(platform_free_file_callback);
 
-#define PLATFORM_READ_FILE(Name) void Name()
-typedef PLATFORM_READ_FILE(platform_read_file_callback);
+#define PLATFORM_LOAD_FILE(Name) file Name(memory_arena *Arena, char *Filename)
+typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
+
+#define PLATFORM_WRITE_FILE(Name) void Name(file File, char *Filename)
+typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
 #define PLATFORM_REPORT_ERROR(Name) void Name(char *Title, char *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
@@ -79,9 +85,9 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
-    platform_load_file_callback            *LoadFile;
     platform_free_file_callback            *FreeFile;
-    platform_read_file_callback            *ReadFile;
+    platform_load_file_callback            *LoadFile;
+    platform_write_file_callback           *WriteFile;
     platform_report_error_callback         *ReportError;
     platform_report_error_and_die_callback *ReportErrorAndDie;
 } platform;

@@ -188,7 +188,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         /* functions provided by platform */
         Platform.LoadFile          = Win32LoadFile;
         Platform.FreeFile          = Win32FreeFile;
-        Platform.ReadFile          = Win32ReadFile;
+        Platform.WriteFile         = Win32WriteFile;
         Platform.ReportError       = Win32ReportError;
         Platform.ReportErrorAndDie = Win32ReportErrorAndDie;
         //note: other fields are updated every frame

@@ -9,24 +9,37 @@ typedef struct _app_memory {
 } app_memory;
 
 typedef struct _memory_arena {
-    u32 Size;
-    u32 Used;
+    u64 MaxSize;
     u8 *Base;
+    u64 Used;
 } memory_arena;
 
-internal void InitializeArena(memory_arena *Arena, u32 Size, void *Base) {
-    Arena->Size = Size;
-    Arena->Base = Base;
-    Arena->Used = 0;
+internal memory_arena InitializeArena(u64 MaxSize, void *Base) {
+    memory_arena Arena = {0};
+    Arena.MaxSize = MaxSize;
+    Arena.Base    = Base;
+    Arena.Used    = 0;
+    return Arena;
 }
 
-#define PushStructToArena(Arena, type) (type *)_PushStructToArena((Arena), sizeof(type))
-internal void *_PushStructToArena(memory_arena *Arena, u32 Size) {
-    Assert((Arena->Used + Size) <= Arena->Size);
-    void *Result = Arena->Base + Arena->Used;
-    Arena->Used += Size;
+internal void *PushToArena(memory_arena *Arena, u64 Size) {
+    void *Memory = 0;
+    if ((Arena->Used + Size) < Arena->MaxSize) {
+        Memory = (u8 *)Arena->Base + Arena->Used;
+        Arena->Used += Size;
+    }
+    return Memory;
+}
 
-    return Result;
+internal void PopFromArena(memory_arena *Arena, u64 Size) {
+    if (Size < Arena->Used) {
+        Size = Arena->Used;
+    }
+    Arena->Used -= Size;
+}
+
+internal void ClearArena(memory_arena *Arena) {
+    PopFromArena(Arena, Arena->Used);
 }
 
 #endif//MEMORY_H

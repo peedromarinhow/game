@@ -1,19 +1,10 @@
+#include <windows.h>
+
 #include "lingo.h"
 #include "platform.h"
+#include "memory.h"
 
-PLATFORM_LOAD_FILE(Win32LoadFile) {
-    //
-}
-
-PLATFORM_FREE_FILE(Win32FreeFile) {
-    //
-}
-
-PLATFORM_READ_FILE(Win32ReadFile) {
-    //
-}
-
-
+//todo: varargs for formats on these two functions
 PLATFORM_REPORT_ERROR(Win32ReportError) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
 }
@@ -21,6 +12,57 @@ PLATFORM_REPORT_ERROR(Win32ReportError) {
 PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
     _Exit(1);
+}
+
+PLATFORM_FREE_FILE(Win32FreeFile) {
+    PopFromArena(Arena, File.Size);
+}
+
+//note: basically copied from ryan's
+PLATFORM_LOAD_FILE(Win32LoadFile) {
+    file Result;
+    HANDLE FileHandle = {0};
+    if (CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                    0, 0, OPEN_EXISTING, 0, 0) !=
+                    INVALID_HANDLE_VALUE)
+    {
+        DWORD ReadBytes = GetFileSize(FileHandle, 0);
+        if (ReadBytes) {
+            void *ReadData = PushToArena(Arena, ReadBytes + 1);
+            DWORD BytesRead = 0;
+            OVERLAPPED Overlapped = {0};
+
+            ReadFile(FileHandle, ReadData, ReadBytes, &BytesRead, &Overlapped);
+
+            ((u8 *)ReadData)[ReadBytes] = 0;
+
+            Result.Data = ReadData;
+            Result.Size = (u64)BytesRead;
+
+        }
+        CloseHandle(FileHandle);
+    }
+    return Result;
+}
+
+PLATFORM_WRITE_FILE(Win32WriteFile) {
+    HANDLE FileHandle = {0};
+    if (CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                    0, 0, CREATE_ALWAYS, 0, 0) !=
+                    INVALID_HANDLE_VALUE)
+    {
+        void *DataToWrite     = File.Data;
+        DWORD DataToWriteSize = File.Size;
+        DWORD BytesWritten    = 0;
+
+        WriteFile(FileHandle, DataToWrite, DataToWriteSize, &BytesWritten, NULL);
+        
+        CloseHandle(FileHandle);
+    }
+    else {
+        Win32ReportError("ERROR", "Could not save to file");
+        //Win32ReportError("ERROR", "Could not save to file\"%s\"\n", Filename);
+    }
 }
 
 internal void Win32ToggleFullScreen(HWND Window) {

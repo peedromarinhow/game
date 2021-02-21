@@ -21,6 +21,8 @@ __declspec(dllexport) APP_UPDATE(Update) {
         Plat->ReportError("TEST", "no error, just a test...");
     }
 
+    // file BackgroundBmp = Plat->LoadFile(&Arena, "background.bmp");
+
     // glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
