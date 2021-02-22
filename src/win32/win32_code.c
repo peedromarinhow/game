@@ -5,6 +5,7 @@ typedef struct _win32_app_code {
     FILETIME             LastDLLWriteTime;
     app_update_callback *Update;
     app_init_callback   *Init;
+    app_deinit_callback *Deinit;
 } win32_app_code;
 
 inline FILETIME GetFileLastWriteTime(char *Filename) {
@@ -34,6 +35,7 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
 
     Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
     Code->Init   = (app_init_callback *)  GetProcAddress(Code->DLL, "Init");
+    Code->Deinit = (app_deinit_callback *)GetProcAddress(Code->DLL, "Deinit");
     if (!Code->Update) {
         Code->Update = AppUpdateStub;
         Success = 0;

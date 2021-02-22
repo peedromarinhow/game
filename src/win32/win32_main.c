@@ -18,6 +18,7 @@
 #include "win32_timer.c"
 #include "win32_utils.c"
 #include "win32_code.c"     //almost aligned all!
+#include "win32_opengl.c"
 
 global b32 *GlobalRunning;
 
@@ -49,32 +50,32 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
         /* mouse */
         if (Message.message == WM_MOUSEHWHEEL) {
-            Platform->dMouseWheel = 10;
+            Platform->Mouse.dWheel = 10;
             Assert(!"YESSS!!");
         }
         else
         if (Message.message == WM_LBUTTONDOWN) {
-            Win32ProcessButtonMessage(&Platform->MouseLeft, 1);
+            Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
         }
         else
         if (Message.message == WM_LBUTTONUP) {
-            Win32ProcessButtonMessage(&Platform->MouseLeft, 0);
+            Win32ProcessButtonMessage(&Platform->Mouse.Left, 0);
         }
         else
         if (Message.message == WM_RBUTTONDOWN) {
-            Win32ProcessButtonMessage(&Platform->MouseRight, 1);
+            Win32ProcessButtonMessage(&Platform->Mouse.Right, 1);
         }
         else
         if (Message.message == WM_RBUTTONUP) {
-            Win32ProcessButtonMessage(&Platform->MouseRight, 0);
+            Win32ProcessButtonMessage(&Platform->Mouse.Right, 0);
         }
         else
         if (Message.message == WM_MBUTTONDOWN) {
-            Win32ProcessButtonMessage(&Platform->MouseMiddle, 1);
+            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 1);
         }
         else
         if (Message.message == WM_MBUTTONUP) {
-            Win32ProcessButtonMessage(&Platform->MouseMiddle, 0);
+            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 0);
         }
         else
         if (Message.message == WM_SETCURSOR) {
@@ -102,16 +103,16 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 }
                 else
                 if (VKCode == VK_UP)
-                    Win32ProcessButtonMessage(&Platform->KeyboardUp, IsDown);
+                    Win32ProcessButtonMessage(&Platform->Keyboard.Up, IsDown);
                 else
                 if (VKCode == VK_DOWN)
-                    Win32ProcessButtonMessage(&Platform->KeyboardDown, IsDown);
+                    Win32ProcessButtonMessage(&Platform->Keyboard.Down, IsDown);
                 else
                 if (VKCode == VK_LEFT)
-                    Win32ProcessButtonMessage(&Platform->KeyboardLeft, IsDown);
+                    Win32ProcessButtonMessage(&Platform->Keyboard.Left, IsDown);
                 else
                 if (VKCode == VK_RIGHT)
-                    Win32ProcessButtonMessage(&Platform->KeyboardRight, IsDown);
+                    Win32ProcessButtonMessage(&Platform->Keyboard.Right, IsDown);
                 else
                 if (VKCode == VK_F4) {
                     if (AltKeyWasDown) Platform->Running = 0;
@@ -126,7 +127,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                CharacterInput != VK_RETURN &&
                CharacterInput != VK_ESCAPE)
             {
-                Platform->CharacterInput = CharacterInput;
+                Platform->Keyboard.Character = CharacterInput;
             }
         }
         else
@@ -235,6 +236,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     //todo: sound
 
+    Win32InitOpenGl(Window);
+
     //note:
     // this GlobalRunning is just to catch the window closeing messages
     // in WindowProc
@@ -262,8 +265,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
             POINT MousePoint;
             GetCursorPos(&MousePoint);
             ScreenToClient(Window, &MousePoint);
-            Platform.MousePos.x = MousePoint.x;
-            Platform.MousePos.y = MousePoint.y;
+            Platform.Mouse.Pos.x = MousePoint.x;
+            Platform.Mouse.Pos.y = MousePoint.y;
                 //todo: mouse wheel
         }
 
@@ -271,6 +274,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update */ {
             AppCode.Update(&Platform);
+        }
+
+        /* OpenGL */ {
+            HDC DeviceContext = GetDC(Window);
+            SwapBuffers(DeviceContext);
+            ReleaseDC(Window, DeviceContext);
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
@@ -283,6 +292,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 #endif
 
     }
+
+    AppCode.Deinit(&Platform);
 
     ShowWindow(Window, SW_HIDE);
     Win32UnloadAppCode(&AppCode);

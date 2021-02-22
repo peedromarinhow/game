@@ -48,30 +48,32 @@ typedef struct _platform {
     r32 dtForFrame;
 
     /* mouse input */
-    i16 dMouseWheel;
-    rv2 MousePos;
-    union {
-        button_state MouseButtons[MOUSE_MAX_BUTTONS];
-        struct {
-            button_state MouseLeft;
-            button_state MouseRight;
-            button_state MouseMiddle;
+    struct _Mouse {
+        i16 dWheel;
+        rv2 Pos;
+        union {
+            button_state Buttons[MOUSE_MAX_BUTTONS];
+            struct {
+                button_state Left;
+                button_state Right;
+                button_state Middle;
+            };
         };
-    };
-    //note: structure this? ie: Mouse.Buttons.Left or whatever?
+    } Mouse;
 
     /* keyboard input */
-    union {
-        button_state KeybardButtons[KEYBOARD_MAX_BUTTONS];
-        struct {
-            button_state KeyboardUp;
-            button_state KeyboardDown;
-            button_state KeyboardLeft;
-            button_state KeyboardRight;
+    struct _Keyboard {
+        union {
+            button_state Buttons[KEYBOARD_MAX_BUTTONS];
+            struct {
+                button_state Up;
+                button_state Down;
+                button_state Left;
+                button_state Right;
+            };
         };
-    };
-    u64 CharacterInput;
-    //note: structure this? ie: Keboard.Buttons.Left or whatever?
+        u64 Character;
+    } Keyboard;
 
     /* gamepad */
     //todo
@@ -99,5 +101,9 @@ typedef APP_INIT(app_init_callback);
 #define APP_UPDATE(Name) void Name(platform *Plat)
 typedef APP_UPDATE(app_update_callback);
         APP_UPDATE(AppUpdateStub) {};
+
+#define APP_DEINIT(Name) void Name(platform *Plat)
+typedef APP_DEINIT(app_deinit_callback);
+        APP_DEINIT(AppDeinitStub) {};
 
 #endif
