@@ -1,6 +1,7 @@
 //note: this is very inspired by https://github.com/ryanfleury/app_template
 
 #include <windows.h>
+#include <gl/gl.h>
 
 #if BUILD_INTERNAL
 #include <stdio.h>

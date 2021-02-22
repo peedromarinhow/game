@@ -1,3 +1,5 @@
+#include <gl/gl.h>
+
 #include "lingo.h"
 #include "maths.h"
 #include "platform.h"

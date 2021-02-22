@@ -1,5 +1,3 @@
-#include <windows.h>
-
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"
