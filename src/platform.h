@@ -33,6 +33,11 @@ typedef struct _button_state {
     b32 EndedDown;
 } button_state;
 
+typedef struct _event_state {
+    i32 HalfTransitionCount;
+    b32 EndedHappening;
+} event_state;
+
 //note: this is how the platform and the app communicate with each other.
 #define KEYBOARD_MAX_BUTTONS 4
 #define MOUSE_MAX_BUTTONS    3
@@ -49,8 +54,9 @@ typedef struct _platform {
 
     /* mouse input */
     struct _Mouse {
-        i16 dWheel;
-        rv2 Pos;
+        event_state Moved;
+        i16         dWheel;
+        rv2         Pos;
         union {
             button_state Buttons[MOUSE_MAX_BUTTONS];
             struct {

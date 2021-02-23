@@ -54,33 +54,29 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             Assert(!"YESSS!!");
         }
         else
-        if (Message.message == WM_LBUTTONDOWN) {
+        if (Message.message == WM_MOUSEMOVE)
+            Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
+        else
+        if (Message.message == WM_LBUTTONDOWN)
             Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
-        }
         else
-        if (Message.message == WM_LBUTTONUP) {
+        if (Message.message == WM_LBUTTONUP)
             Win32ProcessButtonMessage(&Platform->Mouse.Left, 0);
-        }
         else
-        if (Message.message == WM_RBUTTONDOWN) {
+        if (Message.message == WM_RBUTTONDOWN)
             Win32ProcessButtonMessage(&Platform->Mouse.Right, 1);
-        }
         else
-        if (Message.message == WM_RBUTTONUP) {
+        if (Message.message == WM_RBUTTONUP)
             Win32ProcessButtonMessage(&Platform->Mouse.Right, 0);
-        }
         else
-        if (Message.message == WM_MBUTTONDOWN) {
+        if (Message.message == WM_MBUTTONDOWN)
             Win32ProcessButtonMessage(&Platform->Mouse.Middle, 1);
-        }
         else
-        if (Message.message == WM_MBUTTONUP) {
+        if (Message.message == WM_MBUTTONUP)
             Win32ProcessButtonMessage(&Platform->Mouse.Middle, 0);
-        }
         else
-        if (Message.message == WM_SETCURSOR) {
+        if (Message.message == WM_SETCURSOR)
             SetCursor(LoadCursorA(0, IDC_ARROW));
-        }
         /* keyboard */
         else
         if (Message.message == WM_SYSKEYDOWN ||
@@ -172,8 +168,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectory(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
-    //note: global platform seems to be inevitable because windows
-    // it's great
+    /* initializing paltform */
     platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
@@ -199,7 +194,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
     WNDCLASS WindowClass = {0}; {
         WindowClass.style = CS_HREDRAW | CS_VREDRAW;
         WindowClass.lpfnWndProc = Win32MainWindowCallback;
-            //todo: Win32WindowProc
         WindowClass.hInstance = Instance;
         WindowClass.lpszClassName = "ApplicationWindowClass";
         WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
@@ -239,8 +233,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
     Win32InitOpenGl(Window);
 
     //note:
-    // this GlobalRunning is just to catch the window closeing messages
-    // in WindowProc
+    // this "GlobalRunning" is just for the window closing messages
+    // that como exclusively through "Win32MainWindowCallback"
     GlobalRunning = &Platform.Running;
     *GlobalRunning = 1;
     AppCode.Init(&Platform);
