@@ -53,8 +53,8 @@ __declspec(dllexport) APP_UPDATE(Update) {
     glLineWidth(10.0f);
     glBegin(GL_LINES); {
         glColor3f(1, 1, 1);
-        if (Plat->Mouse.Moved.EndedHappening) {
-            glColor3f(0, 1, 1);
+        if (Plat->Mouse.Moved.EndedHappening && Plat->Keyboard.Alt.EndedDown) {
+            glColor3f(1, 0, 0);
         }
         glVertex2f(State->PlayerPos.x, State->PlayerPos.y);
         glVertex2f(200, 200);

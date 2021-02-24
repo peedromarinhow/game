@@ -39,7 +39,7 @@ typedef struct _event_state {
 } event_state;
 
 //note: this is how the platform and the app communicate with each other.
-#define KEYBOARD_MAX_BUTTONS 4
+#define KEYBOARD_MAX_BUTTONS 7
 #define MOUSE_MAX_BUTTONS    3
 typedef struct _platform {
     /* metadata */
@@ -51,12 +51,15 @@ typedef struct _platform {
     b32 Running;
     iv2 WindowSize;
     r32 dtForFrame;
+    b32 CtrlKeyWasDown;
+    b32 ShiftKeyWasDown;
+    b32 AltKeyWasDown;
 
     /* mouse input */
     struct _Mouse {
         event_state Moved;
-        i16         dWheel;
-        rv2         Pos;
+        i16 dWheel;
+        rv2 Pos;
         union {
             button_state Buttons[MOUSE_MAX_BUTTONS];
             struct {
@@ -76,6 +79,9 @@ typedef struct _platform {
                 button_state Down;
                 button_state Left;
                 button_state Right;
+                button_state Ctrl;
+                button_state Shift;
+                button_state Alt;
             };
         };
         u64 Character;
