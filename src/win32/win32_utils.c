@@ -88,3 +88,13 @@ internal void Win32ToggleFullScreen(HWND Window) {
                      SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
 }
+
+inline rv2 Win32GetMousePos(HWND Window) {
+    rv2 Result = {0};
+    POINT MousePoint;
+    GetCursorPos(&MousePoint);
+    ScreenToClient(Window, &MousePoint);
+    Result.x = MousePoint.x;
+    Result.y = MousePoint.y;
+    return Result;
+}

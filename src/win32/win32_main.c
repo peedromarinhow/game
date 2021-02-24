@@ -12,6 +12,7 @@
 #include "memory.h"
 #include "options.h"
 
+#include "win32_internal.c"
 #include "win32_paths.c"
 #include "win32_sound.c"
 #include "win32_input.c"
@@ -45,19 +46,32 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
 }
 
 internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
+    //note:
+    // since there is no "WM_MOUSE_DID_NOT_MOVE" message, assume that it didn't and
+    // if it acually did, then update
+    //todo:
+    // store the events as variables and dispatch at the end i.e.:
+    // b32 MouseMoved = 0;
+    // u64 KeyPressed = 0;
     MSG Message;
+    Win32ProcessEventMessage(&Platform->Mouse.Moved, 0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
+        b32 WasDown = (Message.lParam & (1 << 30)) != 0;
+        b32 IsDown  = (Message.lParam & (1 << 31)) == 0;
         /* mouse */
         if (Message.message == WM_MOUSEHWHEEL) {
             Platform->Mouse.dWheel = 10;
             Assert(!"YESSS!!");
         }
         else
-        if (Message.message == WM_MOUSEMOVE)
+        if (Message.message == WM_MOUSEMOVE){
+            Platform->Mouse.Pos = Win32GetMousePos(Window);
             Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
+            OutputDebugStringA("mouse moved\n");
+        }
         else
-        if (Message.message == WM_LBUTTONDOWN)
+        if (Message.message == WM_LBUTTONUP)
             Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
         else
         if (Message.message == WM_LBUTTONUP)
@@ -77,6 +91,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         else
         if (Message.message == WM_SETCURSOR)
             SetCursor(LoadCursorA(0, IDC_ARROW));
+
         /* keyboard */
         else
         if (Message.message == WM_SYSKEYDOWN ||
@@ -84,8 +99,6 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             Message.message == WM_KEYDOWN    ||
             Message.message == WM_KEYUP)
         {
-            b32 WasDown = (Message.lParam & (1 << 30)) != 0;
-            b32 IsDown  = (Message.lParam & (1 << 31)) == 0;
             b32 AltKeyWasDown = Message.lParam & (1 << 29);
             //todo: do this AltKeyWasDown differently if possible
             u64 VKCode = Message.wParam;
@@ -127,6 +140,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             }
         }
         else
+
         /* windows' stuff */
         if (Message.message == WM_PAINT) {
             PAINTSTRUCT Paint;
@@ -255,14 +269,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update input for stuff that doesn't come trough the messages,
            see Win32ProcessPendingMessages */
-        {
-            POINT MousePoint;
-            GetCursorPos(&MousePoint);
-            ScreenToClient(Window, &MousePoint);
-            Platform.Mouse.Pos.x = MousePoint.x;
-            Platform.Mouse.Pos.y = MousePoint.y;
-                //todo: mouse wheel
-        }
+        // {
+        //     POINT MousePoint;
+        //     GetCursorPos(&MousePoint);
+        //     ScreenToClient(Window, &MousePoint);
+        //     Platform.Mouse.Pos.x = MousePoint.x;
+        //     Platform.Mouse.Pos.y = MousePoint.y;
+        //         //todo: mouse wheel
+        // }
 
         //todo: sound
 
@@ -280,9 +294,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
 #if BUILD_INTERNAL
-        char FPSBuffer[256];
-        sprintf_s(FPSBuffer, sizeof(FPSBuffer), "%f s/f\t%f ms/ts\n", Platform.dtForFrame, ((1.0/60.0) - Platform.dtForFrame));
-        OutputDebugStringA(FPSBuffer);
+        Win32InternalLogFPS(Platform.dtForFrame);
 #endif
 
     }
