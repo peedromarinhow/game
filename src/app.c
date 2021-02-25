@@ -9,6 +9,7 @@
 typedef struct _app_state {
     rv2 PlayerPos;
     memory_arena Arena;
+    r32 MouseWheel;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -17,6 +18,7 @@ __declspec(dllexport) APP_INIT(Init) {
 
     State->PlayerPos = (rv2){100, 100};
     State->Arena = InitializeArena(Megabytes(4), ((u8 *)Plat->Memory.Contents + sizeof(app_state)));
+    State->MouseWheel = 0.0f;
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -24,6 +26,11 @@ __declspec(dllexport) APP_UPDATE(Update) {
 
     if (Plat->Keyboard.Down.EndedDown) {
         Plat->ReportError("TEST", "no error, just a test...");
+    }
+
+    if (Plat->CtrlKeyWasDown && Plat->Keyboard.Left.EndedDown) {
+        file ThisFile = Plat->LoadFile(&State->Arena, __FILE__);
+        Plat->WriteFile(ThisFile.Data, ThisFile.Size, "b.c");
     }
 
     glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
@@ -56,11 +63,12 @@ __declspec(dllexport) APP_UPDATE(Update) {
         if (Plat->Mouse.Moved.EndedHappening && Plat->Keyboard.Alt.EndedDown) {
             glColor3f(1, 0, 0);
         }
-        glVertex2f(State->PlayerPos.x, State->PlayerPos.y);
+        glVertex2f(State->PlayerPos.x, State->PlayerPos.y + State->MouseWheel);
         glVertex2f(200, 200);
     } glEnd();
 
     State->PlayerPos = Plat->Mouse.Pos;
+    State->MouseWheel += Plat->Mouse.dWheel / 6.0f;
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {

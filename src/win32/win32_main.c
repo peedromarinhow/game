@@ -7,10 +7,10 @@
 #include <stdio.h>
 #endif
 
+#include "options.h"
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"
-#include "options.h"
 
 #include "win32_internal.c"
 #include "win32_paths.c"
@@ -34,10 +34,6 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message,
     {
         *GlobalRunning = 0;
     }
-    else
-    if (Message == WM_MOUSEHWHEEL) {
-        Assert(!"YESSS!!");
-    }
     else {
         Result = DefWindowProcA(Window, Message, wParam, lParam);
     }
@@ -54,9 +50,42 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     // b32 MouseMoved = 0;
     // u64 KeyPressed = 0;
     MSG Message;
+    i16 dMouseWheel = 0;
     Win32ProcessEventMessage(&Platform->Mouse.Moved, 0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
+        /* mouse */
+        if (Message.message == WM_MOUSEWHEEL) {
+            dMouseWheel = HIWORD(Message.wParam);
+        }
+        else
+        if (Message.message == WM_MOUSEMOVE){
+            Platform->Mouse.Pos = Win32GetMousePos(Window);
+            Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
+        }
+        else
+        if (Message.message == WM_LBUTTONUP)
+            Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
+        else
+        if (Message.message == WM_LBUTTONUP)
+            Win32ProcessButtonMessage(&Platform->Mouse.Left, 0);
+        else
+        if (Message.message == WM_RBUTTONDOWN)
+            Win32ProcessButtonMessage(&Platform->Mouse.Right, 1);
+        else
+        if (Message.message == WM_RBUTTONUP)
+            Win32ProcessButtonMessage(&Platform->Mouse.Right, 0);
+        else
+        if (Message.message == WM_MBUTTONDOWN)
+            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 1);
+        else
+        if (Message.message == WM_MBUTTONUP)
+            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 0);
+        else
+        if (Message.message == WM_SETCURSOR)
+            SetCursor(LoadCursorA(0, IDC_ARROW));
+
+        /* keyboard */
         b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
         b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
         b32 AltKeyWasDown = Message.lParam & (1 << 29);
@@ -113,40 +142,8 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             }
         }
 
-        /* mouse */
-        else
-        if (Message.message == WM_MOUSEHWHEEL) {
-            Platform->Mouse.dWheel = 10;
-            Assert(!"YESSS!!");
-        }
-        else
-        if (Message.message == WM_MOUSEMOVE){
-            Platform->Mouse.Pos = Win32GetMousePos(Window);
-            Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
-        }
-        else
-        if (Message.message == WM_LBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
-        else
-        if (Message.message == WM_LBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Left, 0);
-        else
-        if (Message.message == WM_RBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->Mouse.Right, 1);
-        else
-        if (Message.message == WM_RBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Right, 0);
-        else
-        if (Message.message == WM_MBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 1);
-        else
-        if (Message.message == WM_MBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 0);
-        else
-        if (Message.message == WM_SETCURSOR)
-            SetCursor(LoadCursorA(0, IDC_ARROW));
-
         /* windows' stuff */
+        else
         if (Message.message == WM_PAINT) {
             PAINTSTRUCT Paint;
             BeginPaint(Window, &Paint);
@@ -156,6 +153,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             TranslateMessage(&Message);
             DispatchMessage(&Message);
         }
+        Platform->Mouse.dWheel = dMouseWheel;
     }
 }
 
@@ -214,7 +212,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         WindowClass.style = CS_HREDRAW | CS_VREDRAW;
         WindowClass.lpfnWndProc = Win32MainWindowCallback;
         WindowClass.hInstance = Instance;
-        WindowClass.lpszClassName = "ApplicationWindowClass";
+        WindowClass.lpszClassName = WINDOW_TITLE;
         WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
     }
 
