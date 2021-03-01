@@ -112,66 +112,41 @@ texture GenTextureFromBitmap(bitmap Bitmap) {
 }
 
 void DrawTexture(texture Texture, rv2 Center, rv2 Dimensions) {
-    GLuint TextureHandle = 0;
-    static b32 Init = 0;
-    if (!Init) {
-        glGenTextures(1, &TextureHandle);
-        Init = 1;
-    }
+    // glBindTexture(GL_TEXTURE_2D, Texture.Handle);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, Texture.w, Texture.h, 0,
+    //              GL_BGRA_EXT, GL_UNSIGNED_BYTE, Texture.Pixels);
+    // glBindTexture(GL_TEXTURE_2D, 0);
+    // glEnable(GL_TEXTURE_2D);
+    // glBegin(GL_POLYGON); {
+    //     glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
+    //     glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
+    //     glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+    //     glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+    // } glEnd();
     glBindTexture(GL_TEXTURE_2D, Texture.Handle);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Texture.w, Texture.h, 0,
                  GL_BGRA_EXT, GL_UNSIGNED_BYTE, Texture.Pixels);
-
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
     glEnable(GL_TEXTURE_2D);
-
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-
     glMatrixMode(GL_TEXTURE);
     glLoadIdentity();
-
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-
-    glScalef(1.0f, -1.0f, 1.0f);
-    // todo
-    //  for now scaling by -1 along y because the GlobalBackBuffer is being displayed upside
-    //  down for some reason, wich I couldn't find
-    // note
-    //  stupidity
-
-    glBegin(GL_TRIANGLES);
-
-    r32 P = 1.0f;
-
-    // lower tri
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(-P,-P);
-
-    glTexCoord2f(1.0f, 0.0f);
-    glVertex2f(P, -P);
-
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(P, P);
-
-    // higher tri
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2f(-P, -P);
-
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(P,P);
-
-    glTexCoord2f(0.0f, 1.0f);
-    glVertex2f(-P, P);
-
-    glEnd();
+    glBegin(GL_POLYGON); {
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
+        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
+        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+    } glEnd();
 }

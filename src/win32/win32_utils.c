@@ -21,10 +21,9 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
     file Result;
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, OPEN_EXISTING, 0, 0);
-    if (FileHandle != INVALID_HANDLE_VALUE)
-    {
+    if (FileHandle != INVALID_HANDLE_VALUE) {
         DWORD ReadBytes = GetFileSize(FileHandle, 0);
-        if (ReadBytes) {
+        if (ReadBytes != INVALID_FILE_SIZE) {
             void *ReadData = PushToArena(Arena, ReadBytes + 1);
             DWORD BytesRead = 0;
 
@@ -36,6 +35,7 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
             Result.Data = ReadData;
             Result.Size = (u64)BytesRead;
 
+            Assert(!"NOOOO!!");
         }
         CloseHandle(FileHandle);
     }

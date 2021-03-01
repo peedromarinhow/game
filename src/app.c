@@ -14,7 +14,7 @@ __declspec(dllexport) APP_INIT(Init) {
     app_state *State = (app_state *)Plat->Memory.Contents;
     State->Arena = InitializeArena(Megabytes(4), ((u8 *)Plat->Memory.Contents + sizeof(app_state)));
 
-    bitmap  Image = LoadBMP(&State->Arena, Plat->LoadFile, "map.bmp");
+    bitmap  Image = LoadBMP(&State->Arena, Plat->LoadFile, "D:/code/platform-layer/data/map.bmp");
     State->Map    = GenTextureFromBitmap(Image);
 }
 
