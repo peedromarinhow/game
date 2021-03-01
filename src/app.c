@@ -6,12 +6,16 @@
 
 typedef struct _app_state {
     memory_arena Arena;
+    texture      Map;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= Plat->Memory.Size);
     app_state *State = (app_state *)Plat->Memory.Contents;
     State->Arena = InitializeArena(Megabytes(4), ((u8 *)Plat->Memory.Contents + sizeof(app_state)));
+
+    bitmap  Image = LoadBMP(&State->Arena, Plat->LoadFile, "map.bmp");
+    State->Map    = GenTextureFromBitmap(Image);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -39,8 +43,9 @@ __declspec(dllexport) APP_UPDATE(Update) {
     glLoadMatrixf(Proj);
 
     // DrawRectangleFromCenter((rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, Plat->Mouse.Pos);
-    DrawRectangleStrokeFromCenter((rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, Plat->Mouse.Pos, 10);
-    DrawFilledCircle((rv2){100, 100}, 100, 100);
+    DrawTexture(State->Map, (rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, (rv2){State->Map.w, State->Map.h});
+    // DrawRectangleStrokeFromCenter((rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, Plat->Mouse.Pos, 10);
+    // DrawFilledCircle((rv2){100, 100}, 100, 100);
 
 }
 
