@@ -21,8 +21,7 @@ internal void Win32InitOpenGl(HWND Window) {
         //note: sucess!
     }
     else {
-        Assert(!"NOOOOOOOOOOOO!!");
-        //note: invalid code path
+        Win32ReportErrorAndDie("FATAL ERROR", "wglMakeCurrent failed");
     }
     ReleaseDC(Window, WindowDC);
 }

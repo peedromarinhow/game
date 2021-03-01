@@ -64,7 +64,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
         }
         else
-        if (Message.message == WM_LBUTTONUP)
+        if (Message.message == WM_LBUTTONDOWN)
             Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
         else
         if (Message.message == WM_LBUTTONUP)
@@ -196,9 +196,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.Memory.Size = Megabytes((u64)64);
         Platform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)Platform.Memory.Size,
                                                 MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        if (!Platform.Memory.Contents) {
+        if (!Platform.Memory.Contents)
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
-        }
+
         /* functions provided by platform */
         Platform.LoadFile          = Win32LoadFile;
         Platform.FreeFile          = Win32FreeFile;
@@ -216,9 +216,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
     }
 
-    if(!RegisterClass(&WindowClass)) {
+    if(!RegisterClass(&WindowClass))
         Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
-    }
 
     HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
                                   WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -226,15 +225,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
                                   DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, 
                                   0, 0, Instance, 0);
     
-    if(!Window) {
+    if(!Window)
         Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
-    }
 
     /* load app code */
     win32_app_code AppCode = {0}; {
-        if(!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath)) {
+        if(!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             Win32ReportErrorAndDie("ERROR!!", "App code failed to load");
-        }
     }
 
     /* get refresh rate */
@@ -273,6 +270,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: sound
 
         /* update */ {
+#if MOUSE_POSITION_WHEN_OUT_OF_WINDOW
+            Platform.Mouse.Pos = Win32GetMousePos(Window);
+#endif
             AppCode.Update(&Platform);
         }
 

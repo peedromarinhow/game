@@ -18,12 +18,10 @@ typedef union _iv2 {
         i32 x;
         i32 y;
     };
-
     struct {
-        i32 Width;
-        i32 Height;
+        i32 w;
+        i32 h;
     };
-
     i32 Components[2];
 } iv2;
 
@@ -32,19 +30,27 @@ typedef union _rv2 {
         r32 x;
         r32 y;
     };
-
     struct {
-        r32 Width;
-        r32 Height;
+        r32 w;
+        r32 h;
     };
-
     r32 Components[2];
 } rv2;
 
+typedef union _rv4 {
+    struct {
+        r32 r;
+        r32 g;
+        r32 b;
+        r32 a;
+    };
+    r32 Components[4];
+} rv4;
+
 typedef union _c32 {
     struct {
-        r32 Real;
-        r32 Imaginary;
+        r32 Re;
+        r32 Im;
     };
     struct {
         r32 a;
@@ -59,10 +65,6 @@ inline c32 MulC32(c32 z, c32 w) {
 
 inline c32 ExpC32(c32 z) {
     return (c32){(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sin(z.b))};
-}
-
-inline c32 ExpITheta(r32 Theta) {
-    return (c32){Cos(Theta), Sin(Theta)};
 }
 
 inline c32 LogC32(c32 z) {
