@@ -24,6 +24,7 @@ typedef union _iv2 {
     };
     i32 Components[2];
 } iv2;
+#define Iv2(a, b) ((iv2){a, b})
 
 typedef union _rv2 {
     struct {
@@ -36,21 +37,28 @@ typedef union _rv2 {
     };
     r32 Components[2];
 } rv2;
+#define Rv2(a, b) ((rv2){a, b})
 
-typedef union _rv4 {
-    struct {
-        r32 r;
-        r32 g;
-        r32 b;
-        r32 a;
-    };
-    r32 Components[4];
-} rv4;
+typedef struct _color_4i {
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 a;
+} color_4i;
+#define Color4f(r, g, b, a) ((color_4f){r, g, b, a})
+
+typedef struct _color_4f {
+    r32 r;
+    r32 g;
+    r32 b;
+    r32 a;
+} color_4f;
+#define Color4i(r, g, b, a) ((color_4i){r, g, b, a})
 
 typedef union _c32 {
     struct {
-        r32 Re;
-        r32 Im;
+        r32 Real;
+        r32 Imaginary;
     };
     struct {
         r32 a;

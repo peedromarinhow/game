@@ -51,7 +51,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     // u64 KeyPressed = 0;
     MSG Message;
     i16 dMouseWheel = 0;
-    Win32ProcessEventMessage(&Platform->Mouse.Moved, 0);
+    Win32ProcessEventMessage(&Platform->MouseMoved, 0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
         /* mouse */
@@ -60,27 +60,27 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         }
         else
         if (Message.message == WM_MOUSEMOVE){
-            Platform->Mouse.Pos = Win32GetMousePos(Window);
-            Win32ProcessEventMessage(&Platform->Mouse.Moved, 1);
+            Platform->MousePos = Win32GetMousePos(Window);
+            Win32ProcessEventMessage(&Platform->MouseMoved, 1);
         }
         else
         if (Message.message == WM_LBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->Mouse.Left, 1);
+            Win32ProcessButtonMessage(&Platform->MouseLeft, 1);
         else
         if (Message.message == WM_LBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Left, 0);
+            Win32ProcessButtonMessage(&Platform->MouseLeft, 0);
         else
         if (Message.message == WM_RBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->Mouse.Right, 1);
+            Win32ProcessButtonMessage(&Platform->MouseRight, 1);
         else
         if (Message.message == WM_RBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Right, 0);
+            Win32ProcessButtonMessage(&Platform->MouseRight, 0);
         else
         if (Message.message == WM_MBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 1);
+            Win32ProcessButtonMessage(&Platform->MouseMiddle, 1);
         else
         if (Message.message == WM_MBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->Mouse.Middle, 0);
+            Win32ProcessButtonMessage(&Platform->MouseMiddle, 0);
         else
         if (Message.message == WM_SETCURSOR)
             SetCursor(LoadCursorA(0, IDC_ARROW));
@@ -105,25 +105,25 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 }
                 else
                 if (VKCode == VK_CONTROL)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Ctrl, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kCtrl, IsDown);
                 else
                 if (VKCode == VK_SHIFT)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Shift, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kShift, IsDown);
                 else
                 if (VKCode == VK_MENU)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Alt, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kAlt, IsDown);
                 else
                 if (VKCode == VK_UP)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Up, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kUp, IsDown);
                 else
                 if (VKCode == VK_DOWN)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Down, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kDown, IsDown);
                 else
                 if (VKCode == VK_LEFT)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Left, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kLeft, IsDown);
                 else
                 if (VKCode == VK_RIGHT)
-                    Win32ProcessButtonMessage(&Platform->Keyboard.Right, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kRight, IsDown);
                 else
                 if (VKCode == VK_F4) {
                     if (AltKeyWasDown) Platform->Running = 0;
@@ -138,7 +138,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                CharacterInput != VK_RETURN &&
                CharacterInput != VK_ESCAPE)
             {
-                Platform->Keyboard.Character = CharacterInput;
+                Platform->KeyboardCharacter = CharacterInput;
             }
         }
 
@@ -153,7 +153,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             TranslateMessage(&Message);
             DispatchMessage(&Message);
         }
-        Platform->Mouse.dWheel = dMouseWheel;
+        Platform->dMouseWheel = dMouseWheel;
     }
 }
 
@@ -271,7 +271,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update */ {
 #if MOUSE_POSITION_WHEN_OUT_OF_WINDOW
-            Platform.Mouse.Pos = Win32GetMousePos(Window);
+            Platform.MousePos = Win32GetMousePos(Window);
 #endif
             AppCode.Update(&Platform);
         }

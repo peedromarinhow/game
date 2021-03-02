@@ -56,44 +56,32 @@ typedef struct _platform {
     b32 AltKeyWasDown;
 
     /* mouse input */
-    struct _Mouse {
-        event_state Moved;
-        i16 dWheel;
-        rv2 Pos;
-        union {
-            button_state Buttons[MOUSE_MAX_BUTTONS];
-            struct {
-                button_state Left;
-                button_state Right;
-                button_state Middle;
-            };
-        };
-    } Mouse;
+    event_state MouseMoved;
+    i16 dMouseWheel;
+    rv2 MousePos;
+    button_state MouseButtons[MOUSE_MAX_BUTTONS];
+    button_state MouseLeft;
+    button_state MouseRight;
+    button_state MouseMiddle;
 
     /* keyboard input */
-    struct _Keyboard {
-        union {
-            button_state Buttons[KEYBOARD_MAX_BUTTONS];
-            struct {
-                button_state Up;
-                button_state Down;
-                button_state Left;
-                button_state Right;
-                button_state Ctrl;
-                button_state Shift;
-                button_state Alt;
-            };
-        };
-        u64 Character;
-    } Keyboard;
+    button_state KeyboardButtons[KEYBOARD_MAX_BUTTONS];
+    button_state kUp;
+    button_state kDown;
+    button_state kLeft;
+    button_state kRight;
+    button_state kCtrl;
+    button_state kShift;
+    button_state kAlt;
+    u64          KeyboardCharacter;
 
     /* gamepad */
     //todo
     
     /* sound */
     i16 *Samples;
-    i32 SamplesPerSecond;
-    i32 SampleCount;
+    i32  SamplesPerSecond;
+    i32  SampleCount;
 
     /* memory */
     app_memory Memory;
@@ -106,15 +94,15 @@ typedef struct _platform {
     platform_report_error_and_die_callback *ReportErrorAndDie;
 } platform;
 
-#define APP_INIT(Name) void Name(platform *Plat)
+#define APP_INIT(Name) void Name(platform *p)
 typedef APP_INIT(app_init_callback);
         APP_INIT(AppInitStub) {};
 
-#define APP_UPDATE(Name) void Name(platform *Plat)
+#define APP_UPDATE(Name) void Name(platform *p)
 typedef APP_UPDATE(app_update_callback);
         APP_UPDATE(AppUpdateStub) {};
 
-#define APP_DEINIT(Name) void Name(platform *Plat)
+#define APP_DEINIT(Name) void Name(platform *p)
 typedef APP_DEINIT(app_deinit_callback);
         APP_DEINIT(AppDeinitStub) {};
 

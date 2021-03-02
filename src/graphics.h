@@ -7,36 +7,72 @@
 #include "maths.h"
 #include "memory.h"
 
-typedef union _color {
-    u32 RGBA;
-    struct {
-        u8 r;
-        u8 g;
-        u8 b;
-        u8 a;
+typedef struct _rectangle {
+    union {
+        rv2 Pos;
+        r32 x;
+        r32 y;
     };
-} color;
+    union {
+        rv2 Size;
+        r32 w;
+        r32 h;
+    };
+    //note: unnecessary unions maybe?
+} rectangle;
+
+typedef struct _texture {
+    i32 Id;
+    i32 w;
+    i32 h;
+    i32 Format;
+} texture;
+
+void gSet(rv2 Shift, iv2 Size, color_4f Color) {
+    glViewport(Shift.x, Shift.y, Size.w, Size.h);
+    glClearColor(Color.r, Color.g, Color.b, Color.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+    r32 a = 2.0f/Size.w;
+    r32 b = 2.0f/Size.h;
+    r32 Proj[] = {
+         a,  0,  0,  0,
+         0, -b,  0,  0,
+         0,  0,  1,  0,
+        -1,  1,  0,  1
+    };
+    glLoadMatrixf(Proj);
+}
+
+void gRectFromCenter(rv2 Pos, rv2 Size, color_4f Color) {
+    glBegin(GL_POLYGON); {
+        glColor4f(Color.r, Color.g, Color.b, Color.a);
+        glVertex2f(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
+        glVertex2f(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
+        glVertex2f(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
+        glVertex2f(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
+    } glEnd();    
+}
 
 //todo: (maybe) some wrapper around opengl
 
-void DrawRectangleFromCenter(rv2 Center, rv2 Dimensions) {
+void DrawRectangleFromCenter(rv2 Center, rv2 Size) {
     glBegin(GL_POLYGON); {
         glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+        glVertex2f(Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f(Center.x + Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f(Center.x + Size.w/2.0f, Center.y + Size.h/2.0f);
+        glVertex2f(Center.x - Size.w/2.0f, Center.y + Size.h/2.0f);
     } glEnd();
 }
 
-void DrawRectangleStrokeFromCenter(rv2 Center, rv2 Dimensions, r32 StrokeWidth) {
+void DrawRectangleStrokeFromCenter(rv2 Center, rv2 Size, r32 StrokeWidth) {
     glLineWidth(StrokeWidth);
     glBegin(GL_LINE_LOOP); {
         glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
+        glVertex2f(Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f(Center.x + Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f(Center.x + Size.w/2.0f, Center.y + Size.h/2.0f);
+        glVertex2f(Center.x - Size.w/2.0f, Center.y + Size.h/2.0f);
     } glEnd();
 }
 
@@ -53,13 +89,6 @@ void DrawFilledCircle(rv2 Center, r32 Radius, u32 IterationCount){
 	glEnd();
 }
 
-typedef struct _bitmap {
-    u32  Handle;
-    i32  w;
-    i32  h;
-    u32 *Pixels;
-} bitmap;
-
 #pragma pack(push, 1)
 typedef struct _bitmap_header {
     u16 FileType;
@@ -75,74 +104,26 @@ typedef struct _bitmap_header {
 } bitmap_header;
 #pragma pack(pop)
 
-bitmap LoadBMP(memory_arena *Arena, platform_load_file_callback LoadFile, char *Filename) {
-    bitmap Result = {0};
-    file BitmapFile = LoadFile(Arena, Filename);
-    if (!BitmapFile.Data) {
-        //error
-    }
-    bitmap_header *Header = (bitmap_header *)BitmapFile.Data;
-    Result.w      = Header->Width;
-    Result.h      = Header->Height;
-    Result.Pixels = (u32 *)((u8 *)BitmapFile.Data + Header->BitmapOffset);
-    return Result;
-}
-
-typedef struct _texture {
-    u32   Handle;
-    i32   w;
-    i32   h;
-    void *Pixels;
-} texture;
-
-texture GenTextureFromBitmap(bitmap Bitmap) {
-    texture Result = {0};
-    GLuint TextureHandle = 0;
-    static b32 Init = 0;
-    glGenTextures(1, &TextureHandle);
-    Result.Handle = TextureHandle;
-    Result.w      = Bitmap.w;
-    Result.h      = Bitmap.h;
-    Result.Pixels = Bitmap.Pixels;
-
-    return Result;
-}
-
-void DrawTexture(texture Texture, rv2 Center, rv2 Dimensions) {
-    // glBindTexture(GL_TEXTURE_2D, Texture.Handle);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, Texture.w, Texture.h, 0,
-    //              GL_BGRA_EXT, GL_UNSIGNED_BYTE, Texture.Pixels);
-    // glBindTexture(GL_TEXTURE_2D, 0);
-    // glEnable(GL_TEXTURE_2D);
-    // glBegin(GL_POLYGON); {
-    //     glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-    //     glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-    //     glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-    //     glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-    // } glEnd();
-    glBindTexture(GL_TEXTURE_2D, Texture.Handle);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Texture.w, Texture.h, 0,
-                 GL_BGRA_EXT, GL_UNSIGNED_BYTE, Texture.Pixels);
+void DrawTexture(texture Texture) {
+    glBindTexture(GL_TEXTURE_2D, Texture.Id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Texture.w, Texture.h, 0,
+                 GL_BGR_EXT, GL_UNSIGNED_BYTE, 0/*Texture.Pixels*/);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glEnable(GL_TEXTURE_2D);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glMatrixMode(GL_TEXTURE);
+    // glMatrixMode(GL_TEXTURE);
     glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glBegin(GL_POLYGON); {
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y - Dimensions.h/2.0f);
-        glVertex2f(Center.x + Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-        glVertex2f(Center.x - Dimensions.w/2.0f, Center.y + Dimensions.h/2.0f);
-    } glEnd();
+    glBegin(GL_POLYGON);
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex2f  (-1, -1);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex2f  ( 1, -1);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex2f  ( 1, 1);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex2f  (-1, 1);
+    glEnd();
 }
