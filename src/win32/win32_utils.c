@@ -34,8 +34,6 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
 
             Result.Data = ReadData;
             Result.Size = (u64)BytesRead;
-
-            Assert(!"NOOOO!!");
         }
         CloseHandle(FileHandle);
     }

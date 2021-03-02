@@ -99,10 +99,7 @@ texture GenTextureFromBitmap(bitmap Bitmap) {
     texture Result = {0};
     GLuint TextureHandle = 0;
     static b32 Init = 0;
-    if (!Init) {
-        glGenTextures(1, &TextureHandle);
-        Init = 1;
-    }
+    glGenTextures(1, &TextureHandle);
     Result.Handle = TextureHandle;
     Result.w      = Bitmap.w;
     Result.h      = Bitmap.h;
@@ -134,7 +131,6 @@ void DrawTexture(texture Texture, rv2 Center, rv2 Dimensions) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glEnable(GL_TEXTURE_2D);
-    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_TEXTURE);
     glLoadIdentity();
