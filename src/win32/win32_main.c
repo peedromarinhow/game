@@ -286,7 +286,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
 #if BUILD_INTERNAL
-        Win32InternalLogFPS(Platform.dtForFrame);
+        Win32InternalLogFPS(Platform.dtForFrame, Window);
 #endif
 
     }

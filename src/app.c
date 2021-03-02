@@ -7,7 +7,6 @@
 typedef struct _app_state {
     memory_arena Arena;
     bitmap       Image;
-    u32          TextureHandle;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -19,16 +18,30 @@ __declspec(dllexport) APP_INIT(Init) {
     State->Image.w      = Header->Width;
     State->Image.h      = Header->Height;
     State->Image.Pixels = (u32 *)((u8 *)Bitmap.Data + Header->BitmapOffset);;
-    glGenTextures(1, &State->TextureHandle);
+    glGenTextures(1, &State->Image.Handle);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)Plat->Memory.Contents;
-
     glViewport(0, 0, Plat->WindowSize.w, Plat->WindowSize.h);
 
-    glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
+    glBindTexture(GL_TEXTURE_2D, State->Image.Handle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, State->Image.w, State->Image.h, 0,
+                 GL_BGR_EXT, GL_UNSIGNED_BYTE, State->Image.Pixels);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+    glEnable(GL_TEXTURE_2D);
+
+    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -36,43 +49,87 @@ __declspec(dllexport) APP_UPDATE(Update) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    r32 a = 2.0f/Plat->WindowSize.w;
-    r32 b = 2.0f/Plat->WindowSize.h;
-    r32 Proj[] = {
-         a,  0,  0,  0,
-         0, -b,  0,  0,
-         0,  0,  1,  0,
-        -1,  1,  0,  1
-    };
-    glLoadMatrixf(Proj);
+    glBegin(GL_TRIANGLES);
 
-    glBindTexture(GL_TEXTURE_2D, State->TextureHandle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, State->Image.w, State->Image.h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, State->Image.Pixels);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS);
-        glTexCoord2i(0, 0); glVertex2i(100, 100);
-        glTexCoord2i(0, 1); glVertex2i(100, 500);
-        glTexCoord2i(1, 1); glVertex2i(500, 500);
-        glTexCoord2i(1, 0); glVertex2i(500, 100);
+    r32 P = 1.0f;
+
+    // lower tri
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2f(-P,-P);
+
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex2f(P, -P);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(P, P);
+
+    // higher tri
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2f(-P, -P);
+
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(P,P);
+
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex2f(-P, P);
+
     glEnd();
+}
 
-    // glBindTexture(GL_TEXTURE_2D, State->TextureHandle);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, State->Image.w, State->Image.h, 0,
-    //              GL_BGRA_EXT, GL_UNSIGNED_BYTE, State->Image.Pixels);
-    // // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    // // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+__declspec(dllexport) APP_DEINIT(Deinit) {
+    app_state *State = (app_state *)Plat->Memory.Contents;
+}
+
+#if 0
+    glViewport(0, 0, Plat->WindowSize.w, Plat->WindowSize.h);
+
+    glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // glMatrixMode(GL_MODELVIEW);
+    // glLoadIdentity();
+
+    // glMatrixMode(GL_PROJECTION);
+    // glLoadIdentity();
+
+    // r32 a = 2.0f/Plat->WindowSize.w;
+    // r32 b = 2.0f/Plat->WindowSize.h;
+    // r32 Proj[] = {
+    //      a,  0,  0,  0,
+    //      0, -b,  0,  0,
+    //      0,  0,  1,  0,
+    //     -1,  1,  0,  1
+    // };
+    // glLoadMatrixf(Proj);
+
+    // glBindTexture(GL_TEXTURE_2D, State->Image.Handle);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, State->Image.w, State->Image.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void *)State->Image.Pixels);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
     // glEnable(GL_TEXTURE_2D);
-    // glBegin(GL_QUADS); {
-    //     glVertex2f(0, 0);
-    //     glVertex2f(Plat->WindowSize.w, 0);
-    //     glVertex2f(Plat->WindowSize.w, Plat->WindowSize.h);
-    //     glVertex2f(0, Plat->WindowSize.h);
-    // } glEnd();
+    // glBegin(GL_QUADS);
+    //     glVertex2i(100, 100);
+    //     glVertex2i(100, 500);
+    //     glVertex2i(500, 500);
+    //     glVertex2i(500, 100);
+    // glEnd();
+
+    glBindTexture(GL_TEXTURE_2D, State->Image.Handle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, State->Image.w, State->Image.h, 0,
+                 GL_BGRA_EXT, GL_UNSIGNED_BYTE, State->Image.Pixels);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glEnable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS); {
+        glVertex2f(0, 0);
+        glVertex2f(Plat->WindowSize.w, 0);
+        glVertex2f(Plat->WindowSize.w, Plat->WindowSize.h);
+        glVertex2f(0, Plat->WindowSize.h);
+    } glEnd();
     // DrawRectangleFromCenter((rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, Plat->Mouse.Pos);
 
     // glViewport(0, 0, Plat->WindowSize.w, Plat->WindowSize.h);
@@ -100,13 +157,7 @@ __declspec(dllexport) APP_UPDATE(Update) {
     // DrawTexture(State->Map, (rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, (rv2){Plat->WindowSize.w, Plat->WindowSize.h});
     // DrawRectangleStrokeFromCenter((rv2){Plat->WindowSize.w/2.0f, Plat->WindowSize.h/2.0f}, Plat->Mouse.Pos, 10);
     // DrawFilledCircle((rv2){100, 100}, 100, 100);
-}
 
-__declspec(dllexport) APP_DEINIT(Deinit) {
-    app_state *State = (app_state *)Plat->Memory.Contents;
-}
-
-#if 0
     // glViewport(0, 0, Plat->WindowSize.Width, Plat->WindowSize.Height);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
