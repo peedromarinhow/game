@@ -24,8 +24,13 @@ __declspec(dllexport) APP_INIT(Init) {
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gSet(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    gRectFromCenter(p->MousePos, Rv2(100, 100), Color4f(1, 0, 0, 1));
+    gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
+    color_4f Color = Color4f(1, 0, 0, 1);
+    if (p->MouseLeft.EndedDown)
+        Color = Color4f(1, 1, 0, 1);
+    if (p->MouseRight.EndedDown)
+        Color = Color4f(1, 0, 1, 1);
+    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {

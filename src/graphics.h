@@ -28,7 +28,7 @@ typedef struct _texture {
     i32 Format;
 } texture;
 
-void gSet(rv2 Shift, iv2 Size, color_4f Color) {
+void gBegin(rv2 Shift, iv2 Size, color_4f Color) {
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);
