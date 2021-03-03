@@ -28,6 +28,10 @@ typedef struct _texture {
     i32 Format;
 } texture;
 
+r32 f(r32 t, r32 Duration, r32 Scale) {
+    return -(Scale / 2.0f)*(Cos((PI32 * t) / Duration) - 1);
+}
+
 void gBegin(rv2 Shift, iv2 Size, color4f Color) {
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);

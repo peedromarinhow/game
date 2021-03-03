@@ -6,13 +6,16 @@
 
 typedef struct _app_state {
     memory_arena Arena;
-    // texture      Image;
+    r32          AnimationTime;
+    rv2          AnimationRectPos;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
-    State->Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    State->Arena            = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    State->AnimationTime    = 0;
+    State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
     // file Bitmap = p->LoadFile(&State->Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;
@@ -31,6 +34,16 @@ __declspec(dllexport) APP_UPDATE(Update) {
     if (p->MouseRight.EndedDown)
         Color = Color4f(1, 0, 1, 1);
     gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+
+    if (State->AnimationTime <= 2) {
+        State->AnimationTime      += p->dtForFrame;
+        State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
+    }
+    else {
+        State->AnimationTime += 0;
+    }
+    
+    gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
