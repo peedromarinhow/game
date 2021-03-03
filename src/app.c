@@ -25,7 +25,7 @@ __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    color_4f Color = Color4f(1, 0, 0, 1);
+    color4f Color = Color4f(1, 0, 0, 1);
     if (p->MouseLeft.EndedDown)
         Color = Color4f(1, 1, 0, 1);
     if (p->MouseRight.EndedDown)

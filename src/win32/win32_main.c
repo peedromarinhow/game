@@ -270,9 +270,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: sound
 
         /* update */ {
-#if MOUSE_POSITION_WHEN_OUT_OF_WINDOW
-            Platform.MousePos = Win32GetMousePos(Window);
-#endif
+            if (MOUSE_POSITION_WHEN_OUT_OF_WINDOW)
+                Platform.MousePos = Win32GetMousePos(Window);
             AppCode.Update(&Platform);
         }
 
@@ -285,9 +284,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
         Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
-#if BUILD_INTERNAL
         Win32InternalLogFPS(Platform.dtForFrame, Window);
-#endif
 
     }
 

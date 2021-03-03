@@ -15,3 +15,13 @@ inline void Win32ProcessEventMessage(event_state *State, b32 IsHappenning) {
         ++State->HalfTransitionCount;
     }
 }
+
+inline rv2 Win32GetMousePos(HWND Window) {
+    rv2 Result = {0};
+    POINT MousePoint;
+    GetCursorPos(&MousePoint);
+    ScreenToClient(Window, &MousePoint);
+    Result.x = MousePoint.x;
+    Result.y = MousePoint.y;
+    return Result;
+}
