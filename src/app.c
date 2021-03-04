@@ -69,7 +69,7 @@ __declspec(dllexport) APP_INIT(Init) {
     // can free ttf_buffer at this point
     glGenTextures(1, &ftex);
     glBindTexture(GL_TEXTURE_2D, ftex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
     // can free temp_bitmap at this point
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
