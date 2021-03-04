@@ -2,18 +2,22 @@
 
 //todo: better names for these two
 
-inline void Win32ProcessButtonMessage(button_state *State, b32 IsDown) {
-    if (State->EndedDown != IsDown) {
-        State->EndedDown =  IsDown;
-        ++State->HalfTransitionCount;
-    }
+inline void Win32ProcessButtonMessage(/* button_state */ b32 *EndedDown, b32 IsDown) {
+    // if (State->EndedDown != IsDown) {
+    //     State->EndedDown =  IsDown;
+    //     ++State->HalfTransitionCount;
+    // }
+    if (*EndedDown != IsDown)
+        *EndedDown =  IsDown;
 }
 
-inline void Win32ProcessEventMessage(event_state *State, b32 IsHappenning) {
-    if (State->EndedHappening != IsHappenning) {
-        State->EndedHappening =  IsHappenning;
-        ++State->HalfTransitionCount;
-    }
+inline void Win32ProcessEventMessage(/* event_state */ b32 *EndedHappening, b32 IsHappening) {
+    // if (State->EndedDown != IsDown) {
+    //     State->EndedDown =  IsDown;
+    //     ++State->HalfTransitionCount;
+    // }
+    if (*EndedHappening != IsHappening)
+        *EndedHappening =  IsHappening;
 }
 
 inline rv2 Win32GetMousePos(HWND Window) {

@@ -56,23 +56,23 @@ typedef struct _platform {
     b32 AltKeyWasDown;
 
     /* mouse input */
-    event_state MouseMoved;
+    /* event_state */ b32 MouseMoved;
     i16 dMouseWheel;
     rv2 MousePos;
-    button_state MouseButtons[MOUSE_MAX_BUTTONS];
-    button_state MouseLeft;
-    button_state MouseRight;
-    button_state MouseMiddle;
+    /* button_state */ b32 MouseButtons[MOUSE_MAX_BUTTONS];
+    /* button_state */ b32 MouseLeft;
+    /* button_state */ b32 MouseRight;
+    /* button_state */ b32 MouseMiddle;
 
     /* keyboard input */
-    button_state KeyboardButtons[KEYBOARD_MAX_BUTTONS];
-    button_state kUp;
-    button_state kDown;
-    button_state kLeft;
-    button_state kRight;
-    button_state kCtrl;
-    button_state kShift;
-    button_state kAlt;
+    /* button_state */ b32 KeyboardButtons[KEYBOARD_MAX_BUTTONS];
+    /* button_state */ b32 kUp;
+    /* button_state */ b32 kDown;
+    /* button_state */ b32 kLeft;
+    /* button_state */ b32 kRight;
+    /* button_state */ b32 kCtrl;
+    /* button_state */ b32 kShift;
+    /* button_state */ b32 kAlt;
     u64          KeyboardCharacter;
 
     /* gamepad */

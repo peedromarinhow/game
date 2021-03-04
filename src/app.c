@@ -4,88 +4,50 @@
 #include "platform.h"
 #include "memory.h"
 
-// #define STB_TRUETYPE_IMPLEMENTATION
-// #include "stb_truetype.h"
-// #include "stb_rect_pack.h"
-
-#define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
-#include "stb_truetype.h"
-
-unsigned char ttf_buffer[1<<20];
-unsigned char temp_bitmap[512*512];
-
-stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
-GLuint ftex;
-
-// void my_stbtt_initfont(void)
-// {
-//    fread(ttf_buffer, 1, 1<<20, fopen("c:/windows/fonts/times.ttf", "rb"));
-//    stbtt_BakeFontBitmap(ttf_buffer,0, 32.0, temp_bitmap,512,512, 32,96, cdata); // no guarantee this fits!
-//    // can free ttf_buffer at this point
-//    glGenTextures(1, &ftex);
-//    glBindTexture(GL_TEXTURE_2D, ftex);
-//    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
-//    // can free temp_bitmap at this point
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-// }
-
-void my_stbtt_print(float x, float y, char *text) {
-    // assume orthographic projection with units = screen pixels, origin at top left
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindTexture(GL_TEXTURE_2D, ftex);
-    glBegin(GL_QUADS);
-    while (*text) {
-        if (*text >= 32 && *text < 128) {
-            stbtt_aligned_quad q;
-            stbtt_GetBakedQuad(cdata, 512,512, *text-32, &x,&y,&q,1);//1=opengl & d3d10+,0=d3d9
-            glTexCoord2f(q.s0,q.t1); glVertex2f(q.x0,q.y0);
-            glTexCoord2f(q.s1,q.t1); glVertex2f(q.x1,q.y0);
-            glTexCoord2f(q.s1,q.t0); glVertex2f(q.x1,q.y1);
-            glTexCoord2f(q.s0,q.t0); glVertex2f(q.x0,q.y1);
-        }
-        ++text;
-   }
-   glEnd();
-}
-
 typedef struct _app_state {
     memory_arena Arena;
-    r32          AnimationTime;
-    rv2          AnimationRectPos;
-    file         ImFellFrench;
+    // r32          AnimationTime;
+    // rv2          AnimationRectPos;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
-    State->Arena            = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
-    State->AnimationTime    = 0;
-    State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
-    State->ImFellFrench     = p->LoadFile(&State->Arena, "d:/fontes/im_fell_french_canon.ttf");
+    State->Arena     = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
 
-    stbtt_BakeFontBitmap(State->ImFellFrench.Data, 0, 100.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
-    // can free ttf_buffer at this point
-    glGenTextures(1, &ftex);
-    glBindTexture(GL_TEXTURE_2D, ftex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
-    // can free temp_bitmap at this point
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    my_stbtt_print(100, 100, "LOREM IPSVM");
-    // color4f Color = Color4f(1, 0, 0, 1);
-    // if (p->MouseLeft.EndedDown)
-    //     Color = Color4f(1, 1, 0, 1);
-    // if (p->MouseRight.EndedDown)
-    //     Color = Color4f(1, 0, 1, 1);
-    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    color4f Color = Color4f(1, 0, 0, 1);
+    if (p->MouseLeft)
+        Color = Color4f(1, 1, 0, 1);
+    if (p->MouseRight)
+        Color = Color4f(1, 0, 1, 1);
+    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+}
 
+__declspec(dllexport) APP_DEINIT(Deinit) {
+    app_state *State = (app_state *)p->Memory.Contents;
+}
+
+#if 0
+    // State->AnimationTime    = 0;
+    // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
+
+    // file Font = p->LoadFile(&State->Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
+    // c8   TempBitmap[512*512];
+    // stbtt_BakeFontBitmap(Font.Data, 0, 50.0, TempBitmap, 512, 512, 32, 96, CharacterData); // no guarantee this fits!
+    // glGenTextures(1, &FontTexture);
+    // glBindTexture(GL_TEXTURE_2D, FontTexture);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // p->WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
+    // p->FreeFile(&State->Arena, Font);
+
+    // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
     //     State->AnimationTime      += p->dtForFrame;
     //     State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
@@ -95,13 +57,6 @@ __declspec(dllexport) APP_UPDATE(Update) {
     // }
     
     // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
-}
-
-__declspec(dllexport) APP_DEINIT(Deinit) {
-    app_state *State = (app_state *)p->Memory.Contents;
-}
-
-#if 0
     // file Bitmap = p->LoadFile(&State->Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;
@@ -371,3 +326,30 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
         glVertex2f(w.a, w.b);
     } glEnd();
 #endif
+
+// #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
+// #include "stb_truetype.h"
+
+// stbtt_bakedchar CharacterData[96]; // ASCII 32..126 is 95 glyphs
+// GLuint FontTexture;
+
+// //note: https://github.com/nothings/stb
+// void DawText(f32 x, f32 y, c8 *Text) {
+//     glEnable(GL_TEXTURE_2D);
+//     glEnable(GL_BLEND);
+//     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//     glBindTexture(GL_TEXTURE_2D, FontTexture);
+//     glBegin(GL_QUADS); {
+//         while (*Text) {
+//             if (*Text >= 32 && *Text < 128) {
+//                 stbtt_aligned_quad Quad;
+//                 stbtt_GetBakedQuad(CharacterData, 512, 512, *Text - 32, &x, &y, &Quad, 1);
+//                 glTexCoord2f(Quad.s0, Quad.t1); glVertex2f(Quad.x0, Quad.y0);
+//                 glTexCoord2f(Quad.s1, Quad.t1); glVertex2f(Quad.x1, Quad.y0);
+//                 glTexCoord2f(Quad.s1, Quad.t0); glVertex2f(Quad.x1, Quad.y1);
+//                 glTexCoord2f(Quad.s0, Quad.t0); glVertex2f(Quad.x0, Quad.y1);
+//             }
+//             ++Text;
+//         }
+//     } glEnd();
+// }

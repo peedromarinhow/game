@@ -162,15 +162,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
                      LPSTR CmdLine, int CmdShow)
 {
     /* get paths for dlls filename for executable and working directory */
-    char ExecutablePath  [256];
-    char WorkingDirectory[256];
-    char AppDLLPath      [256];
-    char TempAppDLLPath  [256];
+    c8 ExecutablePath  [256];
+    c8 WorkingDirectory[256];
+    c8 AppDLLPath      [256];
+    c8 TempAppDLLPath  [256];
     {
         /* get path of the executable */
         DWORD SizeofFileName = GetModuleFileNameA(0, ExecutablePath, sizeof(ExecutablePath));
-        char *OnePastLastSlash = ExecutablePath;
-        for (char *Scan = ExecutablePath; *Scan; ++Scan) {
+        c8 *OnePastLastSlash = ExecutablePath;
+        for (c8 *Scan = ExecutablePath; *Scan; ++Scan) {
             if (*Scan == '\\')
                 OnePastLastSlash = Scan + 1;
         }
@@ -182,7 +182,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                                   OnePastLastSlash, ExecutablePath);
 
         /* get working dir */ 
-        GetCurrentDirectory(sizeof(WorkingDirectory), WorkingDirectory);
+        GetCurrentDirectoryA(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
     /* initializing paltform */
