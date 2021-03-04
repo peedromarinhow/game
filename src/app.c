@@ -4,10 +4,57 @@
 #include "platform.h"
 #include "memory.h"
 
+// #define STB_TRUETYPE_IMPLEMENTATION
+// #include "stb_truetype.h"
+// #include "stb_rect_pack.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
+#include "stb_truetype.h"
+
+unsigned char ttf_buffer[1<<20];
+unsigned char temp_bitmap[512*512];
+
+stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
+GLuint ftex;
+
+// void my_stbtt_initfont(void)
+// {
+//    fread(ttf_buffer, 1, 1<<20, fopen("c:/windows/fonts/times.ttf", "rb"));
+//    stbtt_BakeFontBitmap(ttf_buffer,0, 32.0, temp_bitmap,512,512, 32,96, cdata); // no guarantee this fits!
+//    // can free ttf_buffer at this point
+//    glGenTextures(1, &ftex);
+//    glBindTexture(GL_TEXTURE_2D, ftex);
+//    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
+//    // can free temp_bitmap at this point
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+// }
+
+void my_stbtt_print(float x, float y, char *text) {
+    // assume orthographic projection with units = screen pixels, origin at top left
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBindTexture(GL_TEXTURE_2D, ftex);
+    glBegin(GL_QUADS);
+    while (*text) {
+        if (*text >= 32 && *text < 128) {
+            stbtt_aligned_quad q;
+            stbtt_GetBakedQuad(cdata, 512,512, *text-32, &x,&y,&q,1);//1=opengl & d3d10+,0=d3d9
+            glTexCoord2f(q.s0,q.t1); glVertex2f(q.x0,q.y0);
+            glTexCoord2f(q.s1,q.t1); glVertex2f(q.x1,q.y0);
+            glTexCoord2f(q.s1,q.t0); glVertex2f(q.x1,q.y1);
+            glTexCoord2f(q.s0,q.t0); glVertex2f(q.x0,q.y1);
+        }
+        ++text;
+   }
+   glEnd();
+}
+
 typedef struct _app_state {
     memory_arena Arena;
     r32          AnimationTime;
     rv2          AnimationRectPos;
+    file         ImFellFrench;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -16,34 +63,38 @@ __declspec(dllexport) APP_INIT(Init) {
     State->Arena            = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
     State->AnimationTime    = 0;
     State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
-    // file Bitmap = p->LoadFile(&State->Arena, "D:/code/platform-layer/data/map.bmp");
-    // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
-    // State->Image.w      = Header->Width;
-    // State->Image.h      = Header->Height;
-    // State->Image.Pixels = (u32 *)((u8 *)Bitmap.Data + Header->BitmapOffset);;
-    // glGenTextures(1, &State->Image.Handle);
+    State->ImFellFrench     = p->LoadFile(&State->Arena, "d:/fontes/im_fell_french_canon.ttf");
+
+    stbtt_BakeFontBitmap(State->ImFellFrench.Data, 0, 100.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
+    // can free ttf_buffer at this point
+    glGenTextures(1, &ftex);
+    glBindTexture(GL_TEXTURE_2D, ftex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
+    // can free temp_bitmap at this point
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    color4f Color = Color4f(1, 0, 0, 1);
-    if (p->MouseLeft.EndedDown)
-        Color = Color4f(1, 1, 0, 1);
-    if (p->MouseRight.EndedDown)
-        Color = Color4f(1, 0, 1, 1);
-    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    my_stbtt_print(100, 100, "LOREM IPSVM");
+    // color4f Color = Color4f(1, 0, 0, 1);
+    // if (p->MouseLeft.EndedDown)
+    //     Color = Color4f(1, 1, 0, 1);
+    // if (p->MouseRight.EndedDown)
+    //     Color = Color4f(1, 0, 1, 1);
+    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
 
-    if (State->AnimationTime <= 2) {
-        State->AnimationTime      += p->dtForFrame;
-        State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
-    }
-    else {
-        State->AnimationTime += 0;
-    }
+    // if (State->AnimationTime <= 2) {
+    //     State->AnimationTime      += p->dtForFrame;
+    //     State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
+    // }
+    // else {
+    //     State->AnimationTime += 0;
+    // }
     
-    gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
+    // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
@@ -51,6 +102,13 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
 }
 
 #if 0
+    // file Bitmap = p->LoadFile(&State->Arena, "D:/code/platform-layer/data/map.bmp");
+    // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
+    // State->Image.w      = Header->Width;
+    // State->Image.h      = Header->Height;
+    // State->Image.Pixels = (u32 *)((u8 *)Bitmap.Data + Header->BitmapOffset);;
+    // glGenTextures(1, &State->Image.Handle);
+
     glViewport(0, 0, p->WindowSize.w, p->WindowSize.h);
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
