@@ -7,29 +7,108 @@
 #include "maths.h"
 #include "memory.h"
 
-typedef struct _rectangle {
-    union {
-        rv2 Pos;
-        r32 x;
-        r32 y;
-    };
-    union {
-        rv2 Size;
-        r32 w;
-        r32 h;
-    };
-    //note: unnecessary unions maybe?
-} rectangle;
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+typedef struct _rect {
+    i32 x;
+    i32 y;
+    i32 w;
+    i32 h;
+} rect;
+
+typedef struct _image {
+    void *Data;
+    i32 w;
+    i32 h;
+    i32 Format;
+} image;
 
 typedef struct _texture {
-    i32 Id;
+    u32 Id;
     i32 w;
     i32 h;
     i32 Format;
 } texture;
 
-r32 f(r32 t, r32 Duration, r32 Scale) {
-    return -(Scale / 2.0f)*(Cos((PI32 * t) / Duration) - 1);
+typedef struct _font_character {
+    i32   Codepoint;
+    i32   OffsetX;
+    i32   OffsetY;
+    i32   Advance;
+    image Image;
+} font_character;
+
+typedef struct _font {
+    i32             Size;
+    u32             NumberOfChars;
+    texture         Texture;
+    rect           *CharRectangles;
+    font_character *Characters;
+} font;
+
+font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacters) {
+    font_character *Result = NULL;
+    file File = LoadFile(&Arena, Filename);
+    if (File.Data) {
+        sttb_fontinfo FontInfo = {0};
+        if (sttb_InitFont(&FontInfo, File.Data, 0)) {
+            f32 CharacterScaleFactor = sttb_ScaleForPixelHeight(&FontInfo, (f32)Size);
+
+            i32 Ascender;
+            i32 Descender;
+            i32 GapBetweenLines;
+            sttb_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &GapBetweenLines);
+
+            NumberOfCharacters = (NumberOfCharacters > 0)? NumberOfCharacters : 95;
+
+            Result = (font_character *)PushToArena(&Arena, NumberOfCharacters * sizeof(font_character));
+
+            for (u32 CharacterIndex = 0;
+                     CharacterIndex < NumberOfCharacters;
+                   ++CharacterIndex)
+            {
+                i32 CharacterW = 0;
+                i32 CharacterH = 0;
+                i32 Codepoint  = CharacterIndex + 32;
+
+                Result[CharacterIndex].Codepoint  = Codepoint;
+                Result[CharacterIndex].Image.Data = stbtt_GetCodepointBitmap(&FontInfo, Size, Size,Codepoint,
+                                                                             &CharacterW, &CharacterH,
+                                                                             &Result[CharacterIndex].OffsetX,
+                                                                             &Result[CharacterIndex].OffsetY);
+
+                stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Result[CharacterIndex].Advance, NULL);
+                Result[CharacterIndex].Advance = (i32)((f32)chars[CharacterIndex].Advance * Size);
+
+                Result[CharacterIndex].Image.w      = CharacterW;
+                Result[CharacterIndex].Image.h      = CharacterH;
+                Result[CharacterIndex].Image.Format = 1; //uncompressed grayscale
+
+                Result[CharacterIndex].OffsetY = (i32)((f32)Ascender * Size);
+
+                if (Codepoint == 32) {
+                    image BlankImage = {0}; {
+                        BlankImage.Data   = PushToArena(&Arena, Result[CharacterIndex].AdvanceX * Size * sizeof(color4f));
+                        BlankImage.w      = Result[CharacterIndex].AdvanceX;
+                        BlankImage.h      = Size;
+                        BlankImage.Format = 1; //uncompressed grayscale
+                    }
+                    Result[CharacterIndex].Image = BlankImage;
+                }
+            }
+        }
+        FreeFile(&Arena, File);
+    }
+    return Result;
+}
+
+font LoadFont(c8 *Filename, i32 Size, u32 NumberOfCharacters) {
+    font Result = {0}; {
+        Result.Size          = Size;
+        Result.NumberOfChars = NumberOfCharacters;
+        Result.Characters    = LoadFontCharacters(Filename, Size, NumberOfCharacters);
+    }
 }
 
 void gBegin(rv2 Shift, iv2 Size, color4f Color) {
@@ -57,7 +136,10 @@ void gRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
     } glEnd();    
 }
 
-//todo: (maybe) some wrapper around opengl
+#if 0
+r32 f(r32 t, r32 Duration, r32 Scale) {
+    return -(Scale / 2.0f)*(Cos((PI32 * t) / Duration) - 1);
+}
 
 void DrawRectangleFromCenter(rv2 Center, rv2 Size) {
     glBegin(GL_POLYGON); {
@@ -131,3 +213,4 @@ void DrawTexture(texture Texture) {
         glVertex2f  (-1, 1);
     glEnd();
 }
+#endif

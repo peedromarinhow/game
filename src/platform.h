@@ -13,10 +13,22 @@ typedef struct _file {
     u64   Size;
 } file;
 
-#define PLATFORM_FREE_FILE(Name) void Name(memory_arena *Arena, file File)
+#define PLATFORM_ALLOCATE_MEMORY(Name) void *Name(u32 Size)
+typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory_callback);
+
+#define PLATFORM_FREE_MEMORY(Name) void Name(void *Data)
+typedef PLATFORM_FREE_MEMORY(platform_free_memory_callback);
+
+#define PLATFORM_FREE_FILE_ARENA(Name) void Name(memory_arena *Arena, file File)
+typedef PLATFORM_FREE_FILE_ARENA(platform_free_file_arena_callback);
+
+#define PLATFORM_LOAD_FILE_ARENA(Name) file Name(memory_arena *Arena, char *Filename)
+typedef PLATFORM_LOAD_FILE_ARENA(platform_load_file_arena_callback);
+
+#define PLATFORM_FREE_FILE(Name) void Name(file File)
 typedef PLATFORM_FREE_FILE(platform_free_file_callback);
 
-#define PLATFORM_LOAD_FILE(Name) file Name(memory_arena *Arena, char *Filename)
+#define PLATFORM_LOAD_FILE(Name) file Name(char *Filename)
 typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
 
 #define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, char *Filename)
@@ -87,8 +99,12 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
+    platform_allocate_memory_callback      *AllocateMemory;
+    platform_free_file_callback            *FreeMemory;
     platform_free_file_callback            *FreeFile;
     platform_load_file_callback            *LoadFile;
+    platform_free_file_arena_callback      *FreeFileArena;
+    platform_load_file_arena_callback      *LoadFileArena;
     platform_write_file_callback           *WriteFile;
     platform_report_error_callback         *ReportError;
     platform_report_error_and_die_callback *ReportErrorAndDie;

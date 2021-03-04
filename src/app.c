@@ -4,17 +4,21 @@
 #include "platform.h"
 #include "memory.h"
 
+global memory_arena Arena;
+global platform_load_file_callback LoadFile;
+global platform_free_file_callback FreeFile;
+
 typedef struct _app_state {
-    memory_arena Arena;
-    // r32          AnimationTime;
-    // rv2          AnimationRectPos;
+    i32 Temp;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
-    State->Arena     = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
 
+    Arena    = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    LoadFile = p->LoadFile;
+    FreeFile = p->FreeFile;
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -37,7 +41,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // State->AnimationTime    = 0;
     // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
 
-    // file Font = p->LoadFile(&State->Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
+    // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
     // stbtt_BakeFontBitmap(Font.Data, 0, 50.0, TempBitmap, 512, 512, 32, 96, CharacterData); // no guarantee this fits!
     // glGenTextures(1, &FontTexture);
@@ -45,7 +49,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     // p->WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
-    // p->FreeFile(&State->Arena, Font);
+    // p->FreeFile(&Arena, Font);
 
     // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
@@ -57,7 +61,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // }
     
     // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
-    // file Bitmap = p->LoadFile(&State->Arena, "D:/code/platform-layer/data/map.bmp");
+    // file Bitmap = p->LoadFile(&Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;
     // State->Image.h      = Header->Height;

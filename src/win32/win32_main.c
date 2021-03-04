@@ -200,8 +200,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
         /* functions provided by platform */
+        Platform.AllocateMemory    = Win32AllocateMemory;
+        Platform.FreeMemory        = Win32FreeMemory;
         Platform.LoadFile          = Win32LoadFile;
         Platform.FreeFile          = Win32FreeFile;
+        Platform.LoadFileArena     = Win32LoadFileArena;
+        Platform.FreeFileArena     = Win32FreeFileArena;
         Platform.WriteFile         = Win32WriteFile;
         Platform.ReportError       = Win32ReportError;
         Platform.ReportErrorAndDie = Win32ReportErrorAndDie;
