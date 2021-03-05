@@ -1,12 +1,21 @@
-#include "graphics.h"
 #include "lingo.h"
 #include "maths.h"
 #include "platform.h"
 #include "memory.h"
 
 global memory_arena Arena;
-global platform_load_file_callback LoadFile;
-global platform_free_file_callback FreeFile;
+
+platform_mem_alloc_callback            *MemAlloc;
+platform_mem_free_callback             *MemFree;
+platform_file_load_callback            *FileLoad;
+platform_file_free_callback            *FileFree;
+platform_load_file_arena_callback      *FileLoadArena;
+platform_file_free_arena_callback      *FileFreeArena;
+platform_file_write_callback           *FileWrite;
+platform_report_error_callback         *ReportError;
+platform_report_error_and_die_callback *ReportErrorAndDie;
+
+#include "graphics.h"
 
 typedef struct _app_state {
     i32 Temp;
@@ -16,9 +25,16 @@ __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    Arena    = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
-    LoadFile = p->LoadFile;
-    FreeFile = p->FreeFile;
+    Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    MemAlloc = p->MemAllocCallback;
+    MemFree = p->MemFreeCallback;
+    FileLoad = p->FileLoadCallback;
+    FileFree = p->FileFreeCallback;
+    FileLoadArena = p->FileLoadArenaCallback;
+    FileFreeArena = p->FileFreeArenaCallback;
+    FileWrite = p->FileWriteCallback;
+    ReportError = p->ReportErrorCallback;
+    ReportErrorAndDie = p->ReportErrorAndDieCallback;
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -41,15 +57,15 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // State->AnimationTime    = 0;
     // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
 
-    // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
+    // file Font = p->FileLoad(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
     // stbtt_BakeFontBitmap(Font.Data, 0, 50.0, TempBitmap, 512, 512, 32, 96, CharacterData); // no guarantee this fits!
     // glGenTextures(1, &FontTexture);
     // glBindTexture(GL_TEXTURE_2D, FontTexture);
     // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // p->WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
-    // p->FreeFile(&Arena, Font);
+    // p->FileWrite((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
+    // p->FileFree(&Arena, Font);
 
     // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
@@ -61,7 +77,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // }
     
     // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
-    // file Bitmap = p->LoadFile(&Arena, "D:/code/platform-layer/data/map.bmp");
+    // file Bitmap = p->FileLoad(&Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;
     // State->Image.h      = Header->Height;

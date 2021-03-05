@@ -132,11 +132,11 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         }
         else
         if (Message.message == WM_CHAR) {
-            u64 CharacterInput = Message.wParam;
-            if(CharacterInput >= 32        && 
-               CharacterInput != 127       &&
-               CharacterInput != VK_RETURN &&
-               CharacterInput != VK_ESCAPE)
+            u64 CharacterInput =  Message.wParam;
+            if (CharacterInput >= 32        && 
+                CharacterInput != 127       &&
+                CharacterInput != VK_RETURN &&
+                CharacterInput != VK_ESCAPE)
             {
                 Platform->KeyboardCharacter = CharacterInput;
             }
@@ -200,24 +200,24 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
         /* functions provided by platform */
-        Platform.AllocateMemory    = Win32AllocateMemory;
-        Platform.FreeMemory        = Win32FreeMemory;
-        Platform.LoadFile          = Win32LoadFile;
-        Platform.FreeFile          = Win32FreeFile;
-        Platform.LoadFileArena     = Win32LoadFileArena;
-        Platform.FreeFileArena     = Win32FreeFileArena;
-        Platform.WriteFile         = Win32WriteFile;
-        Platform.ReportError       = Win32ReportError;
-        Platform.ReportErrorAndDie = Win32ReportErrorAndDie;
+        Platform.MemAllocCallback          = Win32MemAlloc;
+        Platform.MemFreeCallback           = Win32MemFree;
+        Platform.FileLoadCallback          = Win32FileLoad;
+        Platform.FileFreeCallback          = Win32FileFree;
+        Platform.FileLoadArenaCallback     = Win32FileLoadArena;
+        Platform.FileFreeArenaCallback     = Win32FileFreeArena;
+        Platform.FileWriteCallback         = Win32FileWrite;
+        Platform.ReportErrorCallback       = Win32ReportError;
+        Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
         //note: other fields are updated every frame
     }
 
     WNDCLASS WindowClass = {0}; {
-        WindowClass.style = CS_HREDRAW | CS_VREDRAW;
-        WindowClass.lpfnWndProc = Win32MainWindowCallback;
-        WindowClass.hInstance = Instance;
+        WindowClass.style         = CS_HREDRAW | CS_VREDRAW;
+        WindowClass.lpfnWndProc   = Win32MainWindowCallback;
+        WindowClass.hInstance     = Instance;
         WindowClass.lpszClassName = WINDOW_TITLE;
-        WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
+        WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
     }
 
     if(!RegisterClass(&WindowClass))

@@ -49,20 +49,20 @@ typedef struct _font {
 
 font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacters) {
     font_character *Result = NULL;
-    file File = LoadFile(&Arena, Filename);
+    file File = FileLoad(Filename);
     if (File.Data) {
-        sttb_fontinfo FontInfo = {0};
-        if (sttb_InitFont(&FontInfo, File.Data, 0)) {
-            f32 CharacterScaleFactor = sttb_ScaleForPixelHeight(&FontInfo, (f32)Size);
+        stbtt_fontinfo FontInfo = {0};
+        if (stbtt_InitFont(&FontInfo, File.Data, 0)) {
+            f32 CharacterScaleFactor = stbtt_ScaleForPixelHeight(&FontInfo, (f32)Size);
 
             i32 Ascender;
             i32 Descender;
             i32 GapBetweenLines;
-            sttb_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &GapBetweenLines);
+            stbtt_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &GapBetweenLines);
 
             NumberOfCharacters = (NumberOfCharacters > 0)? NumberOfCharacters : 95;
 
-            Result = (font_character *)PushToArena(&Arena, NumberOfCharacters * sizeof(font_character));
+            Result = (font_character *)MemAlloc(NumberOfCharacters * sizeof(font_character));
 
             for (u32 CharacterIndex = 0;
                      CharacterIndex < NumberOfCharacters;
@@ -79,7 +79,7 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
                                                                              &Result[CharacterIndex].OffsetY);
 
                 stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Result[CharacterIndex].Advance, NULL);
-                Result[CharacterIndex].Advance = (i32)((f32)chars[CharacterIndex].Advance * Size);
+                Result[CharacterIndex].Advance = (i32)((f32)Result[CharacterIndex].Advance * Size);
 
                 Result[CharacterIndex].Image.w      = CharacterW;
                 Result[CharacterIndex].Image.h      = CharacterH;
@@ -89,8 +89,8 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
 
                 if (Codepoint == 32) {
                     image BlankImage = {0}; {
-                        BlankImage.Data   = PushToArena(&Arena, Result[CharacterIndex].AdvanceX * Size * sizeof(color4f));
-                        BlankImage.w      = Result[CharacterIndex].AdvanceX;
+                        BlankImage.Data   = MemAlloc(Result[CharacterIndex].Advance * Size * sizeof(color4f));
+                        BlankImage.w      = Result[CharacterIndex].Advance;
                         BlankImage.h      = Size;
                         BlankImage.Format = 1; //uncompressed grayscale
                     }
@@ -98,8 +98,88 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
                 }
             }
         }
-        FreeFile(&Arena, File);
+        FileFree(File);
     }
+    return Result;
+}
+
+texture TextureFromImage(image Image) {
+    texture Result = {0};
+    if (Image.Data && Image.w != 0 && Image.h != 0) {
+        glGenTextures(1, &Result.Id);
+        glBindTexture(GL_TEXTURE_2D, Result.Id);
+    }
+    Result.w      = Image.w;
+    Result.h      = Image.h;
+    Result.Format = Image.Format;
+
+    return Result;
+}
+
+image GenerateFontAtlas(font *Font, i32 Padding) {
+    image Result = {0};
+
+    Font->CharRectangles = NULL;
+
+    u32   NumberOfCharacters = (Font->NumberOfChars > 0)? Font->NumberOfChars : 95;   
+    rect *Rectangles         = MemAlloc(NumberOfCharacters * sizeof(rect));
+
+    f32 Area = 0;
+    for (u32 CharacterIndex = 0;
+             CharacterIndex < NumberOfCharacters;
+             CharacterIndex++)
+    {
+        Area += (Font->Characters[CharacterIndex].Image.w + 2 * Padding) * (Font->Characters[CharacterIndex].Image.h + 2 * Padding);
+    }
+
+    i32 ImageWH = (i32)powf(2, ceilf(logf(sqrtf(Area)*1.3f)/logf(2)));
+    
+    Result.w      = ImageWH;
+    Result.h      = ImageWH;
+    Result.Data   = MemAlloc(Result.w * Result.h);
+    Result.Format = 1; //uncompressed grayscale
+
+    i32 OffsetX = Padding;
+    i32 OffsetY = Padding;
+
+    for (u32 CharacterIndex = 0;
+             CharacterIndex < NumberOfCharacters;
+             CharacterIndex++)
+    {
+        for (i32 y = 0; y < Font->Characters[CharacterIndex].Image.h; y++) {
+            for (i32 x = 0; x < Font->Characters[CharacterIndex].Image.w; x++) {
+                ((u8 *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)] =
+                    ((u8 *)Font->Characters[CharacterIndex].Image.Data)[y * Font->Characters[CharacterIndex].Image.w + x];
+            }
+        }
+
+        Font->CharRectangles[CharacterIndex].x = (f32)OffsetX;
+        Font->CharRectangles[CharacterIndex].y = (f32)OffsetY;
+        Font->CharRectangles[CharacterIndex].w = (f32)Font->Characters[CharacterIndex].Image.w;
+        Font->CharRectangles[CharacterIndex].h = (f32)Font->Characters[CharacterIndex].Image.h;
+
+        OffsetX += Font->Characters[CharacterIndex].Image.w + 2 * Padding;
+
+        if (OffsetX >= (Result.w = Font->Characters[CharacterIndex].Image.w - Padding)) {
+            OffsetX  = Padding;
+            OffsetY += (Font->Size + 2 * Padding);
+
+            if (OffsetY > (Result.h - Font->Size - Padding))
+                break;
+        }
+    }
+
+    u8 *GrayscaleData = (u8 *)MemAlloc(Result.w * Result.h * sizeof(u8) * 2);
+    for (i32 i = 0, k = 0; i < Result.w * Result.h; i++, k += 2) {
+        GrayscaleData[k]     = 255;
+        GrayscaleData[k + 1] = ((u8 *)Result.Data)[i];
+    }
+
+    MemFree(Result.Data);
+    Result.Data   = GrayscaleData;
+    Result.Format = 1; //uncompressed grayscale
+    Font->CharRectangles = Rectangles;
+
     return Result;
 }
 
@@ -109,6 +189,14 @@ font LoadFont(c8 *Filename, i32 Size, u32 NumberOfCharacters) {
         Result.NumberOfChars = NumberOfCharacters;
         Result.Characters    = LoadFontCharacters(Filename, Size, NumberOfCharacters);
     }
+    
+    if (Result.Characters) {
+        image Atlas    = GenerateFontAtlas(&Result, 2);
+        Result.Texture = TextureFromImage(Atlas);
+        MemFree(Atlas.Data);
+    }
+
+    return Result;
 }
 
 void gBegin(rv2 Shift, iv2 Size, color4f Color) {

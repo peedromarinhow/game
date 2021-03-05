@@ -13,26 +13,26 @@ typedef struct _file {
     u64   Size;
 } file;
 
-#define PLATFORM_ALLOCATE_MEMORY(Name) void *Name(u32 Size)
-typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory_callback);
+#define PLATFORM_MEM_ALLOC(Name) void *Name(u32 Size)
+typedef PLATFORM_MEM_ALLOC(platform_mem_alloc_callback);
 
-#define PLATFORM_FREE_MEMORY(Name) void Name(void *Data)
-typedef PLATFORM_FREE_MEMORY(platform_free_memory_callback);
+#define PLATFORM_MEM_FREE(Name) void Name(void *Data)
+typedef PLATFORM_MEM_FREE(platform_mem_free_callback);
 
-#define PLATFORM_FREE_FILE_ARENA(Name) void Name(memory_arena *Arena, file File)
-typedef PLATFORM_FREE_FILE_ARENA(platform_free_file_arena_callback);
+#define PLATFORM_FILE_LOAD_ARENA(Name) file Name(memory_arena *Arena, char *Filename)
+typedef PLATFORM_FILE_LOAD_ARENA(platform_load_file_arena_callback);
 
-#define PLATFORM_LOAD_FILE_ARENA(Name) file Name(memory_arena *Arena, char *Filename)
-typedef PLATFORM_LOAD_FILE_ARENA(platform_load_file_arena_callback);
+#define PLATFORM_FILE_FREE_ARENA(Name) void Name(memory_arena *Arena, file File)
+typedef PLATFORM_FILE_FREE_ARENA(platform_file_free_arena_callback);
 
-#define PLATFORM_FREE_FILE(Name) void Name(file File)
-typedef PLATFORM_FREE_FILE(platform_free_file_callback);
+#define PLATFORM_FILE_LOAD(Name) file Name(char *Filename)
+typedef PLATFORM_FILE_LOAD(platform_file_load_callback);
 
-#define PLATFORM_LOAD_FILE(Name) file Name(char *Filename)
-typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
+#define PLATFORM_FILE_FREE(Name) void Name(file File)
+typedef PLATFORM_FILE_FREE(platform_file_free_callback);
 
-#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, char *Filename)
-typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
+#define PLATFORM_FILE_WRITE(Name) void Name(void *Data, u64 Size, char *Filename)
+typedef PLATFORM_FILE_WRITE(platform_file_write_callback);
 
 #define PLATFORM_REPORT_ERROR(Name) void Name(char *Title, char *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
@@ -99,15 +99,15 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
-    platform_allocate_memory_callback      *AllocateMemory;
-    platform_free_file_callback            *FreeMemory;
-    platform_free_file_callback            *FreeFile;
-    platform_load_file_callback            *LoadFile;
-    platform_free_file_arena_callback      *FreeFileArena;
-    platform_load_file_arena_callback      *LoadFileArena;
-    platform_write_file_callback           *WriteFile;
-    platform_report_error_callback         *ReportError;
-    platform_report_error_and_die_callback *ReportErrorAndDie;
+    platform_mem_alloc_callback            *MemAllocCallback;
+    platform_mem_free_callback             *MemFreeCallback;
+    platform_file_load_callback            *FileLoadCallback;
+    platform_file_free_callback            *FileFreeCallback;
+    platform_load_file_arena_callback      *FileLoadArenaCallback;
+    platform_file_free_arena_callback      *FileFreeArenaCallback;
+    platform_file_write_callback           *FileWriteCallback;
+    platform_report_error_callback         *ReportErrorCallback;
+    platform_report_error_and_die_callback *ReportErrorAndDieCallback;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *p)
