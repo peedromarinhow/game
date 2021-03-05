@@ -47,6 +47,8 @@ typedef struct _font {
     font_character *Characters;
 } font;
 
+//note: all this was blatantly stolen from raylib
+
 font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacters) {
     font_character *Result = NULL;
     file File = FileLoad(Filename);
@@ -73,7 +75,7 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
                 i32 Codepoint  = CharacterIndex + 32;
 
                 Result[CharacterIndex].Codepoint  = Codepoint;
-                Result[CharacterIndex].Image.Data = stbtt_GetCodepointBitmap(&FontInfo, Size, Size,Codepoint,
+                Result[CharacterIndex].Image.Data = stbtt_GetCodepointBitmap(&FontInfo, CharacterScaleFactor, CharacterScaleFactor, Codepoint,
                                                                              &CharacterW, &CharacterH,
                                                                              &Result[CharacterIndex].OffsetX,
                                                                              &Result[CharacterIndex].OffsetY);
@@ -153,10 +155,10 @@ image GenerateFontAtlas(font *Font, i32 Padding) {
             }
         }
 
-        Font->CharRectangles[CharacterIndex].x = (f32)OffsetX;
-        Font->CharRectangles[CharacterIndex].y = (f32)OffsetY;
-        Font->CharRectangles[CharacterIndex].w = (f32)Font->Characters[CharacterIndex].Image.w;
-        Font->CharRectangles[CharacterIndex].h = (f32)Font->Characters[CharacterIndex].Image.h;
+        Rectangles[CharacterIndex].x = (f32)OffsetX;
+        Rectangles[CharacterIndex].y = (f32)OffsetY;
+        Rectangles[CharacterIndex].w = (f32)Font->Characters[CharacterIndex].Image.w;
+        Rectangles[CharacterIndex].h = (f32)Font->Characters[CharacterIndex].Image.h;
 
         OffsetX += Font->Characters[CharacterIndex].Image.w + 2 * Padding;
 
@@ -199,7 +201,228 @@ font LoadFont(c8 *Filename, i32 Size, u32 NumberOfCharacters) {
     return Result;
 }
 
+void gDrawTexture(texture Texture, rect SourceRect, rect DestRect, rv2 Origin, f32 Angle, color4f Tint) {
+    if (Texture.Id > 0) {
+        f32 w = Texture.w;
+        f32 h = Texture.h;
+
+        b32 FlipX = 0;
+
+        if (SourceRect.w < 0) {
+            FlipX = 1;
+            SourceRect.w *= -1;
+        }
+        if (SourceRect.h < 0) {
+            SourceRect.y -= SourceRect.h;
+        }
+
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, Texture.Id);
+        glTranslatef(DestRect.x, DestRect.y, 0.0f);
+        glRotatef(Angle, 0.0f, 0.0f, 1.0f);
+        glTranslatef(-Origin.x, -Origin.y, 0.0f);
+
+        glBegin(GL_QUADS); {
+            glColor4ub(Tint.r, Tint.g, Tint.b, Tint.a);
+            // glNormal3f(-Origin.x, -Origin.y, 0.0f);
+
+            //bottom left
+            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, SourceRect.y / h);
+            else       glTexCoord2f(SourceRect.x / w, SourceRect.y / h);
+            glVertex2f(0.0f, 0.0f);
+
+            //bottom right
+            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, (SourceRect.y + SourceRect.h) / h);
+            else       glTexCoord2f(SourceRect.x / w, (SourceRect.y + SourceRect.h) / h);
+            glVertex2f(0.0f, DestRect.h);
+
+            //top right
+            if (FlipX) glTexCoord2f(SourceRect.x / w, (SourceRect.y + SourceRect.h) / h);
+            else       glTexCoord2f((SourceRect.x + SourceRect.w) / w, (SourceRect.y + SourceRect.h) / h);
+            glVertex2f(DestRect.w, DestRect.h);
+
+            //top left
+            if (FlipX) glTexCoord2f(SourceRect.x / w, SourceRect.y / h);
+            else       glTexCoord2f((SourceRect.x + SourceRect.w) / w, SourceRect.y / h);
+            glVertex2f(DestRect.w, 0.0f);
+        } glEnd();
+        glDisable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+}
+
+void UnloadFont(font Font) {
+    for (u32 CharacterIndex = 0; CharacterIndex < Font.NumberOfChars; CharacterIndex++)
+        MemFree(Font.Characters[CharacterIndex].Image.Data);
+}
+
+int GetNextCodepoint(const char *text, int *bytesProcessed)
+{
+/*
+    UTF8 specs from https://www.ietf.org/rfc/rfc3629.txt
+
+    Char. number range  |        UTF-8 octet sequence
+      (hexadecimal)    |              (binary)
+    --------------------+---------------------------------------------
+    0000 0000-0000 007F | 0xxxxxxx
+    0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+    0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+    0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+*/
+    // NOTE: on decode errors we return as soon as possible
+
+    int code = 0x3f;   // Codepoint (defaults to '?')
+    int octet = (unsigned char)(text[0]); // The first UTF8 octet
+    *bytesProcessed = 1;
+
+    if (octet <= 0x7f)
+    {
+        // Only one octet (ASCII range x00-7F)
+        code = text[0];
+    }
+    else if ((octet & 0xe0) == 0xc0)
+    {
+        // Two octets
+        // [0]xC2-DF    [1]UTF8-tail(x80-BF)
+        unsigned char octet1 = text[1];
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if ((octet >= 0xc2) && (octet <= 0xdf))
+        {
+            code = ((octet & 0x1f) << 6) | (octet1 & 0x3f);
+            *bytesProcessed = 2;
+        }
+    }
+    else if ((octet & 0xf0) == 0xe0)
+    {
+        // Three octets
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; } // Unexpected sequence
+
+        /*
+            [0]xE0    [1]xA0-BF       [2]UTF8-tail(x80-BF)
+            [0]xE1-EC [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+            [0]xED    [1]x80-9F       [2]UTF8-tail(x80-BF)
+            [0]xEE-EF [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+        */
+
+        if (((octet == 0xe0) && !((octet1 >= 0xa0) && (octet1 <= 0xbf))) ||
+            ((octet == 0xed) && !((octet1 >= 0x80) && (octet1 <= 0x9f)))) { *bytesProcessed = 2; return code; }
+
+        if ((octet >= 0xe0) && (0 <= 0xef))
+        {
+            code = ((octet & 0xf) << 12) | ((octet1 & 0x3f) << 6) | (octet2 & 0x3f);
+            *bytesProcessed = 3;
+        }
+    }
+    else if ((octet & 0xf8) == 0xf0)
+    {
+        // Four octets
+        if (octet > 0xf4) return code;
+
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+        unsigned char octet3 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; }  // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; }  // Unexpected sequence
+
+        octet3 = text[3];
+
+        if ((octet3 == '\0') || ((octet3 >> 6) != 2)) { *bytesProcessed = 4; return code; }  // Unexpected sequence
+
+        /*
+            [0]xF0       [1]x90-BF       [2]UTF8-tail  [3]UTF8-tail
+            [0]xF1-F3    [1]UTF8-tail    [2]UTF8-tail  [3]UTF8-tail
+            [0]xF4       [1]x80-8F       [2]UTF8-tail  [3]UTF8-tail
+        */
+
+        if (((octet == 0xf0) && !((octet1 >= 0x90) && (octet1 <= 0xbf))) ||
+            ((octet == 0xf4) && !((octet1 >= 0x80) && (octet1 <= 0x8f)))) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if (octet >= 0xf0)
+        {
+            code = ((octet & 0x7) << 18) | ((octet1 & 0x3f) << 12) | ((octet2 & 0x3f) << 6) | (octet3 & 0x3f);
+            *bytesProcessed = 4;
+        }
+    }
+
+    if (code > 0x10ffff) code = 0x3f;     // Codepoints after U+10ffff are invalid
+
+    return code;
+}
+
+int GetGlyphIndex(font Font, i32 codepoint)
+{
+#define TEXT_CHARACTER_NOTFOUND     63      // Character: '?'
+#define UNORDERED_CHARSET
+#if defined(UNORDERED_CHARSET)
+    int index = TEXT_CHARACTER_NOTFOUND;
+    for (u32 i = 0; i < Font.NumberOfChars; i++)
+    {
+        if (Font.Characters[i].Codepoint == codepoint)
+        {
+            index = i;
+            break;
+        }
+    }
+
+    return index;
+#else
+    return (codepoint - 32);
+#endif
+}
+
+void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 Spacing, color4f Color) {
+    i32 Length = ArrayCount(Text);
+
+    i32 OffsetY = 0;
+    f32 OffsetX = 0.0f;
+    f32 ScaleFactor = Size / Font.Size;
+
+    for (i32 CharacterIndex = 0; CharacterIndex < Length; CharacterIndex++) {
+        i32 CodepointByteCount = 0;
+        i32 Codepoint          = GetNextCodepoint(&Text[CharacterIndex], &CodepointByteCount);
+        i32 Index              = GetGlyphIndex(Font, Codepoint);
+
+        if (Codepoint == 0x3F)
+            CodepointByteCount = 1;
+        
+        if (Codepoint == '\n') {
+            OffsetY += (i32)((Font.Size + Font.Size / 2)* ScaleFactor );
+            OffsetX = 0.0f;
+        }
+        else {
+            if (Codepoint != ' ' && Codepoint != '\t') {
+                rect Rect = {Pos.x + OffsetX + Font.Characters[CharacterIndex].OffsetX * ScaleFactor,
+                             Pos.y + OffsetY + Font.Characters[CharacterIndex].OffsetY * ScaleFactor,
+                             Font.CharRectangles[CharacterIndex].w * ScaleFactor,
+                             Font.CharRectangles[CharacterIndex].h * ScaleFactor};
+                gDrawTexture(Font.Texture, Font.CharRectangles[CharacterIndex], Rect, Rv2(0, 0), 0.0f, Color);
+            }
+
+            if (Font.Characters[CharacterIndex].Advance == 0)
+                OffsetX += ((f32)Font.CharRectangles[CharacterIndex].w * ScaleFactor + Spacing);
+            else
+                OffsetX += ((f32)Font.Characters[CharacterIndex].Advance * ScaleFactor + Spacing);
+        }
+
+        CharacterIndex += (CodepointByteCount - 1);
+    }
+}
+
 void gBegin(rv2 Shift, iv2 Size, color4f Color) {
+    glLoadIdentity();
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);

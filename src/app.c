@@ -18,7 +18,8 @@ platform_report_error_and_die_callback *ReportErrorAndDie;
 #include "graphics.h"
 
 typedef struct _app_state {
-    i32 Temp;
+    i32  Temp;
+    font ImFell;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -35,6 +36,8 @@ __declspec(dllexport) APP_INIT(Init) {
     FileWrite = p->FileWriteCallback;
     ReportError = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    State->ImFell = LoadFont("d:/code/platform-layer/data/im_fell_french_canon.ttf", 10, 95);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -42,15 +45,19 @@ __declspec(dllexport) APP_UPDATE(Update) {
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
     color4f Color = Color4f(1, 0, 0, 1);
-    if (p->MouseLeft)
-        Color = Color4f(1, 1, 0, 1);
-    if (p->MouseRight)
-        Color = Color4f(1, 0, 1, 1);
-    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    // if (p->MouseLeft)
+    //     Color = Color4f(1, 1, 0, 1);
+    // if (p->MouseRight)
+    //     Color = Color4f(1, 0, 1, 1);
+    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    gDrawText(State->ImFell, "LOREM IPSVM SIT AMET", Rv2(0,0), 1, 1, Color);
+
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
     app_state *State = (app_state *)p->Memory.Contents;
+
+    UnloadFont(State->ImFell);
 }
 
 #if 0
