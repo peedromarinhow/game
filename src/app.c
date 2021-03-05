@@ -37,7 +37,7 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->ImFell = LoadFont("d:/code/platform-layer/data/im_fell_french_canon.ttf", 10, 95);
+    State->ImFell = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 10, 95);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -50,7 +50,7 @@ __declspec(dllexport) APP_UPDATE(Update) {
     // if (p->MouseRight)
     //     Color = Color4f(1, 0, 1, 1);
     // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
-    gDrawText(State->ImFell, "LOREM IPSVM SIT AMET", Rv2(0,0), 1, 1, Color);
+    gDrawText(State->ImFell, "LOREM IPSVM SIT AMET", Rv2(0,0), 0.1f, 1, Color);
 
 }
 

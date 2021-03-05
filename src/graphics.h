@@ -224,27 +224,47 @@ void gDrawTexture(texture Texture, rect SourceRect, rect DestRect, rv2 Origin, f
 
         glBegin(GL_QUADS); {
             glColor4ub(Tint.r, Tint.g, Tint.b, Tint.a);
-            // glNormal3f(-Origin.x, -Origin.y, 0.0f);
+            glNormal3f(-Origin.x, -Origin.y, 0.0f);
 
-            //bottom left
-            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, SourceRect.y / h);
-            else       glTexCoord2f(SourceRect.x / w, SourceRect.y / h);
+            // Bottom-left corner for texture and quad
+            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
+            else glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
             glVertex2f(0.0f, 0.0f);
 
-            //bottom right
-            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, (SourceRect.y + SourceRect.h) / h);
-            else       glTexCoord2f(SourceRect.x / w, (SourceRect.y + SourceRect.h) / h);
+            // Bottom-right corner for texture and quad
+            if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
+            else glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
             glVertex2f(0.0f, DestRect.h);
 
-            //top right
-            if (FlipX) glTexCoord2f(SourceRect.x / w, (SourceRect.y + SourceRect.h) / h);
-            else       glTexCoord2f((SourceRect.x + SourceRect.w) / w, (SourceRect.y + SourceRect.h) / h);
+            // Top-right corner for texture and quad
+            if (FlipX) glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
+            else glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
             glVertex2f(DestRect.w, DestRect.h);
 
-            //top left
-            if (FlipX) glTexCoord2f(SourceRect.x / w, SourceRect.y / h);
-            else       glTexCoord2f((SourceRect.x + SourceRect.w) / w, SourceRect.y / h);
+            // Top-left corner for texture and quad
+            if (FlipX) glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
+            else glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
             glVertex2f(DestRect.w, 0.0f);
+
+            // //bottom left
+            // if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, SourceRect.y / h);
+            // else       glTexCoord2f(SourceRect.x / w, SourceRectt.y / h);
+            // glVertex2f(0.0f, 0.0f);
+
+            // //bottom right
+            // if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w) / w, (SourceRect.y + SourceRect.h) / h);
+            // else       glTexCoord2f(SourceRect.x / w, (SourceRectt.y + SourceRectt.h) / h);
+            // glVertex2f(0.0f, DestRect.h);
+
+            // //top right
+            // if (FlipX) glTexCoord2f(SourceRect.x / w, (SourceRect.y + SourceRect.h) / h);
+            // else       glTexCoord2f((SourceRect.x + SourceRectt.w) / w, (SourceRectt.y + SourceRectt.h) / h);
+            // glVertex2f(DestRect.w, DestRect.h);
+
+            // //top left
+            // if (FlipX) glTexCoord2f(SourceRect.x / w, SourceRect.y / h);
+            // else       glTexCoord2f((SourceRect.x + SourceRectt.w) / w, SourceRectt.y / h);
+            // glVertex2f(DestRect.w, 0.0f);
         } glEnd();
         glDisable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -404,6 +424,7 @@ void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 Spacing, color4f Colo
         }
         else {
             if (Codepoint != ' ' && Codepoint != '\t') {
+                r32 X = Pos.y + OffsetY + Font.Characters[CharacterIndex].OffsetY * ScaleFactor;
                 rect Rect = {Pos.x + OffsetX + Font.Characters[CharacterIndex].OffsetX * ScaleFactor,
                              Pos.y + OffsetY + Font.Characters[CharacterIndex].OffsetY * ScaleFactor,
                              Font.CharRectangles[CharacterIndex].w * ScaleFactor,
@@ -426,15 +447,15 @@ void gBegin(rv2 Shift, iv2 Size, color4f Color) {
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);
-    r32 a = 2.0f/Size.w;
-    r32 b = 2.0f/Size.h;
-    r32 Proj[] = {
-         a,  0,  0,  0,
-         0, -b,  0,  0,
-         0,  0,  1,  0,
-        -1,  1,  0,  1
-    };
-    glLoadMatrixf(Proj);
+    // r32 a = 2.0f/Size.w;
+    // r32 b = 2.0f/Size.h;
+    // r32 Proj[] = {
+    //      a,  0,  0,  0,
+    //      0, -b,  0,  0,
+    //      0,  0,  1,  0,
+    //     -1,  1,  0,  1
+    // };
+    // glLoadMatrixf(Proj);
 }
 
 void gRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
