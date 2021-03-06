@@ -4,16 +4,15 @@
 #include "memory.h"
 
 global memory_arena Arena;
-
-platform_allocate_memory_callback      *AllocateMemory;
-platform_free_memory_callback          *FreeMemory;
-platform_load_file_callback            *LoadFile;
-platform_free_file_callback            *FreeFile;
-platform_load_file_to_arena_callback   *LoadFileToArena;
-platform_free_file_from_arena_callback *FreeFileFromArena;
-platform_write_file_callback           *WriteFile;
-platform_report_error_callback         *ReportError;
-platform_report_error_and_die_callback *ReportErrorAndDie;
+global platform_allocate_memory_callback      *AllocateMemory;
+global platform_free_memory_callback          *FreeMemory;
+global platform_load_file_callback            *LoadFile;
+global platform_free_file_callback            *FreeFile;
+global platform_load_file_to_arena_callback   *LoadFileToArena;
+global platform_free_file_from_arena_callback *FreeFileFromArena;
+global platform_write_file_callback           *WriteFile;
+global platform_report_error_callback         *ReportError;
+global platform_report_error_and_die_callback *ReportErrorAndDie;
 
 #include "graphics.h"
 
@@ -44,7 +43,7 @@ __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     // gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    color4f Color = Color4f(1, 0, 0, 1);
+    // color4f Color = Color4f(1, 0, 0, 1);
     // if (p->MouseLeft)
     //     Color = Color4f(1, 1, 0, 1);
     // if (p->MouseRight)
@@ -56,8 +55,6 @@ __declspec(dllexport) APP_UPDATE(Update) {
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
     app_state *State = (app_state *)p->Memory.Contents;
-
-    // UnloadFont(State->ImFell);
 }
 
 #if 0

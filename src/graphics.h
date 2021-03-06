@@ -10,6 +10,9 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 typedef struct _rect {
     i32 x;
     i32 y;
@@ -36,29 +39,96 @@ typedef struct _font_character {
     i32   OffsetX;
     i32   OffsetY;
     i32   Advance;
+    image Image;
 } font_character;
 
 typedef struct _font {
     i32             Size;
     u32             NumberOfChars;
     texture         Texture;
-    image           Atlas;
     rect           *Rects;
     font_character *Chars;
 } font;
 
-image ImageFromImage(image Image, rect Rect)
-{
-    image Result = ImageCopy(Image);
-    ImageCrop(&Result, Rect);
+texture TextureFromImage(image Image) {
+    texture Result = {0};
+    if (Image.Data && Image.w != 0 && Image.h != 0) {
+    }
+    Result.w      = Image.w;
+    Result.h      = Image.h;
+    Result.Format = Image.Format;
+
+    return Result;
+}
+
+image GenerateFontAtlas(font *Font, i32 Padding) {
+    image Result = {0};
+
+    Font->Rects = AllocateMemory(Font->NumberOfChars * sizeof(rect));
+
+    f32 Area = 0;
+    for (u32 i = 0;
+             i < Font->NumberOfChars;
+             i++)
+    {
+        Area += (Font->Chars[i].Image.w + 2 * Padding) * (Font->Chars[i].Image.h + 2 * Padding);
+    }
+
+    f32 RequiredArea = 0;
+    for (u32 i = 0; i < Font->NumberOfChars; i++) RequiredArea += ((Font->Chars[i].Image.w + 2*Padding)*(Font->Chars[i].Image.h + 2*Padding));
+    float GuessSize = sqrtf(RequiredArea)*1.3f;
+    int ImageSize = (int)powf(2, ceilf(logf((float)GuessSize)/logf(2)));  // Calculate next POT
+    
+    Result.w      = ImageSize;
+    Result.h      = ImageSize;
+    Result.Data   = AllocateMemory(Result.w * Result.h);
+    Result.Format = 1; //uncompressed grayscale
+
+    i32 OffsetX = Padding;
+    i32 OffsetY = Padding;
+
+    for (u32 i = 0; i < Font->NumberOfChars; i++) {
+        for (i32 y = 0; y < Font->Chars[i].Image.h; y++) {
+            for (i32 x = 0; x < Font->Chars[i].Image.w; x++) {
+                ((u8 *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)] =
+                    ((u8 *)Font->Chars[i].Image.Data)[y * Font->Chars[i].Image.w + x];
+            }
+        }
+
+        Font->Rects[i].x = (f32)OffsetX;
+        Font->Rects[i].y = (f32)OffsetY;
+        Font->Rects[i].w = (f32)Font->Chars[i].Image.w;
+        Font->Rects[i].h = (f32)Font->Chars[i].Image.h;
+
+        OffsetX += Font->Chars[i].Image.w + 2 * Padding;
+
+        if (OffsetX >= (Result.w - Font->Chars[i].Image.w - Padding)) {
+            OffsetX  = Padding;
+            OffsetY += (Font->Size + 2 * Padding);
+
+            if (OffsetY > (Result.h - Font->Size - Padding))
+                break;
+        }
+    }
+
+    u8 *GrayscaleData = (u8 *)AllocateMemory(Result.w * Result.h * sizeof(u8) * 2);
+    for (i32 i = 0, k = 0; i < Result.w * Result.h; i++, k += 2) {
+        GrayscaleData[k]     = 255;
+        GrayscaleData[k + 1] = ((u8 *)Result.Data)[i];
+    }
+
+    FreeMemory(Result.Data);
+    Result.Data   = GrayscaleData;
+    Result.Format = 1; //uncompressed grayscale
+
     return Result;
 }
 
 //note: all this was blatantly stolen from raylib
-font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfCharacters) {
+font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfChars) {
     font Result = {0}; {
         Result.Size          = FontSize;
-        Result.NumberOfChars = NumberOfCharacters;
+        Result.NumberOfChars = NumberOfChars;
         Result.Chars         = NULL; {
             file FontFile = LoadFile(Filename);
             
@@ -73,12 +143,12 @@ font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfCharacters) {
                     i32 LineGap;
                     stbtt_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &LineGap);
 
-                    NumberOfCharacters = (NumberOfCharacters > 0)? NumberOfCharacters : 95;
+                    NumberOfChars = (NumberOfChars > 0)? NumberOfChars : 95;
 
                     Result.Chars = (font_character *)
-                        AllocateMemory(NumberOfCharacters * sizeof(font_character));
+                        AllocateMemory(NumberOfChars * sizeof(font_character));
 
-                    for (i32 i = 0; i < NumberOfCharacters; i++) {
+                    for (u32 i = 0; i < NumberOfChars; i++) {
                         i32 ChW = 0;
                         i32 ChH = 0;
 
@@ -94,7 +164,7 @@ font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfCharacters) {
                                                    &Result.Chars[i].Advance, NULL);
 
                         Result.Chars[i].Advance = (i32)
-                            ((f32)&Result.Chars[i].Advance * ScaleFactor);
+                            ((f32)Result.Chars[i].Advance * ScaleFactor);
 
                         Result.Chars[i].Image.w      = ChW;
                         Result.Chars[i].Image.h      = ChH;
@@ -122,23 +192,22 @@ font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfCharacters) {
                 ReportError("ERROR", "Could not load font file");
             }
         }
-    }
-    
-    if (Result.Chars) {
-        //todo: generate these
-        //note: single image, cropping at render time (if possible, if not i'm fucked)
-        Result.Atlas   = {0};
-        Result.Rects   = {0};
-        Result.Texture = {0};//TextureFromImage(Atlas);
 
-        FreeMemory(Atlas.Data);
+        if (Result.Chars) {
+            //todo: generate these
+            //note: single image, cropping at render time (if possible, if not i'm fucked)
+            image Atlas    = GenerateFontAtlas(&Result, 2);
+            Result.Texture = TextureFromImage(Atlas);
+
+            FreeMemory(Atlas.Data);
+        }
     }
 
     return Result;
 }
 
 #if A
-font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacters) {
+font_character *LoadFontChars(c8* Filename, i32 Size, u32 NumberOfChars) {
     font_character *Result = NULL;
     file File = FileLoad(Filename);
     if (File.Data) {
@@ -151,41 +220,41 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
             i32 GapBetweenLines;
             stbtt_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &GapBetweenLines);
 
-            NumberOfCharacters = (NumberOfCharacters > 0)? NumberOfCharacters : 95;
+            NumberOfChars = (NumberOfChars > 0)? NumberOfChars : 95;
 
-            Result = (font_character *)MemAlloc(NumberOfCharacters * sizeof(font_character));
+            Result = (font_character *)AllocateMemory(NumberOfChars * sizeof(font_character));
 
-            for (u32 CharacterIndex = 0;
-                     CharacterIndex < NumberOfCharacters;
-                   ++CharacterIndex)
+            for (u32 i = 0;
+                     i < NumberOfChars;
+                   ++i)
             {
                 i32 CharacterW = 0;
                 i32 CharacterH = 0;
-                i32 Codepoint  = CharacterIndex + 32;
+                i32 Codepoint  = i + 32;
 
-                Result[CharacterIndex].Codepoint  = Codepoint;
-                Result[CharacterIndex].Image.Data = stbtt_GetCodepointBitmap(&FontInfo, CharacterScaleFactor, CharacterScaleFactor, Codepoint,
+                Result[i].Codepoint  = Codepoint;
+                Result[i].Image.Data = stbtt_GetCodepointBitmap(&FontInfo, CharacterScaleFactor, CharacterScaleFactor, Codepoint,
                                                                              &CharacterW, &CharacterH,
-                                                                             &Result[CharacterIndex].OffsetX,
-                                                                             &Result[CharacterIndex].OffsetY);
+                                                                             &Result[i].OffsetX,
+                                                                             &Result[i].OffsetY);
 
-                stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Result[CharacterIndex].Advance, NULL);
-                Result[CharacterIndex].Advance = (i32)((f32)Result[CharacterIndex].Advance * Size);
+                stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Result[i].Advance, NULL);
+                Result[i].Advance = (i32)((f32)Result[i].Advance * Size);
 
-                Result[CharacterIndex].Image.w      = CharacterW;
-                Result[CharacterIndex].Image.h      = CharacterH;
-                Result[CharacterIndex].Image.Format = 1; //uncompressed grayscale
+                Result[i].Image.w      = CharacterW;
+                Result[i].Image.h      = CharacterH;
+                Result[i].Image.Format = 1; //uncompressed grayscale
 
-                Result[CharacterIndex].OffsetY += (i32)((f32)Ascender * Size);
+                Result[i].OffsetY += (i32)((f32)Ascender * Size);
 
                 if (Codepoint == 32) {
                     image BlankImage = {0}; {
-                        BlankImage.Data   = MemAlloc(Result[CharacterIndex].Advance * Size * sizeof(color4f));
-                        BlankImage.w      = Result[CharacterIndex].Advance;
+                        BlankImage.Data   = AllocateMemory(Result[i].Advance * Size * sizeof(color4f));
+                        BlankImage.w      = Result[i].Advance;
                         BlankImage.h      = Size;
                         BlankImage.Format = 1; //uncompressed grayscale
                     }
-                    Result[CharacterIndex].Image = BlankImage;
+                    Result[i].Image = BlankImage;
                 }
             }
         }
@@ -204,73 +273,6 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
 //     Result.w      = Image.w;
 //     Result.h      = Image.h;
 //     Result.Format = Image.Format;
-
-//     return Result;
-// }
-
-// image GenerateFontAtlas(font *Font, i32 Padding) {
-//     image Result = {0};
-
-//     Font->Rects = NULL;
-
-//     u32   NumberOfCharacters = (Font->NumberOfChars > 0)? Font->NumberOfChars : 95;   
-//     rect *Rectangles         = MemAlloc(NumberOfCharacters * sizeof(rect));
-
-//     f32 Area = 0;
-//     for (u32 CharacterIndex = 0;
-//              CharacterIndex < NumberOfCharacters;
-//              CharacterIndex++)
-//     {
-//         Area += (Font->Characters[CharacterIndex].Image.w + 2 * Padding) * (Font->Characters[CharacterIndex].Image.h + 2 * Padding);
-//     }
-
-//     i32 ImageWH = (i32)powf(2, ceilf(logf(sqrtf(Area)*1.3f)/logf(2)));
-    
-//     Result.w      = ImageWH;
-//     Result.h      = ImageWH;
-//     Result.Data   = MemAlloc(Result.w * Result.h);
-//     Result.Format = 1; //uncompressed grayscale
-
-//     i32 OffsetX = Padding;
-//     i32 OffsetY = Padding;
-
-//     for (u32 CharacterIndex = 0;
-//              CharacterIndex < NumberOfCharacters;
-//              CharacterIndex++)
-//     {
-//         for (i32 y = 0; y < Font->Characters[CharacterIndex].Image.h; y++) {
-//             for (i32 x = 0; x < Font->Characters[CharacterIndex].Image.w; x++) {
-//                 ((u8 *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)] =
-//                     ((u8 *)Font->Characters[CharacterIndex].Image.Data)[y * Font->Characters[CharacterIndex].Image.w + x];
-//             }
-//         }
-
-//         Rectangles[CharacterIndex].x = (f32)OffsetX;
-//         Rectangles[CharacterIndex].y = (f32)OffsetY;
-//         Rectangles[CharacterIndex].w = (f32)Font->Characters[CharacterIndex].Image.w;
-//         Rectangles[CharacterIndex].h = (f32)Font->Characters[CharacterIndex].Image.h;
-
-//         OffsetX += Font->Characters[CharacterIndex].Image.w + 2 * Padding;
-
-//         if (OffsetX >= (Result.w = Font->Characters[CharacterIndex].Image.w - Padding)) {
-//             OffsetX  = Padding;
-//             OffsetY += (Font->Size + 2 * Padding);
-
-//             if (OffsetY > (Result.h - Font->Size - Padding))
-//                 break;
-//         }
-//     }
-
-//     u8 *GrayscaleData = (u8 *)MemAlloc(Result.w * Result.h * sizeof(u8) * 2);
-//     for (i32 i = 0, k = 0; i < Result.w * Result.h; i++, k += 2) {
-//         GrayscaleData[k]     = 255;
-//         GrayscaleData[k + 1] = ((u8 *)Result.Data)[i];
-//     }
-
-//     MemFree(Result.Data);
-//     Result.Data   = GrayscaleData;
-//     Result.Format = 1; //uncompressed grayscale
-//     Font->Rects = Rectangles;
 
 //     return Result;
 // }
@@ -346,8 +348,8 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
 // }
 
 // void UnloadFont(font Font) {
-//     for (u32 CharacterIndex = 0; CharacterIndex < Font.NumberOfChars; CharacterIndex++)
-//         MemFree(Font.Chars[CharacterIndex].Image.Data);
+//     for (u32 i = 0; i < Font.NumberOfChars; i++)
+//         MemFree(Font.Chars[i].Image.Data);
 // }
 
 // int GetNextCodepoint(const char *text, int *bytesProcessed)
@@ -484,9 +486,9 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
 //     f32 OffsetX = 0.0f;
 //     f32 ScaleFactor = Size / Font.Size;
 
-//     for (i32 CharacterIndex = 0; CharacterIndex < Length; CharacterIndex++) {
+//     for (i32 i = 0; i < Length; i++) {
 //         i32 CodepointByteCount = 0;
-//         i32 Codepoint          = GetNextCodepoint(&Text[CharacterIndex], &CodepointByteCount);
+//         i32 Codepoint          = GetNextCodepoint(&Text[i], &CodepointByteCount);
 //         i32 Index              = GetGlyphIndex(Font, Codepoint);
 
 //         if (Codepoint == 0x3F)
@@ -498,21 +500,21 @@ font_character *LoadFontCharacters(c8* Filename, i32 Size, u32 NumberOfCharacter
 //         }
 //         else {
 //             if (Codepoint != ' ' && Codepoint != '\t') {
-//                 r32 X = Pos.y + OffsetY + Font.Chars[CharacterIndex].OffsetY * ScaleFactor;
-//                 rect Rect = {Pos.x + OffsetX + Font.Chars[CharacterIndex].OffsetX * ScaleFactor,
-//                              Pos.y + OffsetY + Font.Chars[CharacterIndex].OffsetY * ScaleFactor,
-//                              Font.Rects[CharacterIndex].w * ScaleFactor,
-//                              Font.Rects[CharacterIndex].h * ScaleFactor};
-//                 gDrawTexture(Font.Texture, Font.Rects[CharacterIndex], Rect, Rv2(0, 0), 0.0f, Color);
+//                 r32 X = Pos.y + OffsetY + Font.Chars[i].OffsetY * ScaleFactor;
+//                 rect Rect = {Pos.x + OffsetX + Font.Chars[i].OffsetX * ScaleFactor,
+//                              Pos.y + OffsetY + Font.Chars[i].OffsetY * ScaleFactor,
+//                              Font.Rects[i].w * ScaleFactor,
+//                              Font.Rects[i].h * ScaleFactor};
+//                 gDrawTexture(Font.Texture, Font.Rects[i], Rect, Rv2(0, 0), 0.0f, Color);
 //             }
 
-//             if (Font.Chars[CharacterIndex].Advance == 0)
-//                 OffsetX += ((f32)Font.Rects[CharacterIndex].w * ScaleFactor + Spacing);
+//             if (Font.Chars[i].Advance == 0)
+//                 OffsetX += ((f32)Font.Rects[i].w * ScaleFactor + Spacing);
 //             else
-//                 OffsetX += ((f32)Font.Chars[CharacterIndex].Advance * ScaleFactor + Spacing);
+//                 OffsetX += ((f32)Font.Chars[i].Advance * ScaleFactor + Spacing);
 //         }
 
-//         CharacterIndex += (CodepointByteCount - 1);
+//         i += (CodepointByteCount - 1);
 //     }
 // }
 
