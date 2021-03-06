@@ -39,13 +39,21 @@ typedef union _rv2 {
 } rv2;
 #define Rv2(a, b) ((rv2){a, b})
 
-typedef struct _color_4f {
+typedef struct _color4f {
     r32 r;
     r32 g;
     r32 b;
     r32 a;
 } color4f;
 #define Color4f(r, g, b, a) ((color4f){r, g, b, a})
+
+typedef struct _color4b {
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 a;
+} color4b;
+#define Color4b(r, g, b, a) ((color4b){r, g, b, a})
 
 typedef union _c32 {
     struct {

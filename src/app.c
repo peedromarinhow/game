@@ -5,13 +5,13 @@
 
 global memory_arena Arena;
 
-platform_mem_alloc_callback            *MemAlloc;
-platform_mem_free_callback             *MemFree;
-platform_file_load_callback            *FileLoad;
-platform_file_free_callback            *FileFree;
-platform_load_file_arena_callback      *FileLoadArena;
-platform_file_free_arena_callback      *FileFreeArena;
-platform_file_write_callback           *FileWrite;
+platform_allocate_memory_callback      *AllocateMemory;
+platform_free_memory_callback          *FreeMemory;
+platform_load_file_callback            *LoadFile;
+platform_free_file_callback            *FreeFile;
+platform_load_file_to_arena_callback   *LoadFileToArena;
+platform_free_file_from_arena_callback *FreeFileFromArena;
+platform_write_file_callback           *WriteFile;
 platform_report_error_callback         *ReportError;
 platform_report_error_and_die_callback *ReportErrorAndDie;
 
@@ -27,14 +27,14 @@ __declspec(dllexport) APP_INIT(Init) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
-    MemAlloc = p->MemAllocCallback;
-    MemFree = p->MemFreeCallback;
-    FileLoad = p->FileLoadCallback;
-    FileFree = p->FileFreeCallback;
-    FileLoadArena = p->FileLoadArenaCallback;
-    FileFreeArena = p->FileFreeArenaCallback;
-    FileWrite = p->FileWriteCallback;
-    ReportError = p->ReportErrorCallback;
+    AllocateMemory    = p->AllocateMemoryCallback;
+    FreeMemory        = p->FreeMemoryCallback;
+    LoadFile          = p->LoadFileCallback;
+    FreeFile          = p->FreeFileCallback;
+    LoadFileToArena   = p->LoadFileToArenaCallback;
+    FreeFileFromArena = p->FreeFileFromArenaCallback;
+    WriteFile         = p->WriteFileCallback;
+    ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     State->ImFell = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 10, 95);
@@ -43,36 +43,36 @@ __declspec(dllexport) APP_INIT(Init) {
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
+    // gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
     color4f Color = Color4f(1, 0, 0, 1);
     // if (p->MouseLeft)
     //     Color = Color4f(1, 1, 0, 1);
     // if (p->MouseRight)
     //     Color = Color4f(1, 0, 1, 1);
     // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
-    gDrawText(State->ImFell, "LOREM IPSVM SIT AMET", Rv2(0,0), 0.1f, 1, Color);
+    // gDrawText(State->ImFell, "a", Rv2(0,0), 1.0f, 1, Color);
 
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    UnloadFont(State->ImFell);
+    // UnloadFont(State->ImFell);
 }
 
 #if 0
     // State->AnimationTime    = 0;
     // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
 
-    // file Font = p->FileLoad(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
+    // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
     // stbtt_BakeFontBitmap(Font.Data, 0, 50.0, TempBitmap, 512, 512, 32, 96, CharacterData); // no guarantee this fits!
     // glGenTextures(1, &FontTexture);
     // glBindTexture(GL_TEXTURE_2D, FontTexture);
     // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // p->FileWrite((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
-    // p->FileFree(&Arena, Font);
+    // p->WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
+    // p->FreeFile(&Arena, Font);
 
     // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
@@ -84,7 +84,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // }
     
     // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
-    // file Bitmap = p->FileLoad(&Arena, "D:/code/platform-layer/data/map.bmp");
+    // file Bitmap = p->LoadFile(&Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;
     // State->Image.h      = Header->Height;

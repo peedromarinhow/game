@@ -5,11 +5,11 @@
 //note: all this is basically _stolen_ from ryan's platform layer
 
 //todo: check for fails, etc
-PLATFORM_MEM_ALLOC(Win32MemAlloc) {
+PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
     return VirtualAlloc(0, (size_t)Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
-PLATFORM_MEM_FREE(Win32MemFree) {
+PLATFORM_FREE_MEMORY(Win32FreeMemory) {
     VirtualFree(Data, sizeof(Data), MEM_RELEASE);
 }
 
@@ -23,12 +23,12 @@ PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
     _Exit(1);
 }
 
-PLATFORM_FILE_FREE(Win32FileFree) {
+PLATFORM_FREE_FILE(Win32FreeFile) {
     VirtualFree(File.Data, File.Size, MEM_RELEASE);
 }
 
 //note: basically copied from ryan's
-PLATFORM_FILE_LOAD(Win32FileLoad) {
+PLATFORM_LOAD_FILE(Win32LoadFile) {
     file Result;
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, OPEN_EXISTING, 0, 0);
@@ -52,11 +52,11 @@ PLATFORM_FILE_LOAD(Win32FileLoad) {
     return Result;
 }
 
-PLATFORM_FILE_FREE_ARENA(Win32FileFreeArena) {
+PLATFORM_FREE_FILE_FROM_ARENA(Win32FreeFileFromArena) {
     PopFromArena(Arena, File.Size);
 }
 
-PLATFORM_FILE_LOAD_ARENA(Win32FileLoadArena) {
+PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
     file Result;
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, OPEN_EXISTING, 0, 0);
@@ -79,7 +79,7 @@ PLATFORM_FILE_LOAD_ARENA(Win32FileLoadArena) {
     return Result;
 }
 
-PLATFORM_FILE_WRITE(Win32FileWrite) {
+PLATFORM_WRITE_FILE(Win32WriteFile) {
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, CREATE_ALWAYS, 0, 0);
     if (FileHandle != INVALID_HANDLE_VALUE)

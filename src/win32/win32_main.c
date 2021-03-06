@@ -200,13 +200,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
         /* functions provided by platform */
-        Platform.MemAllocCallback          = Win32MemAlloc;
-        Platform.MemFreeCallback           = Win32MemFree;
-        Platform.FileLoadCallback          = Win32FileLoad;
-        Platform.FileFreeCallback          = Win32FileFree;
-        Platform.FileLoadArenaCallback     = Win32FileLoadArena;
-        Platform.FileFreeArenaCallback     = Win32FileFreeArena;
-        Platform.FileWriteCallback         = Win32FileWrite;
+        Platform.AllocateMemoryCallback    = Win32AllocateMemory;
+        Platform.FreeMemoryCallback        = Win32FreeMemory;
+        Platform.LoadFileCallback          = Win32LoadFile;
+        Platform.FreeFileCallback          = Win32FreeFile;
+        Platform.LoadFileToArenaCallback   = Win32LoadFileToArena;
+        Platform.FreeFileFromArenaCallback = Win32FreeFileFromArena;
+        Platform.WriteFileCallback         = Win32WriteFile;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
         //note: other fields are updated every frame
@@ -220,7 +220,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
     }
 
-    if(!RegisterClass(&WindowClass))
+    if (!RegisterClass(&WindowClass))
         Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
 
     HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
@@ -229,7 +229,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                                   DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, 
                                   0, 0, Instance, 0);
     
-    if(!Window)
+    if (!Window)
         Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
 
     /* load app code */
