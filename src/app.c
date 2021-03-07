@@ -37,8 +37,7 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    // State->Font = {0};
-    LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 100, 95);
+    State->Font = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 100, 95);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {

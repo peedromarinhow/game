@@ -4,64 +4,52 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
 #include "lingo.h"
 #include "graphics.h"
 
-typedef struct _font_character {
-    i32   Value;
-    i32   OffsetX;
-    i32   OffsetY;
-    i32   Advance;
-    image Image;
-} font_character;
+typedef struct _font_char {
+    i32 Value;
+    u8 *Bitmap;
+    i32 w;
+    i32 h;
+    i32 OffX;
+    i32 OffY;
+    i32 Advance;
+} font_char;
 
 typedef struct _font {
-    i32             Size;
-    u32             NoChars;
-    texture         Texture;
-    rect           *Rects;
-    font_character *Chars;
+    i32        Size;
+    u32        NoChars;
+    font_char *Chars;
 } font;
 
-void LoadFont(c8 *Filename, i32 Size, u32 NoChars) {
+font LoadFont(c8 *Filename, i32 Size, u32 NoChars) {
+    //open the font file and retrieve font info
     file File            = LoadFile(Filename);
     stbtt_fontinfo  Info = {0};
     stbtt_InitFont(&Info, File.Data, 0);
 
-    i32   w     = 0;
-    i32   h     = 0;
-    i32   OffX  = 0;
-    i32   OffY  = 0;
+    //if "NoChars" as passed 0 then default to 95
+    NoChars = (NoChars > 0)? NoChars : 95;
     
-    u8* MonoBitmap = stbtt_GetCodepointBitmap(&Info, 0,
-                                               stbtt_ScaleForPixelHeight(&Info, Size),
-                                              'N', &w,  &h, &OffX, &OffY);
-
-    image Result = {0}; {
-        Result.w    = w;
-        Result.h    = h;
-        Result.Data = AllocateMemory(Result.w * Result.h * sizeof(u32));
+    font Result = {0}; {
+        Result.Size    = Size;
+        Result.NoChars = NoChars;
+        Result.Chars   = AllocateMemory(NoChars * sizeof(font_char));
     }
 
-    u8 *Source  = MonoBitmap;
-    u8 *DestRow = (u8 *)Result.Data;
-    for (i32 y = 0; y < h; y++) {
-        u32 *Dest = (u32 *)DestRow;
-        for (i32 x = 0; x < w; x++) {
-            u8 Alpha = *Source++;
-            *Dest++ = ((Alpha << 24) |
-                       (Alpha << 16) |
-                       (Alpha <<  8) |
-                       (Alpha <<  0));
-        }
-        DestRow += Result.w * 4;
+    //iterate over all characters and retreieve bitmap
+    for (u32 c = 0; c < NoChars; c++) {
+        Result.Chars[c].Value  = c + 32;
+        Result.Chars[c].Bitmap =
+            stbtt_GetCodepointBitmap(&Info, 0, stbtt_ScaleForPixelHeight(&Info, Size),
+                                      Result.Chars[c].Value,
+                                     &Result.Chars[c].w,    &Result.Chars[c].h,
+                                     &Result.Chars[c].OffX, &Result.Chars[c].OffY);
+        stbtt_GetCodepointHMetrics(&Info, Result.Chars[c].Value, &Result.Chars[c].Advance, NULL);
     }
 
-    stbi_write_bmp("im.bmp", Result.w, Result.h, 0, Result.Data);
-    stbtt_FreeBitmap(MonoBitmap, 0);
+    return Result;
 }
 
 #if 0
@@ -85,8 +73,8 @@ font LoadFont(c8 *Filename, i32 FontSize, u32 NoChars) {
 
                     NoChars = (NoChars > 0)? NoChars : 95;
 
-                    Result.Chars = (font_character *)
-                        AllocateMemory(NoChars * sizeof(font_character));
+                    Result.Chars = (font_char *)
+                        AllocateMemory(NoChars * sizeof(font_char));
 
                     for (u32 i = 0; i < NoChars; i++) {
                         i32 ChW = 0;
