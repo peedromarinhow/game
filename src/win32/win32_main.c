@@ -209,6 +209,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.WriteFileCallback         = Win32WriteFile;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
+        Platform.LoadOpenGlFunction        = Win32LoadOpenGlFunction;
         //note: other fields are updated every frame
     }
 

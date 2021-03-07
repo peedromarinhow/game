@@ -1,5 +1,20 @@
 #include "lingo.h"
 
+PLATFORM_LOAD_OPENGL_FUNCTION(Win32LoadOpenGlFunction) {
+    void *Result = (void *)wglGetProcAddress(FunctionName);
+    if(!Result                ||
+        Result == (void *)0x1 ||
+        Result == (void *)0x2 ||
+        Result == (void *)0x3 ||
+        Result == (void *) - 1)
+    {
+        return 0;
+    }
+    else {
+        return Result;
+    }
+}
+
 internal void Win32InitOpenGl(HWND Window) {
     HDC WindowDC = GetDC(Window);
 

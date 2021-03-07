@@ -7,6 +7,10 @@
 #include "maths.h"
 #include "memory.h"
 
+internal void LoadOpenGlProcedures(platform *Platform) {
+
+}
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 

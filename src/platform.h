@@ -40,6 +40,8 @@ typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
 #define PLATFORM_REPORT_ERROR_AND_DIE(Name) void Name(char *Title, char *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR_AND_DIE(platform_report_error_and_die_callback);
 
+#define PLATFORM_LOAD_OPENGL_FUNCTION(Name) void* Name(c8 *FunctionName)
+typedef PLATFORM_LOAD_OPENGL_FUNCTION(platform_load_opengl_function_callback)
 
 typedef struct _button_state {
     i32 HalfTransitionCount;
@@ -109,6 +111,7 @@ typedef struct _platform {
     platform_write_file_callback           *WriteFileCallback;
     platform_report_error_callback         *ReportErrorCallback;
     platform_report_error_and_die_callback *ReportErrorAndDieCallback;
+    platform_load_opengl_function_callback *LoadOpenGlFunction;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *p)
