@@ -193,7 +193,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 #if BUILD_INTERNAL
         BaseAddress = (LPVOID)SafeTruncateU64(Terabytes((u64)1));
 #endif
-        Platform.Memory.Size = Megabytes((u64)64);
+        Platform.Memory.Size     = Megabytes((u64)64);
         Platform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)Platform.Memory.Size,
                                                 MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
         if (!Platform.Memory.Contents)
@@ -209,7 +209,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.WriteFileCallback         = Win32WriteFile;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
-        Platform.LoadOpenGlFunction        = Win32LoadOpenGlFunction;
         //note: other fields are updated every frame
     }
 
@@ -220,18 +219,17 @@ int CALLBACK WinMain(HINSTANCE Instance,
         WindowClass.lpszClassName = WINDOW_TITLE;
         WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
     }
-
     if (!RegisterClass(&WindowClass))
-        Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
+         Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
 
     HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
                                   WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                   CW_USEDEFAULT, CW_USEDEFAULT,
-                                  DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, 
+                                  DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
                                   0, 0, Instance, 0);
     
     if (!Window)
-        Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
+         Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
 
     /* load app code */
     win32_app_code AppCode = {0}; {
@@ -248,14 +246,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
     }
 
     //todo: sound
-
+    
+    HDC GlDeviceContext = GetDC(Window);
     Win32InitOpenGl(Window);
 
     //note:
     // this "GlobalRunning" is just for the window closing messages
     // that como exclusively through "Win32MainWindowCallback"
     GlobalRunning = &Platform.Running;
-    *GlobalRunning = 1;
+   *GlobalRunning = 1;
     AppCode.Init(&Platform);
 
     win32_timer Timer;
@@ -281,20 +280,19 @@ int CALLBACK WinMain(HINSTANCE Instance,
         }
 
         /* OpenGL */ {
-            HDC DeviceContext = GetDC(Window);
-            SwapBuffers(DeviceContext);
-            ReleaseDC(Window, DeviceContext);
+            wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
         }
 
         Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
         Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
         Win32InternalLogFPS(Platform.dtForFrame, Window);
-
     }
 
     AppCode.Deinit(&Platform);
 
+    ReleaseDC(Window, GlDeviceContext);
+    //Win32DeinitOpenGl();
     ShowWindow(Window, SW_HIDE);
     Win32UnloadAppCode(&AppCode);
 

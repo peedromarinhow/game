@@ -2,6 +2,7 @@
 #include "maths.h"
 #include "platform.h"
 #include "memory.h"
+#include "opengl.h"
 
 // global memory_arena Arena;
 global platform_allocate_memory_callback      *AllocateMemory;
@@ -14,7 +15,8 @@ global platform_write_file_callback           *WriteFile;
 global platform_report_error_callback         *ReportError;
 global platform_report_error_and_die_callback *ReportErrorAndDie;
 
-#include "graphics.h"
+#include "engine/graphics.h"
+#include "engine/fonts.h"
 
 typedef struct _app_state {
     font Font;
@@ -35,7 +37,8 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->Font = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 10, 95);
+    // State->Font = {0};
+    LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 100, 95);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {

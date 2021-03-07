@@ -52,4 +52,4 @@ internal int StringLenght(char *String) {
     return Count;
 }
 
-#endif
+#endif//LINGO_H

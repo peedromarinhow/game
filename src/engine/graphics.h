@@ -2,20 +2,13 @@
 // #include <gl/gl.h>
 //todo: how to get rid of these?
 
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
+
 #include "lingo.h"
 #include "platform.h"
 #include "maths.h"
 #include "memory.h"
-
-internal void LoadOpenGlProcedures(platform *Platform) {
-
-}
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
 
 typedef struct _rect {
     i32 x;
@@ -38,21 +31,7 @@ typedef struct _texture {
     i32 Format;
 } texture;
 
-typedef struct _font_character {
-    i32   Value;
-    i32   OffsetX;
-    i32   OffsetY;
-    i32   Advance;
-    image Image;
-} font_character;
-
-typedef struct _font {
-    i32             Size;
-    u32             NumberOfChars;
-    texture         Texture;
-    rect           *Rects;
-    font_character *Chars;
-} font;
+#if A
 
 texture TextureFromImage(image Image) {
     texture Result = {0};
@@ -85,17 +64,24 @@ image GenerateFontAtlas(font *Font, i32 Padding) {
     
     Result.w      = ImageSize;
     Result.h      = ImageSize;
-    Result.Data   = AllocateMemory(Result.w * Result.h);
+    Result.Data   = AllocateMemory(Result.w * Result.h * sizeof(color4b));
     Result.Format = 1; //uncompressed grayscale
 
     i32 OffsetX = Padding;
     i32 OffsetY = Padding;
 
     for (u32 i = 0; i < Font->NumberOfChars; i++) {
+        // for (i32 y = 0; y < Font->Chars[i].Image.h; y++) {
+        //     for (i32 x = 0; x < Font->Chars[i].Image.w; x++) {
+        //         ((u8 *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)] =
+        //             ((u8 *)Font->Chars[i].Image.Data)[y * Font->Chars[i].Image.w + x];
+        //     }
+        // }
         for (i32 y = 0; y < Font->Chars[i].Image.h; y++) {
             for (i32 x = 0; x < Font->Chars[i].Image.w; x++) {
-                ((u8 *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)] =
+                ((color4b *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)].r =
                     ((u8 *)Font->Chars[i].Image.Data)[y * Font->Chars[i].Image.w + x];
+                ((color4b *)Result.Data)[(OffsetY + y) * Result.w + (OffsetX + x)].a = 255;
             }
         }
 
@@ -127,90 +113,6 @@ image GenerateFontAtlas(font *Font, i32 Padding) {
 
     return Result;
 }
-
-//note: all this was blatantly stolen from raylib
-font LoadFont(c8 *Filename, i32 FontSize, u32 NumberOfChars) {
-    font Result = {0}; {
-        Result.Size          = FontSize;
-        Result.NumberOfChars = NumberOfChars;
-        Result.Chars         = NULL; {
-            file FontFile = LoadFile(Filename);
-            
-            if (FontFile.Data != NULL) {
-                stbtt_fontinfo FontInfo = {0};
-
-                if (stbtt_InitFont(&FontInfo, FontFile.Data, 0)) {
-                    f32 ScaleFactor = stbtt_ScaleForPixelHeight(&FontInfo, (f32)FontSize);
-
-                    i32 Ascender;
-                    i32 Descender;
-                    i32 LineGap;
-                    stbtt_GetFontVMetrics(&FontInfo, &Ascender, &Descender, &LineGap);
-
-                    NumberOfChars = (NumberOfChars > 0)? NumberOfChars : 95;
-
-                    Result.Chars = (font_character *)
-                        AllocateMemory(NumberOfChars * sizeof(font_character));
-
-                    for (u32 i = 0; i < NumberOfChars; i++) {
-                        i32 ChW = 0;
-                        i32 ChH = 0;
-
-                        Result.Chars[i].Value      = i + 32;
-                        Result.Chars[i].Image.Data =
-                            stbtt_GetCodepointBitmap(&FontInfo, ScaleFactor, ScaleFactor,
-                                                      Result.Chars[i].Value,
-                                                     &ChW, &ChH,
-                                                     &Result.Chars[i].OffsetX,
-                                                     &Result.Chars[i].OffsetY);
-                        
-                        stbtt_GetCodepointHMetrics(&FontInfo, Result.Chars[i].Value,
-                                                   &Result.Chars[i].Advance, NULL);
-
-                        Result.Chars[i].Advance = (i32)
-                            ((f32)Result.Chars[i].Advance * ScaleFactor);
-
-                        Result.Chars[i].Image.w      = ChW;
-                        Result.Chars[i].Image.h      = ChH;
-                        Result.Chars[i].Image.Format = 1;
-
-                        Result.Chars[i].OffsetX += (i32)((f32)Ascender * ScaleFactor);
-
-                        if (Result.Chars[i].Value == 32) {
-                            image BlankImage = {0}; {
-                                BlankImage.Data   = AllocateMemory(Result.Chars[i].Advance * FontSize * sizeof(color4f));
-                                BlankImage.w      = Result.Chars[i].Advance;
-                                BlankImage.h      = FontSize;
-                                BlankImage.Format = 1; //uncompressed grayscale
-                            }
-                            Result.Chars[i].Image = BlankImage;
-                        }
-                    }
-                }
-                else {
-                    ReportError("ERROR", "Could not process ttf file");
-                }
-                FreeFile(FontFile);
-            }
-            else {
-                ReportError("ERROR", "Could not load font file");
-            }
-        }
-
-        if (Result.Chars) {
-            //todo: generate these
-            //note: single image, cropping at render time (if possible, if not i'm fucked)
-            image Atlas    = GenerateFontAtlas(&Result, 2);
-            Result.Texture = TextureFromImage(Atlas);
-
-            FreeMemory(Atlas.Data);
-        }
-    }
-
-    return Result;
-}
-
-#if A
 font_character *LoadFontChars(c8* Filename, i32 Size, u32 NumberOfChars) {
     font_character *Result = NULL;
     file File = FileLoad(Filename);
@@ -626,3 +528,5 @@ void DrawTexture(texture Texture) {
     glEnd();
 }
 #endif
+
+#endif//GRAPHICS_H
