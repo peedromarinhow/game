@@ -11,7 +11,7 @@ global platform_load_file_callback            *LoadFile;
 global platform_free_file_callback            *FreeFile;
 global platform_load_file_to_arena_callback   *LoadFileToArena;
 global platform_free_file_from_arena_callback *FreeFileFromArena;
-global platform_write_file_callback           *WriteFile;
+global platform_write_file_callback           *_WriteFile;
 global platform_report_error_callback         *ReportError;
 global platform_report_error_and_die_callback *ReportErrorAndDie;
 
@@ -33,23 +33,24 @@ __declspec(dllexport) APP_INIT(Init) {
     FreeFile          = p->FreeFileCallback;
     LoadFileToArena   = p->LoadFileToArenaCallback;
     FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile         = p->WriteFileCallback;
+    _WriteFile         = p->WriteFileCallback;
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->Font = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 100, 95);
+    State->Font = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 30, 95);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    // gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    // color4f Color = Color4f(1, 0, 0, 1);
-    // if (p->MouseLeft)
-    //     Color = Color4f(1, 1, 0, 1);
-    // if (p->MouseRight)
-    //     Color = Color4f(1, 0, 1, 1);
-    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
+    color4f Color = Color4f(1, 0, 0, 1);
+    if (p->MouseLeft)
+        Color = Color4f(1, 1, 0, 1);
+    if (p->MouseRight)
+        Color = Color4f(1, 0, 1, 1);
+    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    DrawTexture();
     // gDrawText(State->ImFell, "a", Rv2(0,0), 1.0f, 1, Color);
 
 }
@@ -69,7 +70,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glBindTexture(GL_TEXTURE_2D, FontTexture);
     // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // p->WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
+    // p->_WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
     // p->FreeFile(&Arena, Font);
 
     // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");

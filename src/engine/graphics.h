@@ -1,5 +1,5 @@
-// #include <windows.h>
-// #include <gl/gl.h>
+#include <windows.h>
+#include <gl/gl.h>
 //todo: how to get rid of these?
 
 #ifndef GRAPHICS_H
@@ -424,21 +424,20 @@ font_character *LoadFontChars(c8* Filename, i32 Size, u32 NumberOfChars) {
 //     }
 // }
 
-#if 0
 void gBegin(rv2 Shift, iv2 Size, color4f Color) {
     glLoadIdentity();
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);
-    // r32 a = 2.0f/Size.w;
-    // r32 b = 2.0f/Size.h;
-    // r32 Proj[] = {
-    //      a,  0,  0,  0,
-    //      0, -b,  0,  0,
-    //      0,  0,  1,  0,
-    //     -1,  1,  0,  1
-    // };
-    // glLoadMatrixf(Proj);
+    r32 a = 2.0f/Size.w;
+    r32 b = 2.0f/Size.h;
+    r32 Proj[] = {
+         a,  0,  0,  0,
+         0, -b,  0,  0,
+         0,  0,  1,  0,
+        -1,  1,  0,  1
+    };
+    glLoadMatrixf(Proj);
 }
 
 void gRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
@@ -504,10 +503,10 @@ typedef struct _bitmap_header {
 } bitmap_header;
 #pragma pack(pop)
 
-void DrawTexture(texture Texture) {
-    glBindTexture(GL_TEXTURE_2D, Texture.Id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Texture.w, Texture.h, 0,
-                 GL_BGR_EXT, GL_UNSIGNED_BYTE, 0/*Texture.Pixels*/);
+void DrawTexture() {
+    // glBindTexture(GL_TEXTURE_2D, Texture.Id);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Texture.w, Texture.h, 0,
+    //              GL_BGR_EXT, GL_UNSIGNED_BYTE, 0/*Texture.Pixels*/);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
@@ -527,6 +526,5 @@ void DrawTexture(texture Texture) {
         glVertex2f  (-1, 1);
     glEnd();
 }
-#endif
 
 #endif//GRAPHICS_H

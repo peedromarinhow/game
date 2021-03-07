@@ -8,17 +8,18 @@
 #include "graphics.h"
 
 typedef struct _font_char {
-    i32 Value;
-    u8 *Bitmap;
-    i32 w;
-    i32 h;
-    i32 OffX;
-    i32 OffY;
-    i32 Advance;
+    i32  Value;
+    u8 *_Bitmap; //todo: get this out of here
+    i32  w;
+    i32  h;
+    i32  OffX;
+    i32  OffY;
+    i32  Advance;
 } font_char;
 
 typedef struct _font {
     i32        Size;
+    texture    Texture;
     u32        NoChars;
     font_char *Chars;
 } font;
@@ -38,10 +39,40 @@ font LoadFont(c8 *Filename, i32 Size, u32 NoChars) {
         Result.Chars   = AllocateMemory(NoChars * sizeof(font_char));
     }
 
+    //iterate over all characters and retreieve bitmaps
+    i32 TotalW  = 0;
+    i32 TotalH = 0;
+    for (u32 c = 0; c < NoChars; c++) {
+        Result.Chars[c].Value  = c + 32;
+        Result.Chars[c]._Bitmap =
+            stbtt_GetCodepointBitmap(&Info, 0, stbtt_ScaleForPixelHeight(&Info, Size),
+                                      Result.Chars[c].Value,
+                                     &Result.Chars[c].w,    &Result.Chars[c].h,
+                                     &Result.Chars[c].OffX, &Result.Chars[c].OffY);
+        stbtt_GetCodepointHMetrics(&Info, Result.Chars[c].Value, &Result.Chars[c].Advance, NULL);
+
+        TotalW += Result.Chars[c].w + 4;//4 pixels of padding
+        TotalH += Result.Chars[c].h + 4;//4 pixels of padding
+    }
+
+    u8 *Atlas = AllocateMemory(TotalW * TotalH);
+    //todo: generate this altas
+    Result.Texture.w = TotalW;
+    Result.Texture.h = TotalH;
+    
+    glGenTextures(1, &Result.Texture.Id);
+    glBindTexture(GL_TEXTURE_2D, Result.Texture.Id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Result.Texture.w, Result.Texture.h, 0,
+                    GL_BGR_EXT, GL_UNSIGNED_BYTE, (void *)Atlas);
+
+    return Result;
+}
+
+#if 0
     //iterate over all characters and retreieve bitmap
     for (u32 c = 0; c < NoChars; c++) {
         Result.Chars[c].Value  = c + 32;
-        Result.Chars[c].Bitmap =
+        Bitmap =
             stbtt_GetCodepointBitmap(&Info, 0, stbtt_ScaleForPixelHeight(&Info, Size),
                                       Result.Chars[c].Value,
                                      &Result.Chars[c].w,    &Result.Chars[c].h,
@@ -49,10 +80,10 @@ font LoadFont(c8 *Filename, i32 Size, u32 NoChars) {
         stbtt_GetCodepointHMetrics(&Info, Result.Chars[c].Value, &Result.Chars[c].Advance, NULL);
     }
 
-    return Result;
-}
-
-#if 0
+    
+    glBindTexture(GL_TEXTURE_2D, Result.Chars[61].TextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Result.Chars[61].w, Result.Chars[61].h, 0,
+                    GL_BGR_EXT, GL_UNSIGNED_BYTE, (void *)Bitmap);
 font LoadFont(c8 *Filename, i32 FontSize, u32 NoChars) {
     font Result = {0}; {
         Result.Size    = FontSize;
