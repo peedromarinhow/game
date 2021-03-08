@@ -4,7 +4,6 @@
 #include "memory.h"
 #include "opengl.h"
 
-// global memory_arena Arena;
 global platform_allocate_memory_callback      *AllocateMemory;
 global platform_free_memory_callback          *FreeMemory;
 global platform_load_file_callback            *LoadFile;
@@ -19,14 +18,16 @@ global platform_report_error_and_die_callback *ReportErrorAndDie;
 #include "engine/fonts.h"
 
 typedef struct _app_state {
-    font Font;
+    texture Temp;
+    // font Font;
 } app_state;
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    // Arena             = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    memory_arena Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
     LoadFile          = p->LoadFileCallback;
@@ -37,7 +38,7 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->Font = LoadFont("d:/code/platform-layer/data/roboto_regular.ttf", 30, 95);
+    State->Temp = MakeNothingsTest(&Arena, 1000);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
@@ -49,9 +50,14 @@ __declspec(dllexport) APP_UPDATE(Update) {
         Color = Color4f(1, 1, 0, 1);
     if (p->MouseRight)
         Color = Color4f(1, 0, 1, 1);
+
     gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
-    DrawTexture();
-    // gDrawText(State->ImFell, "a", Rv2(0,0), 1.0f, 1, Color);
+
+    //u8 Text = "LOREM IPSVM";
+    //for (i32 1 = 0; i < ArrayLength(Text); i++) {
+        texture a = State->Temp;//[Text[i] - 'a'];
+        gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
+    //}
 
 }
 

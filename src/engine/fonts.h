@@ -1,15 +1,120 @@
 #ifndef FONTS_H
 #define FONTS_H
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
 #include "lingo.h"
 #include "graphics.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+typedef struct _glyph {
+    u32   Codepoint;
+    i32   Advance;
+    image _Bitmap;
+} glyph;
+
+internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
+    i32 w, h, OffX, OffY, Advance;
+    u8 *MonoBitmap = stbtt_GetCodepointBitmap(Font, 0, stbtt_ScaleForPixelHeight(Font, Size),
+                                              Codepoint, &w, &h, &OffX, &OffY);
+
+    stbtt_GetCodepointHMetrics(Font, Codepoint, &Advance, NULL);
+
+    glyph Result = {0}; {
+        Result.Codepoint   = Codepoint;
+        Result.Advance     = Advance;
+        Result._Bitmap.w    = w;
+        Result._Bitmap.h    = h;
+        Result._Bitmap.Data = AllocateMemory(w * h * u32);
+    }
+
+    u8 *Source  = MonoBitmap;
+    u8 *DestRow = (u8 *)Result._Bitmap.Data;
+    for (i32 y = 0; y < h; y++) {
+        u32 *Dest = (u32 *)DestRow;
+        for (i32 x = 0; x < w; x++) {
+            u8 Alpha = *Source++;
+            *Dest++  = ((Alpha << 24)|
+                        (Alpha << 16)|
+                        (Alpha <<  8)|
+                        (Alpha <<  0));
+        }
+        DestRow += Result._Bitmap.w * 4;
+    }
+    stbtt_FreeBitmap(MonoBitmap, 0);
+
+    return Result;
+}
+
+typedef struct _font {
+    u32     NoChars;
+    glyph  *Chars;
+    rect    Rects;
+    texture Atlas;
+} font;
+
+internal font LoadFont(u8 *Filename, u32 NoChars) {
+    font Result = {0}; {
+        Result.NoChars = NoChars    ;
+        Result.Chars   = AllocateMemory(NoChars * glyph);
+        Result.Rects   = AllocateMemory(NoChars * rect);
+        Result.Atlas   = NULL;
+    }
+}
+
+internal texture MakeNothingsTest(memory_arena *Arena, r32 Size) {
+    file FontFile = LoadFileToArena(Arena, "eb_garamond.ttf");
+
+    stbtt_fontinfo  Font;
+    stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
+
+    glyph Glyph = GetGlyph(&Font, Size, 928);
+
+    texture Result = {0}; {
+        Result.w  = Glyph.Bitmap.w;
+        Result.h  = Glyph.Bitmap.h;
+        Result.Id = 0;
+    }
+
+    glGenTextures(1, &Result.Id);
+    glBindTexture(GL_TEXTURE_2D, Result.Id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Result.w, Result.h, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, Glyph.Bitmap.Data);
+
+    return Result;
+}
+
+#if 0
+internal texture *MakeNothingsTest(memory_arena *Arena, r32 Size) {
+    file FontFile = LoadFileToArena(Arena, "D:/code/platform-layer/data/roboto_regular.ttf");
+
+    stbtt_fontinfo  Font;
+    stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
+
+    texture *Result = AllocateMemory(('z' - 'a') * sizeof(texture));
+
+    for (u32 i = 0; i < ('z' - 'a'); i++) {
+        glyph Glyph = GetGlyph(&Font, Size, i + 'a');
+
+        texture Current = {0}; {
+            Current.w  = Glyph.Bitmap.w;
+            Current.h  = Glyph.Bitmap.h;
+            Current.Id = 0;
+        }
+
+        glGenTextures(1, &Current.Id);
+        glBindTexture(GL_TEXTURE_2D, Current.Id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Current.w, Current.h, 0,
+                    GL_RGBA, GL_UNSIGNED_BYTE, Glyph.Bitmap.Data);
+
+        Result[i] = Current;
+    }
+
+    return Result;
+}
+
 typedef struct _font_char {
     i32  Value;
-    u8 *_Bitmap; //todo: get this out of here
     i32  w;
     i32  h;
     i32  OffX;
@@ -68,7 +173,6 @@ font LoadFont(c8 *Filename, i32 Size, u32 NoChars) {
     return Result;
 }
 
-#if 0
     //iterate over all characters and retreieve bitmap
     for (u32 c = 0; c < NoChars; c++) {
         Result.Chars[c].Value  = c + 32;
