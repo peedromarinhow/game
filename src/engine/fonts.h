@@ -8,28 +8,38 @@
 #include "stb_truetype.h"
 
 typedef struct _glyph {
-    u32   Codepoint;
-    i32   Advance;
-    image _Bitmap;
+    u32 Codepoint;
+    i32 Advance;
+    i32 w;
+    i32 h;
 } glyph;
 
-internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
+//note: function that returns two things, probably retard
+internal struct _glyph_and_bitmap {
+    glyph Glyph;
+    image Bitmap;
+} GetGlyphAndBitmap(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
     i32 w, h, OffX, OffY, Advance;
     u8 *MonoBitmap = stbtt_GetCodepointBitmap(Font, 0, stbtt_ScaleForPixelHeight(Font, Size),
                                               Codepoint, &w, &h, &OffX, &OffY);
 
     stbtt_GetCodepointHMetrics(Font, Codepoint, &Advance, NULL);
 
-    glyph Result = {0}; {
-        Result.Codepoint   = Codepoint;
-        Result.Advance     = Advance;
-        Result._Bitmap.w    = w;
-        Result._Bitmap.h    = h;
-        Result._Bitmap.Data = AllocateMemory(w * h * u32);
+    glyph Glyph = {0}; {
+        Glyph.Codepoint = Codepoint;
+        Glyph.Advance   = Advance;
+        Glyph.w         = w;
+        Glyph.h         = h;
+    }
+
+    image Bitmap = {0}; {
+        Bitmap.w    = w;
+        Bitmap.h    = h;
+        Bitmap.Data = AllocateMemory(w * h * sizeof(u32));
     }
 
     u8 *Source  = MonoBitmap;
-    u8 *DestRow = (u8 *)Result._Bitmap.Data;
+    u8 *DestRow = (u8 *)Bitmap.Data;
     for (i32 y = 0; y < h; y++) {
         u32 *Dest = (u32 *)DestRow;
         for (i32 x = 0; x < w; x++) {
@@ -39,26 +49,27 @@ internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
                         (Alpha <<  8)|
                         (Alpha <<  0));
         }
-        DestRow += Result._Bitmap.w * 4;
+        DestRow += Bitmap.w * 4;
     }
     stbtt_FreeBitmap(MonoBitmap, 0);
 
+    struct _glyph_and_bitmap Result = {Glyph, Bitmap};
     return Result;
 }
 
 typedef struct _font {
     u32     NoChars;
     glyph  *Chars;
-    rect    Rects;
+    rect   *Rects;
     texture Atlas;
 } font;
 
 internal font LoadFont(u8 *Filename, u32 NoChars) {
     font Result = {0}; {
         Result.NoChars = NoChars    ;
-        Result.Chars   = AllocateMemory(NoChars * glyph);
-        Result.Rects   = AllocateMemory(NoChars * rect);
-        Result.Atlas   = NULL;
+        Result.Chars   = (glyph *)AllocateMemory(NoChars * sizeof(glyph));
+        Result.Rects   = (rect  *)AllocateMemory(NoChars * sizeof(rect));
+        // Result.Atlas   = {0};
     }
 }
 
@@ -68,18 +79,24 @@ internal texture MakeNothingsTest(memory_arena *Arena, r32 Size) {
     stbtt_fontinfo  Font;
     stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
 
-    glyph Glyph = GetGlyph(&Font, Size, 928);
+    glyph Glyph  = {0};
+    image Bitmap = {0};
+    struct _glyph_and_bitmap GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, 928); {
+        Glyph  = GlyphAndBitmap.Glyph;
+        Bitmap = GlyphAndBitmap.Bitmap;
+    }
+    //note: bad idea?
 
     texture Result = {0}; {
-        Result.w  = Glyph.Bitmap.w;
-        Result.h  = Glyph.Bitmap.h;
+        Result.w  = Bitmap.w;
+        Result.h  = Bitmap.h;
         Result.Id = 0;
     }
 
     glGenTextures(1, &Result.Id);
     glBindTexture(GL_TEXTURE_2D, Result.Id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Result.w, Result.h, 0,
-                GL_RGBA, GL_UNSIGNED_BYTE, Glyph.Bitmap.Data);
+                 GL_RGBA, GL_UNSIGNED_BYTE, Bitmap.Data);
 
     return Result;
 }
@@ -94,7 +111,7 @@ internal texture *MakeNothingsTest(memory_arena *Arena, r32 Size) {
     texture *Result = AllocateMemory(('z' - 'a') * sizeof(texture));
 
     for (u32 i = 0; i < ('z' - 'a'); i++) {
-        glyph Glyph = GetGlyph(&Font, Size, i + 'a');
+        glyph Glyph = GetGlyphAndBitmap(&Font, Size, i + 'a');
 
         texture Current = {0}; {
             Current.w  = Glyph.Bitmap.w;
