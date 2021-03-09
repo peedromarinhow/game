@@ -15,7 +15,7 @@ typedef struct _glyph {
 } glyph;
 
 //note: function that returns two things, probably retard
-internal struct _glyph_and_bitmap {
+internal struct _glyph__bitmap {
     glyph Glyph;
     image Bitmap;
 } GetGlyphAndBitmap(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
@@ -53,7 +53,7 @@ internal struct _glyph_and_bitmap {
     }
     stbtt_FreeBitmap(MonoBitmap, 0);
 
-    struct _glyph_and_bitmap Result = {Glyph, Bitmap};
+    struct _glyph__bitmap Result = {Glyph, Bitmap};
     return Result;
 }
 
@@ -64,13 +64,28 @@ typedef struct _font {
     texture Atlas;
 } font;
 
-internal font LoadFont(u8 *Filename, u32 NoChars) {
+internal font LoadFont(memory_arena *Arena, c8 *Filename, u32 NoChars, r32 Size) {
+    file FontFile = LoadFileToArena(Arena, Filename);
+    stbtt_fontinfo  Font;
+    stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
+
     font Result = {0}; {
         Result.NoChars = NoChars    ;
         Result.Chars   = (glyph *)AllocateMemory(NoChars * sizeof(glyph));
         Result.Rects   = (rect  *)AllocateMemory(NoChars * sizeof(rect));
-        // Result.Atlas   = {0};
     }
+
+    image *CharBitmaps = (image *)AllocateMemory(NoChars * sizeof(image));
+
+    for (u32 i = 0; i < NoChars; i++) {
+        struct _glyph__bitmap _GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, i + 32); {
+            Result.Chars[i] = _GlyphAndBitmap.Glyph;
+            CharBitmaps [i] = _GlyphAndBitmap.Bitmap;
+        }
+    }
+    //todo:generate font atlas
+
+    return Result;
 }
 
 internal texture MakeNothingsTest(memory_arena *Arena, r32 Size) {
@@ -81,9 +96,9 @@ internal texture MakeNothingsTest(memory_arena *Arena, r32 Size) {
 
     glyph Glyph  = {0};
     image Bitmap = {0};
-    struct _glyph_and_bitmap GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, 928); {
-        Glyph  = GlyphAndBitmap.Glyph;
-        Bitmap = GlyphAndBitmap.Bitmap;
+    struct _glyph__bitmap _GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, 928); {
+        Glyph  = _GlyphAndBitmap.Glyph;
+        Bitmap = _GlyphAndBitmap.Bitmap;
     }
     //note: bad idea?
 

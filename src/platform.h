@@ -18,25 +18,25 @@ typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory_callback);
 #define PLATFORM_FREE_MEMORY(Name) void Name(void *Data)
 typedef PLATFORM_FREE_MEMORY(platform_free_memory_callback);
 
-#define PLATFORM_LOAD_FILE(Name) file Name(char *Filename)
+#define PLATFORM_LOAD_FILE(Name) file Name(c8 *Filename)
 typedef PLATFORM_LOAD_FILE(platform_load_file_callback);
 
 #define PLATFORM_FREE_FILE(Name) void Name(file File)
 typedef PLATFORM_FREE_FILE(platform_free_file_callback);
 
-#define PLATFORM_LOAD_FILE_TO_ARENA(Name) file Name(memory_arena *Arena, char *Filename)
+#define PLATFORM_LOAD_FILE_TO_ARENA(Name) file Name(memory_arena *Arena, c8 *Filename)
 typedef PLATFORM_LOAD_FILE_TO_ARENA(platform_load_file_to_arena_callback);
 
 #define PLATFORM_FREE_FILE_FROM_ARENA(Name) void Name(memory_arena *Arena, file File)
 typedef PLATFORM_FREE_FILE_FROM_ARENA(platform_free_file_from_arena_callback);
 
-#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, char *Filename)
+#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, c8 *Filename)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
-#define PLATFORM_REPORT_ERROR(Name) void Name(char *Title, char *ErrorMessage)
+#define PLATFORM_REPORT_ERROR(Name) void Name(c8 *Title, c8 *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
 
-#define PLATFORM_REPORT_ERROR_AND_DIE(Name) void Name(char *Title, char *ErrorMessage)
+#define PLATFORM_REPORT_ERROR_AND_DIE(Name) void Name(c8 *Title, c8 *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR_AND_DIE(platform_report_error_and_die_callback);
 
 typedef struct _button_state {
@@ -54,8 +54,8 @@ typedef struct _event_state {
 #define MOUSE_MAX_BUTTONS    3
 typedef struct _platform {
     /* metadata */
-    char *ExecutablePath;
-    char *WorkingDirectoryPath;
+    c8 *ExecutablePath;
+    c8 *WorkingDirectoryPath;
 
     /* options */
     b32 Fullscreen;

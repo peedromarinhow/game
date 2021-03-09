@@ -3,29 +3,14 @@
 #include "platform.h"
 #include "memory.h"
 #include "opengl.h"
-
-global platform_allocate_memory_callback      *AllocateMemory;
-global platform_free_memory_callback          *FreeMemory;
-global platform_load_file_callback            *LoadFile;
-global platform_free_file_callback            *FreeFile;
-global platform_load_file_to_arena_callback   *LoadFileToArena;
-global platform_free_file_from_arena_callback *FreeFileFromArena;
-global platform_write_file_callback           *_WriteFile;
-global platform_report_error_callback         *ReportError;
-global platform_report_error_and_die_callback *ReportErrorAndDie;
+#include "app.h"
 
 #include "engine/graphics.h"
 #include "engine/fonts.h"
 
-typedef struct _app_state {
-    texture Temp;
-    // font Font;
-} app_state;
-
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
-    app_state *State = (app_state *)p->Memory.Contents;
-
+    app_state   *State = (app_state *)p->Memory.Contents;
     memory_arena Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
 
     AllocateMemory    = p->AllocateMemoryCallback;
@@ -34,7 +19,7 @@ __declspec(dllexport) APP_INIT(Init) {
     FreeFile          = p->FreeFileCallback;
     LoadFileToArena   = p->LoadFileToArenaCallback;
     FreeFileFromArena = p->FreeFileFromArenaCallback;
-    _WriteFile         = p->WriteFileCallback;
+    WriteFile_         = p->WriteFileCallback;
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
@@ -53,11 +38,8 @@ __declspec(dllexport) APP_UPDATE(Update) {
 
     gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
 
-    //u8 Text = "LOREM IPSVM";
-    //for (i32 1 = 0; i < ArrayLength(Text); i++) {
-        texture a = State->Temp;//[Text[i] - 'a'];
-        gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
-    //}
+    texture a = State->Temp;
+    gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
 
 }
 
@@ -76,7 +58,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glBindTexture(GL_TEXTURE_2D, FontTexture);
     // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512,512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, TempBitmap);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // p->_WriteFile((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
+    // p->WriteFile_((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
     // p->FreeFile(&Arena, Font);
 
     // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
