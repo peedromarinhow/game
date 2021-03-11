@@ -113,6 +113,10 @@ typedef struct _platform {
 typedef APP_INIT(app_init_callback);
         APP_INIT(AppInitStub) {};
 
+#define APP_RELOAD(Name) void Name(platform *p)
+typedef APP_RELOAD(app_reload_callback);
+        APP_RELOAD(AppReloadStub) {};
+
 #define APP_UPDATE(Name) void Name(platform *p)
 typedef APP_UPDATE(app_update_callback);
         APP_UPDATE(AppUpdateStub) {};

@@ -14,8 +14,4 @@ global platform_write_file_callback           *WriteFile_; //damn you, "windows.
 global platform_report_error_callback         *ReportError;
 global platform_report_error_and_die_callback *ReportErrorAndDie;
 
-typedef struct _app_state {
-    texture Temp;
-} app_state;
-
 #endif//APP_H

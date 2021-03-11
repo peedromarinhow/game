@@ -8,10 +8,15 @@
 #include "engine/graphics.h"
 #include "engine/fonts.h"
 
+typedef struct _app_state {
+    rv2 Pos;
+} app_state;
+
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
-    app_state   *State = (app_state *)p->Memory.Contents;
-    memory_arena Arena = InitializeArena(Megabytes(4), ((u8 *)p->Memory.Contents + sizeof(app_state)));
+    app_state *State = (app_state *)p->Memory.Contents;
+
+    State->Pos = Rv2(100, 100);
 
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
@@ -19,27 +24,64 @@ __declspec(dllexport) APP_INIT(Init) {
     FreeFile          = p->FreeFileCallback;
     LoadFileToArena   = p->LoadFileToArenaCallback;
     FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_         = p->WriteFileCallback;
+    WriteFile_        = p->WriteFileCallback;
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->Temp = MakeNothingsTest(&Arena, 1000);
+    // State->Temp = MakeNothingsTest(500, 120);
+}
+
+__declspec(dllexport) APP_RELOAD(Reload) {
+    app_state *State = (app_state *)p->Memory.Contents;
+
+    State->Pos = Rv2(100, 100);
+
+    AllocateMemory    = p->AllocateMemoryCallback;
+    FreeMemory        = p->FreeMemoryCallback;
+    LoadFile          = p->LoadFileCallback;
+    FreeFile          = p->FreeFileCallback;
+    LoadFileToArena   = p->LoadFileToArenaCallback;
+    FreeFileFromArena = p->FreeFileFromArenaCallback;
+    WriteFile_        = p->WriteFileCallback;
+    ReportError       = p->ReportErrorCallback;
+    ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    
+    // State->Temp = MakeNothingsTest(1000, 100);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    color4f Color = Color4f(1, 0, 0, 1);
-    if (p->MouseLeft)
-        Color = Color4f(1, 1, 0, 1);
-    if (p->MouseRight)
-        Color = Color4f(1, 0, 1, 1);
 
-    gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    rv2 dPos = Rv2(0, 0);
 
-    texture a = State->Temp;
-    gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
+    if (p->kDown)
+        dPos.y =  1.0f;
+    if (p->kUp)
+        dPos.y = -1.0f;
+    if (p->kLeft)
+        dPos.x = -1.0f;
+    if (p->kRight)
+        dPos.x =  1.0f;
+    
+    dPos.x *= p->dtForFrame * 500;
+    dPos.y *= p->dtForFrame * 500;
+
+    State->Pos = SumRv2(State->Pos, dPos);
+
+    gRectFromCenter(State->Pos, Rv2(100, 100), Color4f(1, 0, 0, 1));
+
+    // color4f Color = Color4f(1, 0, 0, 1);
+    // if (p->MouseLeft)
+    //     Color = Color4f(1, 1, 0, 1);
+    // if (p->MouseRight)
+    //     Color = Color4f(1, 0, 1, 1);
+
+    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+
+    // texture a = State->Temp;
+    // gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
 
 }
 

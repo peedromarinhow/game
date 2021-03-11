@@ -38,6 +38,9 @@ typedef union _rv2 {
     r32 Components[2];
 } rv2;
 #define Rv2(a, b) ((rv2){a, b})
+inline rv2 SumRv2(rv2 a, rv2 b) {
+    return Rv2(a.x + b.x, a.y + b.y);
+}
 
 typedef struct _color4f {
     r32 r;

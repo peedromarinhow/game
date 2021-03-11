@@ -8,17 +8,13 @@
 #include "stb_truetype.h"
 
 typedef struct _glyph {
-    u32 Codepoint;
-    i32 Advance;
-    i32 w;
-    i32 h;
+    u32   Codepoint;
+    i32   Advance;
+    image Image;
 } glyph;
 
 //note: function that returns two things, probably retard
-internal struct _glyph__bitmap {
-    glyph Glyph;
-    image Bitmap;
-} GetGlyphAndBitmap(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
+internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
     i32 w, h, OffX, OffY, Advance;
     u8 *MonoBitmap = stbtt_GetCodepointBitmap(Font, 0, stbtt_ScaleForPixelHeight(Font, Size),
                                               Codepoint, &w, &h, &OffX, &OffY);
@@ -26,20 +22,15 @@ internal struct _glyph__bitmap {
     stbtt_GetCodepointHMetrics(Font, Codepoint, &Advance, NULL);
 
     glyph Glyph = {0}; {
-        Glyph.Codepoint = Codepoint;
-        Glyph.Advance   = Advance;
-        Glyph.w         = w;
-        Glyph.h         = h;
-    }
-
-    image Bitmap = {0}; {
-        Bitmap.w    = w;
-        Bitmap.h    = h;
-        Bitmap.Data = AllocateMemory(w * h * sizeof(u32));
+        Glyph.Codepoint  = Codepoint;
+        Glyph.Advance    = Advance;
+        Glyph.Image.w    = w;
+        Glyph.Image.h    = h;
+        Glyph.Image.Data = AllocateMemory(w * h * sizeof(u32));
     }
 
     u8 *Source  = MonoBitmap;
-    u8 *DestRow = (u8 *)Bitmap.Data;
+    u8 *DestRow = (u8 *)Glyph.Image.Data;
     for (i32 y = 0; y < h; y++) {
         u32 *Dest = (u32 *)DestRow;
         for (i32 x = 0; x < w; x++) {
@@ -49,12 +40,11 @@ internal struct _glyph__bitmap {
                         (Alpha <<  8)|
                         (Alpha <<  0));
         }
-        DestRow += Bitmap.w * 4;
+        DestRow += Glyph.Image.w * 4;
     }
     stbtt_FreeBitmap(MonoBitmap, 0);
 
-    struct _glyph__bitmap Result = {Glyph, Bitmap};
-    return Result;
+    return Glyph;
 }
 
 typedef struct _font {
@@ -70,7 +60,7 @@ internal font LoadFont(memory_arena *Arena, c8 *Filename, u32 NoChars, r32 Size)
     stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
 
     font Result = {0}; {
-        Result.NoChars = NoChars    ;
+        Result.NoChars = NoChars;
         Result.Chars   = (glyph *)AllocateMemory(NoChars * sizeof(glyph));
         Result.Rects   = (rect  *)AllocateMemory(NoChars * sizeof(rect));
     }
@@ -78,40 +68,35 @@ internal font LoadFont(memory_arena *Arena, c8 *Filename, u32 NoChars, r32 Size)
     image *CharBitmaps = (image *)AllocateMemory(NoChars * sizeof(image));
 
     for (u32 i = 0; i < NoChars; i++) {
-        struct _glyph__bitmap _GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, i + 32); {
-            Result.Chars[i] = _GlyphAndBitmap.Glyph;
-            CharBitmaps [i] = _GlyphAndBitmap.Bitmap;
-        }
+        Result.Chars[i] = GetGlyph(&Font, Size, i + 32);
     }
     //todo:generate font atlas
 
     return Result;
 }
 
-internal texture MakeNothingsTest(memory_arena *Arena, r32 Size) {
-    file FontFile = LoadFileToArena(Arena, "eb_garamond.ttf");
+internal texture MakeNothingsTest(r32 Size, u32 Codepoint) {
+    file FontFile = LoadFile("eb_garamond.ttf");
 
     stbtt_fontinfo  Font;
     stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
 
-    glyph Glyph  = {0};
-    image Bitmap = {0};
-    struct _glyph__bitmap _GlyphAndBitmap = GetGlyphAndBitmap(&Font, Size, 928); {
-        Glyph  = _GlyphAndBitmap.Glyph;
-        Bitmap = _GlyphAndBitmap.Bitmap;
-    }
+    glyph Glyph = GetGlyph(&Font, Size, Codepoint);
     //note: bad idea?
 
     texture Result = {0}; {
-        Result.w  = Bitmap.w;
-        Result.h  = Bitmap.h;
-        Result.Id = 0;
+        Result.w   = Glyph.Image.w;
+        Result.h   = Glyph.Image.h;
+        Result.Id  = 0;
     }
 
     glGenTextures(1, &Result.Id);
     glBindTexture(GL_TEXTURE_2D, Result.Id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Result.w, Result.h, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, Bitmap.Data);
+                 GL_RGBA, GL_UNSIGNED_BYTE, Glyph.Image.Data);
+    
+    FreeMemory(Glyph.Image.Data);
+    FreeFile(FontFile);
 
     return Result;
 }

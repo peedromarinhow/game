@@ -258,6 +258,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     AppCode.Init(&Platform);
 
     win32_timer Timer;
+    r32 TargetFPS = 60.0f;
     QueryPerformanceFrequency(&Timer.CountsPerSecond);
 
     while (Platform.Running) {
@@ -283,10 +284,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
             wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
         }
 
-        Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath);
+        if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath)) {
+            AppCode.Reload(&Platform);
+        }
         Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
 
-        Win32InternalLogFPS(Platform.dtForFrame, Window);
+        if (Platform.dtForFrame > 1.0f/TargetFPS)
+            Sleep((Platform.dtForFrame - (1.0/TargetFPS))*1000);
+
+        Win32InternalLogFPS(Platform.dtForFrame, Window, TargetFPS);
     }
 
     AppCode.Deinit(&Platform);
