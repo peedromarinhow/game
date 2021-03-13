@@ -38,6 +38,7 @@ typedef union _rv2 {
     r32 Components[2];
 } rv2;
 #define Rv2(a, b) ((rv2){a, b})
+
 inline rv2 SumRv2(rv2 a, rv2 b) {
     return Rv2(a.x + b.x, a.y + b.y);
 }
@@ -89,5 +90,19 @@ inline c32 LogC32(c32 z) {
 inline c32 PowC32(c32 z, c32 p) {
     return ExpC32(MulC32(p, LogC32(z)));
 }
+
+typedef struct _recti32 {
+    i32 x;
+    i32 y;
+    i32 w;
+    i32 h;
+} recti32;
+
+typedef struct _rectf32 {
+    f32 x;
+    f32 y;
+    f32 w;
+    f32 h;
+} rectf32;
 
 #endif

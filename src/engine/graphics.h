@@ -10,13 +10,6 @@
 #include "maths.h"
 #include "memory.h"
 
-typedef struct _rect {
-    i32 x;
-    i32 y;
-    i32 w;
-    i32 h;
-} rect;
-
 typedef struct _image {
     void *Data;
     i32 w;
@@ -47,27 +40,13 @@ void gBegin(rv2 Shift, iv2 Size, color4f Color) {
     glLoadMatrixf(Proj);
 }
 
-void gRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
+void gDrawRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
     glBegin(GL_POLYGON); {
         glColor4f(Color.r, Color.g, Color.b, Color.a);
         glVertex2f(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
         glVertex2f(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
         glVertex2f(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
         glVertex2f(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
-    } glEnd();
-}
-
-r32 f(r32 t, r32 Duration, r32 Scale) {
-    return -(Scale / 2.0f)*(Cos((PI32 * t) / Duration) - 1);
-}
-
-void gDrawRectangleFromCenter(rv2 Center, rv2 Size) {
-    glBegin(GL_POLYGON); {
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);
-        glVertex2f(Center.x + Size.w/2.0f, Center.y - Size.h/2.0f);
-        glVertex2f(Center.x + Size.w/2.0f, Center.y + Size.h/2.0f);
-        glVertex2f(Center.x - Size.w/2.0f, Center.y + Size.h/2.0f);
     } glEnd();
 }
 
@@ -101,7 +80,6 @@ void gDrawTexture(texture Texture, rv2 Center, rv2 Size) {
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glBegin(GL_QUADS); {
         glTexCoord2f(0, 0);
         glVertex2f  (Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);

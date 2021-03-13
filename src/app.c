@@ -9,14 +9,23 @@
 #include "engine/fonts.h"
 
 typedef struct _app_state {
-    rv2 Pos;
+    rv2 PlayerPos;
+    rv2 PlayerVel;
 } app_state;
+
+//note:
+// coordinates in engine range from 0-20 (x)
+// and 0-10 (y)
+inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
+    return Rv2(Coord.x * Screen.w/20.0f, -Coord.y * Screen.h/10.0f + Screen.y + Screen.h/2.0f);
+}
 
 __declspec(dllexport) APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    State->Pos = Rv2(100, 100);
+
+    State->PlayerPos = Rv2(10, 5);
 
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
@@ -34,8 +43,6 @@ __declspec(dllexport) APP_INIT(Init) {
 __declspec(dllexport) APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    State->Pos = Rv2(100, 100);
-
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
     LoadFile          = p->LoadFileCallback;
@@ -45,44 +52,42 @@ __declspec(dllexport) APP_RELOAD(Reload) {
     WriteFile_        = p->WriteFileCallback;
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
-    
-    // State->Temp = MakeNothingsTest(1000, 100);
 }
 
 __declspec(dllexport) APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-
-    rv2 dPos = Rv2(0, 0);
-
-    if (p->kDown)
-        dPos.y =  1.0f;
-    if (p->kUp)
-        dPos.y = -1.0f;
-    if (p->kLeft)
-        dPos.x = -1.0f;
-    if (p->kRight)
-        dPos.x =  1.0f;
+    rectf32 Screen = {p->WindowSize.x/2, p->WindowSize.y/2.f,
+                      p->WindowSize.x,   p->WindowSize.x/2.f};
+    gDrawRectFromCenter(Rv2(Screen.x, Screen.y),
+                        Rv2(Screen.w, Screen.h),
+                        Color4f(0.1f, 0.2f, 0.25f, 1));
     
-    dPos.x *= p->dtForFrame * 500;
-    dPos.y *= p->dtForFrame * 500;
+    const rv2 Gravity = Rv2(0, -10);
 
-    State->Pos = SumRv2(State->Pos, dPos);
+    if (p->kUp)
+        State->PlayerVel.y =  10;
+    if (p->kDown)
+        State->PlayerVel.y = -10;
+    if (p->kRight)
+        State->PlayerVel.x =  10;
+    if (p->kLeft)
+        State->PlayerVel.x = -10;
 
-    gRectFromCenter(State->Pos, Rv2(100, 100), Color4f(1, 0, 0, 1));
+    if (State->PlayerVel.x < 10 || State->PlayerVel.y < 10) {
+        State->PlayerVel.x += p->dtForFrame * Gravity.x;
+        State->PlayerVel.y += p->dtForFrame * Gravity.y;
+    }
 
-    // color4f Color = Color4f(1, 0, 0, 1);
-    // if (p->MouseLeft)
-    //     Color = Color4f(1, 1, 0, 1);
-    // if (p->MouseRight)
-    //     Color = Color4f(1, 0, 1, 1);
+    rv2 NewPos = Rv2(State->PlayerPos.x + p->dtForFrame * State->PlayerVel.x,
+                     State->PlayerPos.y + p->dtForFrame * State->PlayerVel.y);
 
-    // gRectFromCenter(p->MousePos, Rv2(100, 100), Color);
-
-    // texture a = State->Temp;
-    // gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
-
+    if (NewPos.y > 0)
+        State->PlayerPos = NewPos;
+    
+    gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
+                        Rv2(10, 10), Color4f(0.6f, 0.1f, 0.25f, 1));
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
@@ -90,6 +95,56 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
 }
 
 #if 0
+    if (p->WindowResized)
+        State->Pos = Rv2(200, 200);
+
+    const rv2 Gravity = Rv2(0, 1000);
+
+    if (p->kUp)
+        State->Vel.y = -1000;
+    if (p->kDown)
+        State->Vel.y =  1000;
+    if (p->kRight)
+        State->Vel.x =  500;
+    if (p->kLeft)
+        State->Vel.x = -500;
+
+    if (State->Vel.x < 1000 || State->Vel.y < 1000) {
+        State->Vel.x += p->dtForFrame * Gravity.x;
+        State->Vel.y += p->dtForFrame * Gravity.y;
+    }
+
+    rv2 NewPos = Rv2(State->Pos.x + p->dtForFrame * State->Vel.x,
+                     State->Pos.y + p->dtForFrame * State->Vel.y);
+
+    if (NewPos.y < Screen.h / 2 + Screen.y &&
+        NewPos.y > Screen.y - Screen.h / 2 &&
+        NewPos.x < Screen.w / 2 + Screen.x &&
+        NewPos.x > Screen.x - Screen.w / 2)
+    {
+        State->Pos = NewPos;
+    }
+    else {
+        State->Vel.x = 0;
+        State->Vel.y = 0;
+    }
+
+    State->Size = Rv2(50, 50);
+    State->Size.x += p->dMouseWheel/32;
+    State->Size.y += p->dMouseWheel/32;
+
+    gDrawRectFromCenter(State->Pos, State->Size, Color4f(0.8f, 0.2f, 0.25f, 1));
+    // color4f Color = Color4f(1, 0, 0, 1);
+    // if (p->MouseLeft)
+    //     Color = Color4f(1, 1, 0, 1);
+    // if (p->MouseRight)
+    //     Color = Color4f(1, 0, 1, 1);
+
+    // gDrawRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+
+    // texture a = State->Temp;
+    // gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
+
     // State->AnimationTime    = 0;
     // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
 
@@ -112,7 +167,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     //     State->AnimationTime += 0;
     // }
     
-    // gRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
+    // gDrawRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
     // file Bitmap = p->LoadFile(&Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;

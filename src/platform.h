@@ -65,6 +65,7 @@ typedef struct _platform {
     b32 CtrlKeyWasDown;
     b32 ShiftKeyWasDown;
     b32 AltKeyWasDown;
+    b32 WindowResized;
 
     /* mouse input */
     /* event_state */ b32 MouseMoved;
@@ -84,7 +85,7 @@ typedef struct _platform {
     /* button_state */ b32 kCtrl;
     /* button_state */ b32 kShift;
     /* button_state */ b32 kAlt;
-    u64          KeyboardCharacter;
+    u64 KeyboardCharacter;
 
     /* gamepad */
     //todo

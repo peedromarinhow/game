@@ -4,15 +4,6 @@
 
 //note: all this is basically _stolen_ from ryan's platform layer
 
-//todo: check for fails, etc
-PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
-    return VirtualAlloc(0, (size_t)Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-}
-
-PLATFORM_FREE_MEMORY(Win32FreeMemory) {
-    VirtualFree(Data, sizeof(Data), MEM_RELEASE);
-}
-
 //todo: varargs for formats on these two functions
 PLATFORM_REPORT_ERROR(Win32ReportError) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
@@ -23,8 +14,22 @@ PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
     _Exit(1);
 }
 
+PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
+    void *Result = VirtualAlloc(0, (size_t)Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!Result) {
+        Win32ReportError("MEMORY ALLOCATION ERROR", "Could not allocate");
+    }
+    return Result;
+}
+
+PLATFORM_FREE_MEMORY(Win32FreeMemory) {
+    if (Data)
+        VirtualFree(Data, sizeof(Data), MEM_RELEASE);
+}
+
 PLATFORM_FREE_FILE(Win32FreeFile) {
-    VirtualFree(File.Data, File.Size, MEM_RELEASE);
+    if (File.Data)
+        VirtualFree(File.Data, File.Size, MEM_RELEASE);
 }
 
 //note: basically copied from ryan's
@@ -99,7 +104,7 @@ PLATFORM_WRITE_FILE(Win32WriteFile) {
 }
 
 internal void Win32ToggleFullScreen(HWND Window) {
-    localpersist WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
+    persist WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
     //note:
     //  copied from https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
     //  by Raymond Chen

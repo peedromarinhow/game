@@ -48,10 +48,10 @@ internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
 }
 
 typedef struct _font {
-    u32     NoChars;
-    glyph  *Chars;
-    rect   *Rects;
-    texture Atlas;
+    u32      NoChars;
+    glyph   *Chars;
+    rectf32 *Rects;
+    texture  Atlas;
 } font;
 
 internal font LoadFont(memory_arena *Arena, c8 *Filename, u32 NoChars, r32 Size) {
@@ -61,8 +61,8 @@ internal font LoadFont(memory_arena *Arena, c8 *Filename, u32 NoChars, r32 Size)
 
     font Result = {0}; {
         Result.NoChars = NoChars;
-        Result.Chars   = (glyph *)AllocateMemory(NoChars * sizeof(glyph));
-        Result.Rects   = (rect  *)AllocateMemory(NoChars * sizeof(rect));
+        Result.Chars   = (glyph   *)AllocateMemory(NoChars * sizeof(glyph));
+        Result.Rects   = (rectf32 *)AllocateMemory(NoChars * sizeof(rectf32));
     }
 
     image *CharBitmaps = (image *)AllocateMemory(NoChars * sizeof(image));

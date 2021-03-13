@@ -45,10 +45,6 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     //note:
     // since there is no "WM_MOUSE_DID_NOT_MOVE" message, assume that it didn't and
     // if it acually did, then update
-    //todo:
-    // if possible, store the events as variables and dispatch at the end i.e.:
-    // b32 MouseMoved = 0;
-    // u64 KeyPressed = 0;
     MSG Message;
     i16 dMouseWheel = 0;
     Win32ProcessEventMessage(&Platform->MouseMoved, 0);
@@ -141,6 +137,9 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 Platform->KeyboardCharacter = CharacterInput;
             }
         }
+        else
+        if (Message.message == WM_SIZE)
+            Win32ProcessEventMessage(&Platform->WindowResized, 1);
 
         /* windows' stuff */
         else
@@ -258,7 +257,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     AppCode.Init(&Platform);
 
     win32_timer Timer;
-    r32 TargetFPS = 60.0f;
+    r32 TargetFPS = 30.0f;
     QueryPerformanceFrequency(&Timer.CountsPerSecond);
 
     while (Platform.Running) {
@@ -280,9 +279,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
             AppCode.Update(&Platform);
         }
 
-        /* OpenGL */ {
-            wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
-        }
+        wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
 
         if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath)) {
             AppCode.Reload(&Platform);

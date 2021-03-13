@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-#define internal     static
-#define global       static
-#define localpersist static
+#define internal static
+#define global   static
+#define persist  static
 
 #define PI32 3.14159265359f
 
