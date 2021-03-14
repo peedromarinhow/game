@@ -50,6 +50,16 @@ void gDrawRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
     } glEnd();
 }
 
+void gDrawLineFromPoints(rv2 a, rv2 b, r32 StrokeWidth, color4f Color) {
+    glLineWidth(StrokeWidth);
+    glBegin(GL_LINES); {
+        glColor4f(Color.r, Color.g, Color.b, Color.a);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glVertex2f(a.x, a.y);
+        glVertex2f(b.x, b.y);
+    } glEnd();
+}
+
 void gDrawRectangleStrokeFromCenter(rv2 Center, rv2 Size, r32 StrokeWidth) {
     glLineWidth(StrokeWidth);
     glBegin(GL_LINE_LOOP); {
@@ -74,13 +84,67 @@ void gDrawFilledCircle(rv2 Center, r32 Radius, u32 IterationCount){
 	glEnd();
 }
 
-void gDrawTexture(texture Texture, rv2 Center, rv2 Size) {
+void gDrawRectFromTexture(texture Texture,
+                          rectf32 SourceRect, 
+                          rectf32 DestRect,
+                          rv2     Origin,
+                          color4f Tint)
+{
+    f32 w = (f32)Texture.w;
+    f32 h = (f32)Texture.h;
+
+    b32 FlipX = 0;
+
+    if (SourceRect.w < 0) {
+        FlipX = 0;
+        SourceRect.w *= -1;
+    }
+    if (SourceRect.h < 0) {
+        SourceRect.y -= SourceRect.h;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBegin(GL_QUADS); {
+        glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
+        glNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
+
+        // Bottom-left corner for texture and quad
+        if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
+        else       glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
+        glVertex2f(0.0f, 0.0f);
+
+        // Bottom-right corner for texture and quad
+        if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
+        else       glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
+        glVertex2f(0.0f, DestRect.h);
+
+        // Top-right corner for texture and quad
+        if (FlipX) glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
+        else       glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
+        glVertex2f(DestRect.w, DestRect.h);
+
+        // Top-left corner for texture and quad
+        if (FlipX) glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
+        else       glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
+        glVertex2f(DestRect.w, 0.0f);
+    } glEnd();
+    glDisable(GL_BLEND);
+    glDisable(GL_TEXTURE_2D);
+}
+
+void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color4f Tint) {
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_QUADS); {
+        glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
         glTexCoord2f(0, 0);
         glVertex2f  (Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);
         glTexCoord2f(1, 0);

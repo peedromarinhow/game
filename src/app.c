@@ -11,13 +11,15 @@
 typedef struct _app_state {
     rv2 PlayerPos;
     rv2 PlayerVel;
+    font TestFont;
+    // texture TestFontAtlas;
 } app_state;
 
 //note:
 // coordinates in engine range from 0-20 (x)
 // and 0-10 (y)
 inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
-    return Rv2(Coord.x * Screen.w/20.0f, -Coord.y * Screen.h/10.0f + Screen.y + Screen.h/2.0f);
+    return Rv2(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
 }
 
 __declspec(dllexport) APP_INIT(Init) {
@@ -25,7 +27,7 @@ __declspec(dllexport) APP_INIT(Init) {
     app_state *State = (app_state *)p->Memory.Contents;
 
 
-    State->PlayerPos = Rv2(10, 5);
+    State->PlayerPos = Rv2(100, 50);
 
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
@@ -37,7 +39,8 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    // State->Temp = MakeNothingsTest(500, 120);
+    // State->TestFontAtlas = LoadFont("eb_garamond.ttf", 120, 100).Texture;
+    State->TestFont = LoadFont("eb_garamond.ttf", 200, 100);
 }
 
 __declspec(dllexport) APP_RELOAD(Reload) {
@@ -64,18 +67,18 @@ __declspec(dllexport) APP_UPDATE(Update) {
                         Rv2(Screen.w, Screen.h),
                         Color4f(0.1f, 0.2f, 0.25f, 1));
     
-    const rv2 Gravity = Rv2(0, -10);
+    const rv2 Gravity = Rv2(0, -50);
 
     if (p->kUp)
-        State->PlayerVel.y =  10;
+        State->PlayerVel.y += 10;
     if (p->kDown)
-        State->PlayerVel.y = -10;
+        State->PlayerVel.y -= 10;
     if (p->kRight)
-        State->PlayerVel.x =  10;
+        State->PlayerVel.x += 10;
     if (p->kLeft)
-        State->PlayerVel.x = -10;
+        State->PlayerVel.x -= 10;
 
-    if (State->PlayerVel.x < 10 || State->PlayerVel.y < 10) {
+    if (State->PlayerVel.x < 100 || State->PlayerVel.y < 100) {
         State->PlayerVel.x += p->dtForFrame * Gravity.x;
         State->PlayerVel.y += p->dtForFrame * Gravity.y;
     }
@@ -83,11 +86,32 @@ __declspec(dllexport) APP_UPDATE(Update) {
     rv2 NewPos = Rv2(State->PlayerPos.x + p->dtForFrame * State->PlayerVel.x,
                      State->PlayerPos.y + p->dtForFrame * State->PlayerVel.y);
 
-    if (NewPos.y > 0)
+    if (NewPos.y < 100 &&
+        NewPos.y > 0   &&
+        NewPos.x < 200 &&
+        NewPos.x > 0)
+    {
         State->PlayerPos = NewPos;
+    }
+    else {
+        State->PlayerVel.x = 0;
+        State->PlayerVel.y = 0;
+    }
     
+    rv2 ScaledPlayerVel = SumRv2(State->PlayerPos, Rv2(State->PlayerVel.x/10.f, State->PlayerVel.y/10.f));
+    gDrawLineFromPoints(EngineCoordToScreenCoord(State->PlayerPos, Screen),
+                        EngineCoordToScreenCoord(ScaledPlayerVel,  Screen),
+                        1.f, Color4f(1, 0.1f, 0.1f, 1));
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
-                        Rv2(10, 10), Color4f(0.6f, 0.1f, 0.25f, 1));
+                        Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
+    
+    u32 Text[12] = {72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33};
+    gDrawText(State->TestFont, Text, Rv2(100, 100), 100, 10.0, Color4f(1, 1, 1, 1));
+    
+    gDrawTexture(State->TestFont.Texture,
+                 Rv2(p->WindowSize.w/2, p->WindowSize.h/2),
+                 Rv2(State->TestFont.Texture.w, State->TestFont.Texture.h),
+                 Color4f(1, 1, 1, 1));
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
