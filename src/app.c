@@ -105,12 +105,12 @@ __declspec(dllexport) APP_UPDATE(Update) {
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
                         Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
     
-    u32 Text[12] = {72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33};
+    u32 Text[9] = {'c', 'r', 'i', 'n', 'g', 'e', ' ', 231, 33};
     gDrawText(State->TestFont, Text, Rv2(100, 100), 100, 10.0, Color4f(1, 1, 1, 1));
     
     gDrawTexture(State->TestFont.Texture,
                  Rv2(p->WindowSize.w/2, p->WindowSize.h/2),
-                 Rv2(State->TestFont.Texture.w, State->TestFont.Texture.h),
+                 Rv2(State->TestFont.Texture.w/2, State->TestFont.Texture.h/2),
                  Color4f(1, 1, 1, 1));
 }
 
