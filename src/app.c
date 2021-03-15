@@ -11,8 +11,9 @@
 typedef struct _app_state {
     rv2 PlayerPos;
     rv2 PlayerVel;
-    font TestFont;
-    // texture TestFontAtlas;
+    font EbGaramond;
+    font Roboto;
+    // texture EbGaramondAtlas;
 } app_state;
 
 //note:
@@ -39,8 +40,9 @@ __declspec(dllexport) APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    // State->TestFontAtlas = LoadFont("eb_garamond.ttf", 120, 100).Texture;
-    State->TestFont = LoadFont("eb_garamond.ttf", 200, 100);
+    // State->EbGaramondAtlas = LoadFont("eb_garamond.ttf", 120, 100).Texture;
+    // State->EbGaramond = LoadFont("eb_garamond.ttf", 400, 100);
+    State->Roboto     = LoadFont("roboto.ttf",      400,  50);
 }
 
 __declspec(dllexport) APP_RELOAD(Reload) {
@@ -105,13 +107,14 @@ __declspec(dllexport) APP_UPDATE(Update) {
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
                         Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
     
-    u32 Text[9] = {'c', 'r', 'i', 'n', 'g', 'e', ' ', 231, 33};
-    gDrawText(State->TestFont, Text, Rv2(100, 100), 100, 10.0, Color4f(1, 1, 1, 1));
+    c8 *Text = "In principio erat verbum";
+    // gDrawText(State->EbGaramond, Text, Rv2(p->WindowSize.w/2, 100), State->EbGaramond.Size, 0, Color4f(1, 1, 1, 1));
+    gDrawText(State->Roboto, Text, Rv2(100, 300), State->Roboto.Size, 0, Color4f(1, 1, 1, 1));
     
-    gDrawTexture(State->TestFont.Texture,
-                 Rv2(p->WindowSize.w/2, p->WindowSize.h/2),
-                 Rv2(State->TestFont.Texture.w/2, State->TestFont.Texture.h/2),
-                 Color4f(1, 1, 1, 1));
+    // gDrawTexture(State->EbGaramond.Texture,
+    //              Rv2(p->WindowSize.w/2, p->WindowSize.h),
+    //              Rv2(State->EbGaramond.Texture.w/2, State->EbGaramond.Texture.h/2),
+    //              Color4f(1, 1, 1, 1));
 }
 
 __declspec(dllexport) APP_DEINIT(Deinit) {
@@ -461,30 +464,3 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
         glVertex2f(w.a, w.b);
     } glEnd();
 #endif
-
-// #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
-// #include "stb_truetype.h"
-
-// stbtt_bakedchar CharacterData[96]; // ASCII 32..126 is 95 glyphs
-// GLuint FontTexture;
-
-// //note: https://github.com/nothings/stb
-// void DawText(f32 x, f32 y, c8 *Text) {
-//     glEnable(GL_TEXTURE_2D);
-//     glEnable(GL_BLEND);
-//     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//     glBindTexture(GL_TEXTURE_2D, FontTexture);
-//     glBegin(GL_QUADS); {
-//         while (*Text) {
-//             if (*Text >= 32 && *Text < 128) {
-//                 stbtt_aligned_quad Quad;
-//                 stbtt_GetBakedQuad(CharacterData, 512, 512, *Text - 32, &x, &y, &Quad, 1);
-//                 glTexCoord2f(Quad.s0, Quad.t1); glVertex2f(Quad.x0, Quad.y0);
-//                 glTexCoord2f(Quad.s1, Quad.t1); glVertex2f(Quad.x1, Quad.y0);
-//                 glTexCoord2f(Quad.s1, Quad.t0); glVertex2f(Quad.x1, Quad.y1);
-//                 glTexCoord2f(Quad.s0, Quad.t0); glVertex2f(Quad.x0, Quad.y1);
-//             }
-//             ++Text;
-//         }
-//     } glEnd();
-// }

@@ -9,7 +9,7 @@ typedef struct _win32_app_code {
     app_deinit_callback *Deinit;
 } win32_app_code;
 
-inline FILETIME GetFileLastWriteTime(char *Filename) {
+inline FILETIME GetFileLastWriteTime(c8 *Filename) {
     FILETIME Result = {0};
     WIN32_FILE_ATTRIBUTE_DATA Data;
     if (GetFileAttributesEx(Filename, GetFileExInfoStandard, &Data))
@@ -18,7 +18,7 @@ inline FILETIME GetFileLastWriteTime(char *Filename) {
 }
 
 internal b32 Win32LoadAppCode(win32_app_code *Code,
-                              char *DLLPath, char *TempDLLPath)
+                              c8 *DLLPath, c8 *TempDLLPath)
 {
     b32 Success = 1;
     
@@ -55,7 +55,12 @@ internal void Win32UnloadAppCode(win32_app_code *Code)
     Code->Update = AppUpdateStub;
 }
 
-internal b32 Win32UpdateAppCode(win32_app_code *Code, char *DLLPath, char *TempDLLPath) {
+//figure this out
+internal b32 FileWasChanged(c8 *Filename) {
+    return 0;
+}
+
+internal b32 Win32UpdateAppCode(win32_app_code *Code, c8 *DLLPath, c8 *TempDLLPath) {
     FILETIME LastDLLWriteTime = GetFileLastWriteTime(DLLPath);
     if(CompareFileTime(&LastDLLWriteTime, &Code->LastDLLWriteTime)) {
         Win32UnloadAppCode(Code);
