@@ -23,7 +23,7 @@ inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
     return Rv2(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
 }
 
-__declspec(dllexport) APP_INIT(Init) {
+external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
@@ -45,7 +45,7 @@ __declspec(dllexport) APP_INIT(Init) {
     State->Roboto     = LoadFont("roboto.ttf",      400,  50);
 }
 
-__declspec(dllexport) APP_RELOAD(Reload) {
+external APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     AllocateMemory    = p->AllocateMemoryCallback;
@@ -59,12 +59,12 @@ __declspec(dllexport) APP_RELOAD(Reload) {
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 }
 
-__declspec(dllexport) APP_UPDATE(Update) {
+external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gBegin(Rv2(0, 0), p->WindowSize, Color4f(0, 0, 0, 1));
-    rectf32 Screen = {p->WindowSize.x/2, p->WindowSize.y/2.f,
-                      p->WindowSize.x,   p->WindowSize.x/2.f};
+    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0, 0, 0, 1));
+    rectf32 Screen = {p->WindowDimensions.x/2, p->WindowDimensions.y/2.f,
+                      p->WindowDimensions.x,   p->WindowDimensions.x/2.f};
     gDrawRectFromCenter(Rv2(Screen.x, Screen.y),
                         Rv2(Screen.w, Screen.h),
                         Color4f(0.1f, 0.2f, 0.25f, 1));
@@ -107,17 +107,17 @@ __declspec(dllexport) APP_UPDATE(Update) {
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
                         Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
     
-    c8 *Text = "In principio erat verbum";
-    // gDrawText(State->EbGaramond, Text, Rv2(p->WindowSize.w/2, 100), State->EbGaramond.Size, 0, Color4f(1, 1, 1, 1));
-    gDrawText(State->Roboto, Text, Rv2(100, 300), State->Roboto.Size, 0, Color4f(1, 1, 1, 1));
+    c8 *Text = p->ExecutablePath;
+    // gDrawText(State->EbGaramond, Text, Rv2(p->WindowDimensions.w/2, 100), State->EbGaramond.Size, 0, Color4f(1, 1, 1, 1));
+    gDrawText(State->Roboto, Text, EngineCoordToScreenCoord(Rv2(10, 10), Screen), State->Roboto.Size, 0, Color4f(1, 1, 1, 1));
     
     // gDrawTexture(State->EbGaramond.Texture,
-    //              Rv2(p->WindowSize.w/2, p->WindowSize.h),
+    //              Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h),
     //              Rv2(State->EbGaramond.Texture.w/2, State->EbGaramond.Texture.h/2),
     //              Color4f(1, 1, 1, 1));
 }
 
-__declspec(dllexport) APP_DEINIT(Deinit) {
+external APP_DEINIT(Deinit) {
     app_state *State = (app_state *)p->Memory.Contents;
 }
 
@@ -170,10 +170,10 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // gDrawRectFromCenter(p->MousePos, Rv2(100, 100), Color);
 
     // texture a = State->Temp;
-    // gDrawTexture(a, Rv2(p->WindowSize.w/2, p->WindowSize.h/2), Rv2(a.w, a.h));
+    // gDrawTexture(a, Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h/2), Rv2(a.w, a.h));
 
     // State->AnimationTime    = 0;
-    // State->AnimationRectPos = Rv2(p->WindowSize.w/2, p->WindowSize.h/2);
+    // State->AnimationRectPos = Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h/2);
 
     // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
@@ -185,7 +185,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // p->WriteFile_((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
     // p->FreeFile(&Arena, Font);
 
-    // DawText(p->WindowSize.w/2, 100, "LOREM IPSVM");
+    // DawText(p->WindowDimensions.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
     //     State->AnimationTime      += p->dtForFrame;
     //     State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
@@ -202,11 +202,11 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // State->Image.Pixels = (u32 *)((u8 *)Bitmap.Data + Header->BitmapOffset);;
     // glGenTextures(1, &State->Image.Handle);
 
-    glViewport(0, 0, p->WindowSize.w, p->WindowSize.h);
+    glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    r32 a = 2.0f/p->WindowSize.w;
-    r32 b = 2.0f/p->WindowSize.h;
+    r32 a = 2.0f/p->WindowDimensions.w;
+    r32 b = 2.0f/p->WindowDimensions.h;
     r32 Proj[] = {
          a,  0,  0,  0,
          0, -b,  0,  0,
@@ -246,7 +246,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     //     glVertex2f(-P, P);
     // glEnd();
 
-    glViewport(0, 0, p->WindowSize.w, p->WindowSize.h);
+    glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
 
     glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -257,8 +257,8 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowSize.w;
-    // r32 b = 2.0f/p->WindowSize.h;
+    // r32 a = 2.0f/p->WindowDimensions.w;
+    // r32 b = 2.0f/p->WindowDimensions.h;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -291,13 +291,13 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     glEnable(GL_TEXTURE_2D);
     glBegin(GL_QUADS); {
         glVertex2f(0, 0);
-        glVertex2f(p->WindowSize.w, 0);
-        glVertex2f(p->WindowSize.w, p->WindowSize.h);
-        glVertex2f(0, p->WindowSize.h);
+        glVertex2f(p->WindowDimensions.w, 0);
+        glVertex2f(p->WindowDimensions.w, p->WindowDimensions.h);
+        glVertex2f(0, p->WindowDimensions.h);
     } glEnd();
-    // DrawRectangleFromCenter((rv2){p->WindowSize.w/2.0f, p->WindowSize.h/2.0f}, p->Mouse.Pos);
+    // DrawRectangleFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos);
 
-    // glViewport(0, 0, p->WindowSize.w, p->WindowSize.h);
+    // glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -308,8 +308,8 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowSize.w;
-    // r32 b = 2.0f/p->WindowSize.h;
+    // r32 a = 2.0f/p->WindowDimensions.w;
+    // r32 b = 2.0f/p->WindowDimensions.h;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -318,12 +318,12 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // };
     // glLoadMatrixf(Proj);
 
-    // DrawRectangleFromCenter((rv2){p->WindowSize.w/2.0f, p->WindowSize.h/2.0f}, p->Mouse.Pos);
-    // DrawTexture(State->Map, (rv2){p->WindowSize.w/2.0f, p->WindowSize.h/2.0f}, (rv2){p->WindowSize.w, p->WindowSize.h});
-    // DrawRectangleStrokeFromCenter((rv2){p->WindowSize.w/2.0f, p->WindowSize.h/2.0f}, p->Mouse.Pos, 10);
+    // DrawRectangleFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos);
+    // DrawTexture(State->Map, (rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, (rv2){p->WindowDimensions.w, p->WindowDimensions.h});
+    // DrawRectangleStrokeFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos, 10);
     // DrawFilledCircle((rv2){100, 100}, 100, 100);
 
-    // glViewport(0, 0, p->WindowSize.Width, p->WindowSize.Height);
+    // glViewport(0, 0, p->WindowDimensions.Width, p->WindowDimensions.Height);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -334,8 +334,8 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowSize.Width;
-    // r32 b = 2.0f/p->WindowSize.Height;
+    // r32 a = 2.0f/p->WindowDimensions.Width;
+    // r32 b = 2.0f/p->WindowDimensions.Height;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -359,7 +359,7 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
 
     // State->PlayerPos = p->Mouse.Pos;
     // State->MouseWheel += p->Mouse.dWheel / 6.0f;
-    glViewport(0, 0, p->WindowSize.Width, p->WindowSize.Height);
+    glViewport(0, 0, p->WindowDimensions.Width, p->WindowDimensions.Height);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -370,8 +370,8 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    r32 a = 2.0f/p->WindowSize.x;
-    r32 b = 2.0f/p->WindowSize.y;
+    r32 a = 2.0f/p->WindowDimensions.x;
+    r32 b = 2.0f/p->WindowDimensions.y;
     r32 Proj[] = {
          a,  0,  0,  0,
          0, -b,  0,  0,
@@ -441,8 +441,8 @@ __declspec(dllexport) APP_DEINIT(Deinit) {
 
     } glEnd();
 
-    a = p->WindowSize.x;
-    b = p->WindowSize.y;
+    a = p->WindowDimensions.x;
+    b = p->WindowDimensions.y;
     r32 ComplexProj[] = {
       b/a,   0,  0,  0,
         0,   1,  0,  0,

@@ -3,17 +3,18 @@
 
 #include <stdint.h>
 
+#define external __declspec(dllexport) //note: this is not universal across compilers
 #define internal static
 #define global   static
 #define persist  static
 
 #define PI32 3.14159265359f
 
-typedef int8_t  i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-typedef i32     b32;
+typedef int8_t   i8;
+typedef int16_t  i16;
+typedef int32_t  i32;
+typedef int64_t  i64;
+typedef i32      b32;
 typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;

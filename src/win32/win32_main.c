@@ -158,7 +158,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
 
 int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
-                     LPSTR CmdLine, int CmdShow)
+                     LPSTR CmdLine, i32 CmdShow)
 {
     /* get paths for dlls filename for executable and working directory */
     c8 ExecutablePath  [256];
@@ -188,13 +188,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
     platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
-        LPVOID BaseAddress = 0;
-#if BUILD_INTERNAL
-        BaseAddress = (LPVOID)SafeTruncateU64(Terabytes((u64)1));
-#endif
-        Platform.Memory.Size     = Megabytes((u64)64);
-        Platform.Memory.Contents = VirtualAlloc(BaseAddress, (size_t)Platform.Memory.Size,
-                                                MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        Platform.Memory.Size          = Megabytes((u64)64);
+        Platform.Memory.Contents      = Win32AllocateMemory(Platform.Memory.Size); 
         if (!Platform.Memory.Contents)
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
@@ -232,22 +227,24 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     /* load app code */
     win32_app_code AppCode = {0}; {
-        if(!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
+        if (!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             Win32ReportErrorAndDie("ERROR!!", "App code failed to load");
     }
 
-    /* get refresh rate */
-    f32 MonitorRefreshRate = 60.0f; {
-        DEVMODEA DeviceMode = {0};
-        if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
-            MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
-        }
-    }
+    // /* get refresh rate */
+    // f32 MonitorRefreshRate = 60.0f; {
+    //     DEVMODEA DeviceMode = {0};
+    //     if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
+    //         MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
+    //     }
+    // }
 
     //todo: sound
     
     HDC GlDeviceContext = GetDC(Window);
     Win32InitOpenGl(Window);
+
+    b32 MousePosOutOfWindow = 0;
 
     //note:
     // this "GlobalRunning" is just for the window closing messages
@@ -256,46 +253,29 @@ int CALLBACK WinMain(HINSTANCE Instance,
    *GlobalRunning = 1;
     AppCode.Init(&Platform);
 
-    win32_timer Timer;
-    r32 TargetFPS = 30.0f;
-    QueryPerformanceFrequency(&Timer.CountsPerSecond);
-
     while (Platform.Running) {
-        Win32BeginFrameTiming(&Timer);
         Win32ProcessPendingMessages(Window, &Platform);
-
-        /* get window dimensions */ {
-            RECT ClientRect;
-            GetClientRect(Window, &ClientRect);
-            Platform.WindowSize.x = ClientRect.right  - ClientRect.left;
-            Platform.WindowSize.y = ClientRect.bottom - ClientRect.top;
-        }
 
         //todo: sound
 
         /* update */ {
-            if (MOUSE_POSITION_WHEN_OUT_OF_WINDOW)
-                Platform.MousePos = Win32GetMousePos(Window);
+            if (MousePosOutOfWindow) Platform.MousePos = Win32GetMousePos(Window);
+            Platform.WindowDimensions                  = Win32GetWindowDimensions(Window);
+
             AppCode.Update(&Platform);
+
+            wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
         }
 
-        wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
-
-        if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath)) {
+        Platform.dtForFrame = 1.f/60.f;
+        
+        if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             AppCode.Reload(&Platform);
-        }
-        Platform.dtForFrame = Win32EndFrameTiming(&Timer, &Platform);
-
-        if (Platform.dtForFrame > 1.0f/TargetFPS)
-            Sleep((Platform.dtForFrame - (1.0/TargetFPS))*1000);
-
-        Win32InternalLogFPS(Platform.dtForFrame, Window, TargetFPS);
     }
 
     AppCode.Deinit(&Platform);
 
     ReleaseDC(Window, GlDeviceContext);
-    //Win32DeinitOpenGl();
     ShowWindow(Window, SW_HIDE);
     Win32UnloadAppCode(&AppCode);
 

@@ -20,6 +20,15 @@ inline void Win32ProcessEventMessage(/* event_state */ b32 *EndedHappening, b32 
         *EndedHappening =  IsHappening;
 }
 
+inline iv2 Win32GetWindowDimensions(HWND Window) {
+    iv2 Result = {0};
+    RECT ClientRect;
+    GetClientRect(Window, &ClientRect);
+    Result.w = ClientRect.right  - ClientRect.left;
+    Result.h = ClientRect.bottom - ClientRect.top;
+    return Result;
+}
+
 inline rv2 Win32GetMousePos(HWND Window) {
     rv2 Result = {0};
     POINT MousePoint;

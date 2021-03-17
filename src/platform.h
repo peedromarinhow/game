@@ -60,7 +60,7 @@ typedef struct _platform {
     /* options */
     b32 Fullscreen;
     b32 Running;
-    iv2 WindowSize;
+    iv2 WindowDimensions;
     r32 dtForFrame;
     b32 CtrlKeyWasDown;
     b32 ShiftKeyWasDown;
