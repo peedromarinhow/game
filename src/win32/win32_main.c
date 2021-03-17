@@ -13,10 +13,6 @@
 #include "memory.h"
 
 #include "win32_internal.c"
-#include "win32_paths.c"
-#include "win32_sound.c"
-#include "win32_input.c"
-#include "win32_timer.c"
 #include "win32_utils.c"
 #include "win32_code.c"     //almost aligned all!
 #include "win32_opengl.c"
@@ -184,6 +180,25 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectoryA(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
+    WNDCLASS WindowClass = {0}; {
+        WindowClass.style         = CS_HREDRAW | CS_VREDRAW;
+        WindowClass.lpfnWndProc   = Win32MainWindowCallback;
+        WindowClass.hInstance     = Instance;
+        WindowClass.lpszClassName = WINDOW_TITLE;
+        WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
+    }
+    if (!RegisterClass(&WindowClass))
+         Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
+
+    HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
+                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                  CW_USEDEFAULT, CW_USEDEFAULT,
+                                  DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
+                                  0, 0, Instance, 0);
+    
+    if (!Window)
+         Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
+
     /* initializing paltform */
     platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
@@ -203,27 +218,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.WriteFileCallback         = Win32WriteFile;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
-        //note: other fields are updated every frame
-    }
 
-    WNDCLASS WindowClass = {0}; {
-        WindowClass.style         = CS_HREDRAW | CS_VREDRAW;
-        WindowClass.lpfnWndProc   = Win32MainWindowCallback;
-        WindowClass.hInstance     = Instance;
-        WindowClass.lpszClassName = WINDOW_TITLE;
-        WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
+        Platform.MousePos                  = Win32GetMousePos(Window);
+        Platform.WindowDimensions          = Win32GetWindowDimensions(Window);
     }
-    if (!RegisterClass(&WindowClass))
-         Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
-
-    HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, WINDOW_TITLE,
-                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-                                  CW_USEDEFAULT, CW_USEDEFAULT,
-                                  DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
-                                  0, 0, Instance, 0);
-    
-    if (!Window)
-         Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
 
     /* load app code */
     win32_app_code AppCode = {0}; {
@@ -248,10 +246,23 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     //note:
     // this "GlobalRunning" is just for the window closing messages
-    // that como exclusively through "Win32MainWindowCallback"
+    // that come exclusively through "Win32MainWindowCallback"
     GlobalRunning = &Platform.Running;
    *GlobalRunning = 1;
+
     AppCode.Init(&Platform);
+
+    u64 FrameBegin       = Win32GetTime();
+    u64 CounterFrequency = Win32GetCounterFrequency();
+    u64 FrameEnd         = 0;
+    u64 FrameDuration    = 0;
+
+    win32_timer Timer = {0}; {
+        Timer.FrameBegin       = Win32GetTime();
+        Timer.CounterFrequency = Win32GetCounterFrequency();
+        Timer.FrameEnd         = 0;
+        Timer.FrameDuration    = 0;
+    }
 
     while (Platform.Running) {
         Win32ProcessPendingMessages(Window, &Platform);
@@ -266,11 +277,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
             wglSwapLayerBuffers(GlDeviceContext, WGL_SWAP_MAIN_PLANE);
         }
-
-        Platform.dtForFrame = 1.f/60.f;
         
         if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             AppCode.Reload(&Platform);
+
+        Platform.dtForFrame = Win32GetFrameTime(&Timer);
     }
 
     AppCode.Deinit(&Platform);
