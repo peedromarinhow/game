@@ -11,9 +11,7 @@
 typedef struct _app_state {
     rv2 PlayerPos;
     rv2 PlayerVel;
-    font EbGaramond;
-    font Roboto;
-    // texture EbGaramondAtlas;
+    font RobotoMono;
 } app_state;
 
 //note:
@@ -40,9 +38,7 @@ external APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    // State->EbGaramondAtlas = LoadFont("eb_garamond.ttf", 120, 100).Texture;
-    // State->EbGaramond = LoadFont("eb_garamond.ttf", 400, 100);
-    State->Roboto     = LoadFont("roboto.ttf",      400,  50);
+    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 50);
 }
 
 external APP_RELOAD(Reload) {
@@ -107,14 +103,16 @@ external APP_UPDATE(Update) {
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
                         Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
     
-    c8 *Text = p->ExecutablePath;
-    // gDrawText(State->EbGaramond, Text, Rv2(p->WindowDimensions.w/2, 100), State->EbGaramond.Size, 0, Color4f(1, 1, 1, 1));
-    gDrawText(State->Roboto, Text, EngineCoordToScreenCoord(Rv2(10, 10), Screen), State->Roboto.Size, 0, Color4f(1, 1, 1, 1));
+    c8 *Text = "public static void main()";
+    rv2 TextPos = Rv2(10, 50);
+    rv2 TextDim = Rv2(10, 10);
+    gDrawText(State->RobotoMono, Text, EngineCoordToScreenCoord(TextPos, Screen),
+              State->RobotoMono.Size, 0, -30, Color4f(1, 1, 1, 1), &TextDim);
     
-    // gDrawTexture(State->EbGaramond.Texture,
-    //              Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h),
-    //              Rv2(State->EbGaramond.Texture.w/2, State->EbGaramond.Texture.h/2),
-    //              Color4f(1, 1, 1, 1));
+    rv2 TextRectPos = Rv2(0, 0);
+    TextRectPos.w = EngineCoordToScreenCoord(TextPos, Screen).x + TextDim.w/2.f;
+    TextRectPos.h = EngineCoordToScreenCoord(TextPos, Screen).y - TextDim.h/2.f;
+    gDrawRectFromCenter(TextRectPos, TextDim, Color4f(0.8f, 0.3f, 0.4f, 0.5));
 }
 
 external APP_DEINIT(Deinit) {
@@ -129,7 +127,7 @@ external APP_DEINIT(Deinit) {
 
     if (p->kUp)
         State->Vel.y = -1000;
-    if (p->kDown)
+if (p->kDown)
         State->Vel.y =  1000;
     if (p->kRight)
         State->Vel.x =  500;
