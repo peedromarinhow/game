@@ -5,8 +5,8 @@
 #include "opengl.h"
 #include "app.h"
 
-#include "engine/graphics.h"
-#include "engine/fonts.h"
+#include "graphics.h"
+#include "fonts.h"
 
 typedef struct _app_state {
     rv2 PlayerPos;

@@ -5,7 +5,7 @@
 #include "graphics.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
+#include "libs/stb_truetype.h"
 
 typedef struct _glyph {
     u32   Codepoint;
