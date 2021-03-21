@@ -1,53 +1,79 @@
 #include "lingo.h"
+#include "app.h"
+
 #include "maths.h"
 #include "platform.h"
 #include "memory.h"
 #include "opengl.h"
-#include "app.h"
 
 #include "graphics.h"
 #include "fonts.h"
 
-internal void MoveMemory_(c8 *Dest, c8 *Src, u32 Size) {
-    c8 *Tmp = AllocateMemory(Size);
-    for (u32 i = 0; i < Size; i++) 
-        Tmp[i] = Src[i]; 
-    for (u32 i = 0; i < Size; i++) 
-        Dest[i] = Tmp[i]; 
-    FreeMemory((void *)Tmp);
+typedef struct _buffer {
+    c8 *Data;
+    u32 GapStart;
+    u32 GapEnd;
+    u32 End;
+} buffer;
+
+internal CreateBuffer(buffer *Buf, u32 GapSize) {
+    Buf->Data     = AllocateMemory(GapSize);
+    Buf->GapStart = 0;
+    Buf->GapEnd   = GapSize;
+    Buf->End      = 0;
 }
 
-internal void CopyMemory_(c8 *Dest, c8 *Src, u32 Size) {
-    for (u32 i = 0; i < Size; i++) 
-        Dest[i] = Src[i];
+typedef struct _app_state {
+    font   RobotoMono;
+    buffer Buffer;
+} app_state;
+
+external APP_INIT(Init) {
+    Assert(sizeof(app_state) <= p->Memory.Size);
+    app_state *State = (app_state *)p->Memory.Contents;
+
+    AllocateMemory    = p->AllocateMemoryCallback;
+    FreeMemory        = p->FreeMemoryCallback;
+    LoadFile          = p->LoadFileCallback;
+    FreeFile          = p->FreeFileCallback;
+    LoadFileToArena   = p->LoadFileToArenaCallback;
+    FreeFileFromArena = p->FreeFileFromArenaCallback;
+    WriteFile_        = p->WriteFileCallback;
+    ReportError       = p->ReportErrorCallback;
+    ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    InitBuffer(&State->Buffer, 2);
 }
 
-internal void *ReallocateMemory(void *Ptr, u32 OriginalLen, u32 NewLen) {
-    if (NewLen == 0) {
-        FreeMemory(Ptr);
-        return NULL;
-    }
-    else
-    if (!Ptr) {
-        return AllocateMemory(NewLen);
-    }
-    else
-    if (NewLen <= OriginalLen) {
-        return Ptr;
-    }
-    else {
-        if((Ptr) && (NewLen > OriginalLen)) {
-            void *PtrNew = AllocateMemory(NewLen);
-            if (PtrNew) {
-                CopyMemory_(PtrNew, Ptr, OriginalLen);
-                FreeMemory(Ptr);
-            }
-            return PtrNew;
-        }
-    }
-    return NULL;
+external APP_RELOAD(Reload) {
+    app_state *State = (app_state *)p->Memory.Contents;
+
+    AllocateMemory    = p->AllocateMemoryCallback;
+    FreeMemory        = p->FreeMemoryCallback;
+    LoadFile          = p->LoadFileCallback;
+    FreeFile          = p->FreeFileCallback;
+    LoadFileToArena   = p->LoadFileToArenaCallback;
+    FreeFileFromArena = p->FreeFileFromArenaCallback;
+    WriteFile_        = p->WriteFileCallback;
+    ReportError       = p->ReportErrorCallback;
+    ReportErrorAndDie = p->ReportErrorAndDieCallback;
 }
 
+external APP_UPDATE(Update) {
+    app_state *State = (app_state *)p->Memory.Contents;
+    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.1f, 0.2f, 0.25f, 1));
+
+    rv2 TextPos = Rv2(State->RobotoMono.Size/2, State->RobotoMono.Size);
+    gDrawTextLen(State->RobotoMono, State->Buffer.Data, State->Buffer.GapStart,
+                 TextPos, State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
+}
+
+external APP_DEINIT(Deinit) {
+    app_state *State = (app_state *)p->Memory.Contents;
+}
+
+#if 0
 typedef struct _buffer {
     c8 *Data;
     u32 GapStart;
@@ -119,61 +145,4 @@ internal u32 CopyLineFromBuffer(buffer *Buffer, c8 *Dest, u32 DestSize, u32 Pos)
     }
     return Pos;
 }
-
-typedef struct _app_state {
-    font   RobotoMono;
-    buffer Buffer;
-} app_state;
-
-external APP_INIT(Init) {
-    Assert(sizeof(app_state) <= p->Memory.Size);
-    app_state *State = (app_state *)p->Memory.Contents;
-
-    AllocateMemory    = p->AllocateMemoryCallback;
-    FreeMemory        = p->FreeMemoryCallback;
-    LoadFile          = p->LoadFileCallback;
-    FreeFile          = p->FreeFileCallback;
-    LoadFileToArena   = p->LoadFileToArenaCallback;
-    FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_        = p->WriteFileCallback;
-    ReportError       = p->ReportErrorCallback;
-    ReportErrorAndDie = p->ReportErrorAndDieCallback;
-
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    InitBuffer(&State->Buffer, 2);
-    const c8 Text[] = "SATOR\nAREPO\nTENET\nOPERA\nROTAS\n";
-    for (i32 i = 0; i < sizeof(Text); i++) {
-        InsertChar(&State->Buffer, i, Text[i]);
-    }
-}
-
-external APP_RELOAD(Reload) {
-    app_state *State = (app_state *)p->Memory.Contents;
-
-    AllocateMemory    = p->AllocateMemoryCallback;
-    FreeMemory        = p->FreeMemoryCallback;
-    LoadFile          = p->LoadFileCallback;
-    FreeFile          = p->FreeFileCallback;
-    LoadFileToArena   = p->LoadFileToArenaCallback;
-    FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_        = p->WriteFileCallback;
-    ReportError       = p->ReportErrorCallback;
-    ReportErrorAndDie = p->ReportErrorAndDieCallback;
-}
-
-external APP_UPDATE(Update) {
-    app_state *State = (app_state *)p->Memory.Contents;
-    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.1f, 0.2f, 0.25f, 1));
-
-    if (p->KeyboardCharacterCame) {
-        InsertChar(&State->Buffer, 0, p->KeyboardCharacter);
-        MoveBufferPositionFoward(&State->Buffer, State->Buffer.GapStart);
-    }
-
-    gDrawText(State->RobotoMono, State->Buffer.Data, Rv2(16, State->RobotoMono.Size), State->RobotoMono.Size,
-              0, 0, Color4f(1, 1, 1, 1), NULL);
-}
-
-external APP_DEINIT(Deinit) {
-    app_state *State = (app_state *)p->Memory.Contents;
-}
+#endif
