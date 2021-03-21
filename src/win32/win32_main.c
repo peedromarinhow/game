@@ -44,6 +44,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     MSG Message;
     i16 dMouseWheel = 0;
     Win32ProcessEventMessage(&Platform->MouseMoved, 0);
+    Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
         /* mouse */
@@ -121,6 +122,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                     if (AltKeyWasDown) Platform->Running = 0;
                 }
             }
+            TranslateMessage(&Message);
         }
         else
         if (Message.message == WM_CHAR) {
@@ -131,6 +133,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 CharacterInput != VK_ESCAPE)
             {
                 Platform->KeyboardCharacter = CharacterInput;
+                Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 1);
             }
         }
         else

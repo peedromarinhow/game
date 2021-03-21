@@ -85,7 +85,8 @@ typedef struct _platform {
     /* button_state */ b32 kCtrl;
     /* button_state */ b32 kShift;
     /* button_state */ b32 kAlt;
-    u64 KeyboardCharacter;
+    /* event_state  */ b32 KeyboardCharacterCame;
+    c8 KeyboardCharacter;
 
     /* gamepad */
     //todo
