@@ -2,6 +2,7 @@
 #define MEMORY_H
 
 #include "lingo.h"
+#include "platform.h"
 
 typedef struct _app_memory {
     void *Contents;
