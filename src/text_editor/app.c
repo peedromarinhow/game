@@ -11,16 +11,46 @@
 
 typedef struct _buffer {
     c8 *Data;
+    u32 CursorPos;
     u32 GapStart;
     u32 GapEnd;
     u32 End;
 } buffer;
 
-internal CreateBuffer(buffer *Buf, u32 GapSize) {
-    Buf->Data     = AllocateMemory(GapSize);
-    Buf->GapStart = 0;
-    Buf->GapEnd   = GapSize;
-    Buf->End      = 0;
+internal buffer CreateBuffer(u32 GapSize) {
+    buffer Result = {0}; {
+        Result.Data      = AllocateMemory(GapSize);
+        Result.CursorPos = 0;
+        Result.GapStart  = 0;
+        Result.GapEnd    = GapSize;
+        Result.End       = 0;
+    }
+
+    return Result;
+}
+
+internal void MoveGapBy(buffer *Buffer, u32 Amount);
+
+internal void BufferShiftGapToCursor(buffer *Buffer) {
+    u32 Delta = 0;
+    if (Buffer->CursorPos < Buffer->GapStart) {
+        
+    }
+    else
+    if (Buffer->CursorPos > Buffer->GapStart) {
+
+    }
+}
+
+void InsertChar(buffer *Buffer, c8 Char) {
+    Buffer->Data[Buffer->GapStart] = Char;
+    Buffer->GapStart++;
+}
+
+void DrawBuffer(font *Font, buffer *Buffer) {
+    gDrawTextLen(Font, Font->Size, Rv2(Font->Size/2, Font->Size),
+                 0, 0, Buffer->Data, Buffer->GapStart, 
+                 Color4f(1, 1, 1, 1));
 }
 
 typedef struct _app_state {
@@ -43,7 +73,14 @@ external APP_INIT(Init) {
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    InitBuffer(&State->Buffer, 2);
+    State->Buffer     = CreateBuffer(32);
+
+    InsertChar(&State->Buffer, 'L');
+    InsertChar(&State->Buffer, 'I');
+    InsertChar(&State->Buffer, 'B');
+    InsertChar(&State->Buffer, 'E');
+    InsertChar(&State->Buffer, 'R');
+    InsertChar(&State->Buffer, 'A');
 }
 
 external APP_RELOAD(Reload) {
@@ -64,9 +101,10 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.1f, 0.2f, 0.25f, 1));
 
-    rv2 TextPos = Rv2(State->RobotoMono.Size/2, State->RobotoMono.Size);
-    gDrawTextLen(State->RobotoMono, State->Buffer.Data, State->Buffer.GapStart,
-                 TextPos, State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
+    if (p->KeyboardCharacterCame)
+        InsertChar(&State->Buffer, p->KeyboardCharacter);
+
+    DrawBuffer(&State->RobotoMono, &State->Buffer);
 }
 
 external APP_DEINIT(Deinit) {
