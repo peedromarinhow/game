@@ -82,6 +82,7 @@ typedef struct _platform {
     /* button_state */ b32 kDown;
     /* button_state */ b32 kLeft;
     /* button_state */ b32 kRight;
+    /* button_state */ b32 kBackSpace;
     /* button_state */ b32 kCtrl;
     /* button_state */ b32 kShift;
     /* button_state */ b32 kAlt;

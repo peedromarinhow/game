@@ -118,6 +118,9 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 if (VKCode == VK_RIGHT)
                     Win32ProcessButtonMessage(&Platform->kRight, IsDown);
                 else
+                if (VKCode == VK_BACK)
+                    Win32ProcessButtonMessage(&Platform->kBackSpace, IsDown);
+                else
                 if (VKCode == VK_F4) {
                     if (AltKeyWasDown) Platform->Running = 0;
                 }
@@ -126,15 +129,9 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         }
         else
         if (Message.message == WM_CHAR) {
-            u64 CharacterInput =  Message.wParam;
-            if (CharacterInput >= 32        && 
-                CharacterInput != 127       &&
-                CharacterInput != VK_RETURN &&
-                CharacterInput != VK_ESCAPE)
-            {
-                Platform->KeyboardCharacter = CharacterInput;
-                Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 1);
-            }
+            WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
+                               &Platform->KeyboardCharacter, 1, 0, 0);
+            Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 1);
         }
         else
         if (Message.message == WM_SIZE)

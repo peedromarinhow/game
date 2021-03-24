@@ -174,10 +174,10 @@ void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color4f Tint) {
 
 #include "fonts.h"
 
-void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
+void gDrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                f32 LineSpacing, color4f Tint, rv2 *ReturnDimensions)
 {
-    f32 ScaleFactor = Size/Font.Size;
+    f32 ScaleFactor = Size/Font->Size;
     f32 CharOffset  = 0;
     f32 LineOffset  = 0;
 
@@ -185,9 +185,9 @@ void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
     i32 Len       = 0;
     r32 TempTextW = 0;
     r32 TextW     = 0;
-    r32 TextH     = Font.Size;
+    r32 TextH     = Font->Size;
 
-    glBindTexture(GL_TEXTURE_2D, Font.Texture.Id);
+    glBindTexture(GL_TEXTURE_2D, Font->Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glEnable(GL_TEXTURE_2D);
@@ -196,20 +196,19 @@ void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
         i32 i = 0;
         while (Text[i] != '\0') {
-            i32 Index     = GetGlyphIndex(Font, Text[i]);
-            i32 Codepoint = Font.Chars[Index].Codepoint;
-            i32 OffY      = Font.Chars[Index].OffY;
-            i32 OffX      = Font.Chars[Index].OffX;
-            glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
+            i32 Index     = GetGlyphIndex(*Font, Text[i]);
+            i32 Codepoint = Font->Chars[Index].Codepoint;
+            i32 OffY      = Font->Chars[Index].OffY;
+            i32 OffX      = Font->Chars[Index].OffX;
 
             if (Text[i] == '\t') {
-                CharOffset += (Font.Size + Font.Size/2);
+                CharOffset += Font->Size * 1.5f;
                 i++;
                 continue; //note: skips the rest, so the caracter is not drawn
             }
 
             if (Text[i] == '\n') {
-                LineOffset += Font.Size + (LineSpacing * ScaleFactor);
+                LineOffset += Font->Size + (LineSpacing * ScaleFactor);
                 CharOffset = 0;
                 i++;
 
@@ -223,17 +222,22 @@ void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                 continue; //note: skips the rest, so the caracter is not drawn
             }
 
+            if (Text[i] == '\r') {
+                i++;
+                continue;
+            }
+
             if (TempLen < Len)
                 TempLen = Len;
 
-            if (Font.Chars[Index].Advance != 0)
-                TextW += Font.Chars[Index].Advance;
+            if (Font->Chars[Index].Advance != 0)
+                TextW += Font->Chars[Index].Advance;
             else
-                TextW += (Font.Rects[Index].w + Font.Chars[Index].OffX);
+                TextW += (Font->Rects[Index].w + Font->Chars[Index].OffX);
 
-            rectf32 Rect = Font.Rects[Index];
-            f32 w        = Font.Texture.w;
-            f32 h        = Font.Texture.h;
+            rectf32 Rect = Font->Rects[Index];
+            f32 w        = Font->Texture.w;
+            f32 h        = Font->Texture.h;
 
             glTexCoord2f(Rect.x/w, Rect.y/h);
             glVertex2f  (Pos.x + CharOffset + OffX,
@@ -251,7 +255,7 @@ void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
             glVertex2f  (Pos.x + CharOffset + OffX,
                          Pos.y + LineOffset + Rect.h + OffY);
 
-            CharOffset += (Font.Chars[Index].Advance * ScaleFactor) +
+            CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
                           (CharSpacing * ScaleFactor);
             i++;
         }
