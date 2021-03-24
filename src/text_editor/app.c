@@ -66,11 +66,11 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
     f32 CharOffset  = 0;
     f32 LineOffset  = 0;
 
+    r32 TabSize = (Font->Size + Font->Size/2);
+
     glBindTexture(GL_TEXTURE_2D, Font->Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS); {
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
         for (u32 i = 0; i < Buffer->GapStart; i++) {
             i32 Index     = GetGlyphIndex(*Font, Buffer->Data[i]);
@@ -78,8 +78,26 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
             i32 OffY      = Font->Chars[Index].OffY;
             i32 OffX      = Font->Chars[Index].OffX;
 
+            rectf32 Rect = Font->Rects[Index];
+            f32 w        = Font->Texture.w;
+            f32 h        = Font->Texture.h;
+
+            if (i == Buffer->GapStart-1) {
+                glBegin(GL_LINES); {
+                    glLineWidth(2);
+                    r32 x = Pos.x + CharOffset + Rect.w + OffX;
+                    if (Buffer->Data[i] == '\t') {
+                        x += TabSize - (CharOffset + Rect.w + OffX);
+                    }
+                    // glVertex2f(Pos.x + CharOffset + 2, Pos.y + LineOffset - (0.75f * Font->Size));
+                    glVertex2f(x, Pos.y + LineOffset + Font->Size*.25f);
+                    // glVertex2f(Pos.x + CharOffset + 2, Pos.y + LineOffset + (0.15f * Font->Size));
+                    glVertex2f(x, Pos.y + LineOffset - Font->Size + Font->Size*.25f);
+                } glEnd();
+            }
+
             if (Buffer->Data[i] == '\t') {
-                CharOffset += (Font->Size + Font->Size/2);
+                CharOffset += TabSize;
                 continue; //note: skips the rest, so the caracter is not drawn
             }
 
@@ -94,45 +112,36 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
                 continue;
             }
 
-            rectf32 Rect = Font->Rects[Index];
-            f32 w        = Font->Texture.w;
-            f32 h        = Font->Texture.h;
+            glEnable(GL_TEXTURE_2D);
+            glBegin(GL_QUADS); {
+                glTexCoord2f(Rect.x/w, Rect.y/h);
+                glVertex2f  (Pos.x + CharOffset + OffX,
+                            Pos.y + LineOffset + OffY);
 
-            glTexCoord2f(Rect.x/w, Rect.y/h);
-            glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + OffY);
+                glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
+                glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
+                            Pos.y + LineOffset + OffY);
 
-            glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
-            glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + OffY);
+                glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
+                glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
+                            Pos.y + LineOffset + Rect.h + OffY);
 
-            glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
-            glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
-
-            glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
-            glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
+                glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
+                glVertex2f  (Pos.x + CharOffset + OffX,
+                            Pos.y + LineOffset + Rect.h + OffY);
+            } glEnd();
+            glDisable(GL_TEXTURE_2D);
 
             CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
                           (CharSpacing * ScaleFactor);
         }
-    } glEnd();
-    glDisable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS); {
-        glVertex2f(2 + Pos.x + CharOffset, Pos.y + LineOffset - (0.75f * Font->Size));
-        glVertex2f(2 + Pos.x + CharOffset + 2, Pos.y + LineOffset - (0.75f * Font->Size));
-        glVertex2f(2 + Pos.x + CharOffset + 2, Pos.y + LineOffset + (0.15f * Font->Size));
-        glVertex2f(2 + Pos.x + CharOffset, Pos.y + LineOffset + (0.15f * Font->Size));
-    } glEnd();
-    //todo: use gDrawLine
 }
 
 typedef struct _app_state {
     font   RobotoMono;
     file   TestFile;
     rv2    TestFilePos;
-    // buffer Buffer;
+    buffer Buffer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -152,14 +161,14 @@ external APP_INIT(Init) {
     State->RobotoMono  = LoadFont("roboto_mono.ttf", 400, 32);
     State->TestFile    = LoadFile(__FILE__);
     State->TestFilePos = Rv2(16, 32);
-    // State->Buffer     = CreateBuffer(16);
+    State->Buffer     = CreateBuffer(16);
 
-    // InsertChar(&State->Buffer, 1, 'L');
-    // InsertChar(&State->Buffer, 0, 'I');
-    // InsertChar(&State->Buffer, 3, 'B');
-    // InsertChar(&State->Buffer, 2, 'E');
-    // InsertChar(&State->Buffer, 5, 'R');
-    // InsertChar(&State->Buffer, 4, 'A');
+    InsertChar(&State->Buffer, 1, 'L');
+    InsertChar(&State->Buffer, 0, 'I');
+    InsertChar(&State->Buffer, 3, 'B');
+    InsertChar(&State->Buffer, 2, 'E');
+    InsertChar(&State->Buffer, 5, 'R');
+    InsertChar(&State->Buffer, 4, 'A');
 }
 
 external APP_RELOAD(Reload) {
@@ -180,12 +189,15 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.1f, 0.2f, 0.25f, 1));
     
-    // if (p->KeyboardCharacterCame) {
-    //     if (p->KeyboardCharacter == '\b')
-    //         RemoveChar(&State->Buffer);
-    //     else
-    //         InsertChar(&State->Buffer, State->Buffer.GapStart, p->KeyboardCharacter);
-    // }
+    if (p->KeyboardCharacterCame) {
+        if (p->KeyboardCharacter == '\b')
+            RemoveChar(&State->Buffer);
+        else
+        if (p->KeyboardCharacter == '\r')
+            InsertChar(&State->Buffer, State->Buffer.GapStart, '\n');
+        else
+            InsertChar(&State->Buffer, State->Buffer.GapStart, p->KeyboardCharacter);
+    }
 
     if (p->dMouseWheel > 0) {
         State->TestFilePos.y += State->RobotoMono.Size/2;
@@ -197,10 +209,10 @@ external APP_UPDATE(Update) {
     else
         State->TestFilePos.y += 0;
 
-    gDrawText(&State->RobotoMono, State->TestFile.Data, State->TestFilePos,
-               State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1), NULL);
+    // gDrawText(&State->RobotoMono, State->TestFile.Data, State->TestFilePos,
+    //            State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1), NULL);
 
-    // gDrawBuffer(&State->Buffer, &State->RobotoMono, Rv2(State->RobotoMono.Size/2, State->RobotoMono.Size), State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
+    gDrawBuffer(&State->Buffer, &State->RobotoMono, Rv2(State->RobotoMono.Size/2, State->RobotoMono.Size), State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
 }
 
 external APP_DEINIT(Deinit) {

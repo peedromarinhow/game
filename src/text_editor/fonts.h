@@ -114,6 +114,10 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 
                 if (OffsetY > (Atlas.h - Size - Padding)) break;
             }
+
+            if (Result.Chars[i].Codepoint == ' ') {
+                Result.Rects[i].w = Result.Chars[i].Advance;
+            }
             
             FreeMemory(Result.Chars[i].Image.Data);
         }
@@ -135,7 +139,7 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 }
 
 i32 GetGlyphIndex(font Font, u32 Codepoint) {
-#define TEXT_CHARACTER_NOTFOUND     63      // Character: '?'
+#define TEXT_CHARACTER_NOTFOUND     '?'
 #define UNORDERED_CHARSET
 #if defined(UNORDERED_CHARSET)
     i32 Index = TEXT_CHARACTER_NOTFOUND;
