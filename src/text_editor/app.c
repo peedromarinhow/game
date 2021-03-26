@@ -27,6 +27,7 @@ typedef struct _cursor {
  
 typedef struct _buffer {
     c8 *Data;
+    u32 Cursor;
     u32 GapStart;
     u32 GapEnd;
     u32 End;
@@ -35,7 +36,8 @@ typedef struct _buffer {
 internal buffer CreateBuffer(u32 Size) {
     buffer Result = {0}; {
         Result.Data      = AllocateMemory(Size);
-        Result.GapStart  = 0;
+        Result.Cursor    = 0;
+        Result.GapStart  = Result.Cursor;
         Result.GapEnd    = Size;
         Result.End       = Size;
     }
@@ -82,7 +84,7 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
             f32 w        = Font->Texture.w;
             f32 h        = Font->Texture.h;
 
-            if (i == Buffer->GapStart-1) {
+            if (i == Buffer->Cursor - 1) {
                 glBegin(GL_LINES); {
                     glLineWidth(2);
                     r32 x = Pos.x + CharOffset + Rect.w + OffX;
@@ -161,7 +163,7 @@ external APP_INIT(Init) {
     State->RobotoMono  = LoadFont("roboto_mono.ttf", 400, 32);
     State->TestFile    = LoadFile(__FILE__);
     State->TestFilePos = Rv2(16, 32);
-    State->Buffer     = CreateBuffer(16);
+    State->Buffer      = CreateBuffer(16);
 
     InsertChar(&State->Buffer, 1, 'L');
     InsertChar(&State->Buffer, 0, 'I');
@@ -187,7 +189,7 @@ external APP_RELOAD(Reload) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.1f, 0.2f, 0.25f, 1));
+    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.3f, 0.2f, 0.2f, 1));
     
     if (p->KeyboardCharacterCame) {
         if (p->KeyboardCharacter == '\b')
@@ -208,11 +210,16 @@ external APP_UPDATE(Update) {
     }
     else
         State->TestFilePos.y += 0;
+    
+    if (p->kLeft);
+        State->Buffer.Cursor--;
+    if (p->kRight);
+        State->Buffer.Cursor++;
 
     // gDrawText(&State->RobotoMono, State->TestFile.Data, State->TestFilePos,
     //            State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1), NULL);
 
-    gDrawBuffer(&State->Buffer, &State->RobotoMono, Rv2(State->RobotoMono.Size/2, State->RobotoMono.Size), State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
+    gDrawBuffer(&State->Buffer, &State->RobotoMono, State->TestFilePos, State->RobotoMono.Size, 0, 0, Color4f(1, 1, 1, 1));
 }
 
 external APP_DEINIT(Deinit) {

@@ -22,7 +22,7 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
 {
     b32 Success = 1;
     
-    while (TRUE) {
+    while (1) {
         if (CopyFileA(DLLPath, TempDLLPath, FALSE))
             break;
     }
@@ -36,7 +36,7 @@ internal b32 Win32LoadAppCode(win32_app_code *Code,
 
     Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
     Code->Reload = (app_reload_callback *)GetProcAddress(Code->DLL, "Reload");
-    Code->Init   = (app_init_callback *)  GetProcAddress(Code->DLL, "Init");
+    Code->Init   = (app_init_callback   *)GetProcAddress(Code->DLL, "Init");
     Code->Deinit = (app_deinit_callback *)GetProcAddress(Code->DLL, "Deinit");
     if (!Code->Update) {
         Code->Update = AppUpdateStub;
@@ -61,11 +61,27 @@ internal b32 FileWasChanged(c8 *Filename) {
 }
 
 internal b32 Win32UpdateAppCode(win32_app_code *Code, c8 *DLLPath, c8 *TempDLLPath) {
-    FILETIME LastDLLWriteTime = GetFileLastWriteTime(DLLPath);
-    if(CompareFileTime(&LastDLLWriteTime, &Code->LastDLLWriteTime)) {
-        Win32UnloadAppCode(Code);
-        Win32LoadAppCode(Code, DLLPath, TempDLLPath);
-        return 1;
+    FILETIME DLLWriteTime = GetFileLastWriteTime(DLLPath);
+    b32 Success = 0;
+    if(CompareFileTime(&DLLWriteTime, &Code->LastDLLWriteTime)) {
+        while (1)
+            if (CopyFileA(DLLPath, TempDLLPath, FALSE))
+                break;
+         {
+            // Win32UnloadAppCode(Code);
+            Code->DLL = LoadLibraryA(TempDLLPath);
+            Code->LastDLLWriteTime = GetFileLastWriteTime(DLLPath);
+            if (!Code->DLL) {
+                Success = 0;
+            }
+
+            Code->Update = (app_update_callback *)GetProcAddress(Code->DLL, "Update");
+            Code->Reload = (app_reload_callback *)GetProcAddress(Code->DLL, "Reload");
+            Code->Init   = (app_init_callback   *)GetProcAddress(Code->DLL, "Init");
+            Code->Deinit = (app_deinit_callback *)GetProcAddress(Code->DLL, "Deinit");
+
+            Success = 1;
+        }
     }
-    return 0;
+    return Success;
 }
