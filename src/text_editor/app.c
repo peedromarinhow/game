@@ -70,50 +70,37 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
 
     r32 TabSize = (Font->Size + Font->Size/2);
 
+    i32 Index     = 0;
+    i32 Codepoint = 0;
+    i32 OffY      = 0;
+    i32 OffX      = 0;
+
+    rectf32 Rect = {0};
+    f32 w        =  0;
+    f32 h        =  0;
+
     glBindTexture(GL_TEXTURE_2D, Font->Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
-        for (u32 i = 0; i < Buffer->GapStart; i++) {
-            i32 Index     = GetGlyphIndex(*Font, Buffer->Data[i]);
-            i32 Codepoint = Font->Chars[Index].Codepoint;
-            i32 OffY      = Font->Chars[Index].OffY;
-            i32 OffX      = Font->Chars[Index].OffX;
+    glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
+    for (u32 i = 0; i < Buffer->GapStart; i++) {
+        Index     = GetGlyphIndex(*Font, Buffer->Data[i]);
+        Codepoint = Font->Chars[Index].Codepoint;
+        OffY      = Font->Chars[Index].OffY;
+        OffX      = Font->Chars[Index].OffX;
+        Rect      = Font->Rects[Index];
+        w         = Font->Texture.w;
+        h         = Font->Texture.h;
 
-            rectf32 Rect = Font->Rects[Index];
-            f32 w        = Font->Texture.w;
-            f32 h        = Font->Texture.h;
-
-            if (i == Buffer->Cursor - 1) {
-                glBegin(GL_LINES); {
-                    glLineWidth(2);
-                    r32 x = Pos.x + CharOffset + Rect.w + OffX;
-                    if (Buffer->Data[i] == '\t') {
-                        x += TabSize - (CharOffset + Rect.w + OffX);
-                    }
-                    // glVertex2f(Pos.x + CharOffset + 2, Pos.y + LineOffset - (0.75f * Font->Size));
-                    glVertex2f(x, Pos.y + LineOffset + Font->Size*.25f);
-                    // glVertex2f(Pos.x + CharOffset + 2, Pos.y + LineOffset + (0.15f * Font->Size));
-                    glVertex2f(x, Pos.y + LineOffset - Font->Size + Font->Size*.25f);
-                } glEnd();
-            }
-
-            if (Buffer->Data[i] == '\t') {
-                CharOffset += TabSize;
-                continue; //note: skips the rest, so the caracter is not drawn
-            }
-
-            if (Buffer->Data[i] == '\n') {
-                LineOffset += Font->Size + (LineSpacing * ScaleFactor);
-                CharOffset = 0;
-                continue; //note: skips the rest, so the caracter is not drawn
-            }
-
-            if (Buffer->Data[i] == '\r') {
-                i++;
-                continue;
-            }
-
+        if (Buffer->Data[i] == '\t') {
+            CharOffset += TabSize;
+        }
+        else
+        if (Buffer->Data[i] == '\n') {
+            LineOffset += Font->Size + (LineSpacing * ScaleFactor);
+            CharOffset = 0;
+        }
+        else {
             glEnable(GL_TEXTURE_2D);
             glBegin(GL_QUADS); {
                 glTexCoord2f(Rect.x/w, Rect.y/h);
@@ -133,10 +120,24 @@ void gDrawBuffer(buffer *Buffer, font *Font, rv2 Pos, r32 Size, r32 LineSpacing,
                             Pos.y + LineOffset + Rect.h + OffY);
             } glEnd();
             glDisable(GL_TEXTURE_2D);
+        }
+        
+        if (i == Buffer->GapStart - 1) {
+            glBegin(GL_LINES); {
+                glLineWidth(2);
+                r32 x = Pos.x + CharOffset + Rect.w + OffX + 2;
+                if (CharOffset == 0)
+                    x = Pos.x + OffX + 2;
+                glVertex2f(x, Pos.y + LineOffset + Font->Size*.25f);
+                glVertex2f(x, Pos.y + LineOffset - Font->Size*.75f);
+            } glEnd();
+        }
 
+        if (Buffer->Data[i] != '\n') {
             CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
                           (CharSpacing * ScaleFactor);
         }
+    }
 }
 
 typedef struct _app_state {
@@ -189,7 +190,7 @@ external APP_RELOAD(Reload) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.3f, 0.2f, 0.2f, 1));
+    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
     
     if (p->KeyboardCharacterCame) {
         if (p->KeyboardCharacter == '\b')
