@@ -1,134 +1,145 @@
 #ifndef FONTS_H
 #define FONTS_H
 
-#include "ft2build.h"
-#include FT_FREETYPE_H
-
 #include "lingo.h"
 #include "graphics.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "libs/stb_truetype.h"
+
 typedef struct _glyph {
-    u32     Codepoint;
-    rv2     Advance;
-    image   Bitmap;
+    u32   Codepoint;
+    i32   Advance;
+    i32   OffX;
+    i32   OffY;
+    image Image;
 } glyph;
 
-typedef struct _font {
-    u32      NoChars;
-    r32      Size;
-    glyph   *Chars;
-    rectf32 *Rects;
-    texture  Atlas;
-} font;
+i32 GetNextCodepoint(const char *text, int *bytesProcessed) {
+/*
+    UTF8 specs from https://www.ietf.org/rfc/rfc3629.txt
 
-internal glyph GetGlyph(FT_Face Face, u32 Codepoint) {
-    u32 Index = FT_Get_Char_Index(Face, Codepoint);
-    
-    if (FT_Load_Glyph(Face, Index, FT_LOAD_DEFAULT)) {
-        //todo: error
+    Char. number range  |        UTF-8 octet sequence
+      (hexadecimal)    |              (binary)
+    --------------------+---------------------------------------------
+    0000 0000-0000 007F | 0xxxxxxx
+    0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+    0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+    0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+*/
+    // NOTE: on decode errors we return as soon as possible
+
+    int code = 0x3f;   // Codepoint (defaults to '?')
+    int octet = (unsigned char)(text[0]); // The first UTF8 octet
+    *bytesProcessed = 1;
+
+    if (octet <= 0x7f)
+    {
+        // Only one octet (ASCII range x00-7F)
+        code = text[0];
+    }
+    else if ((octet & 0xe0) == 0xc0)
+    {
+        // Two octets
+        // [0]xC2-DF    [1]UTF8-tail(x80-BF)
+        unsigned char octet1 = text[1];
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if ((octet >= 0xc2) && (octet <= 0xdf))
+        {
+            code = ((octet & 0x1f) << 6) | (octet1 & 0x3f);
+            *bytesProcessed = 2;
+        }
+    }
+    else if ((octet & 0xf0) == 0xe0)
+    {
+        // Three octets
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; } // Unexpected sequence
+
+        /*
+            [0]xE0    [1]xA0-BF       [2]UTF8-tail(x80-BF)
+            [0]xE1-EC [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+            [0]xED    [1]x80-9F       [2]UTF8-tail(x80-BF)
+            [0]xEE-EF [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+        */
+
+        if (((octet == 0xe0) && !((octet1 >= 0xa0) && (octet1 <= 0xbf))) ||
+            ((octet == 0xed) && !((octet1 >= 0x80) && (octet1 <= 0x9f)))) { *bytesProcessed = 2; return code; }
+
+        if ((octet >= 0xe0) && (0 <= 0xef))
+        {
+            code = ((octet & 0xf) << 12) | ((octet1 & 0x3f) << 6) | (octet2 & 0x3f);
+            *bytesProcessed = 3;
+        }
+    }
+    else if ((octet & 0xf8) == 0xf0)
+    {
+        // Four octets
+        if (octet > 0xf4) return code;
+
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+        unsigned char octet3 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; }  // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; }  // Unexpected sequence
+
+        octet3 = text[3];
+
+        if ((octet3 == '\0') || ((octet3 >> 6) != 2)) { *bytesProcessed = 4; return code; }  // Unexpected sequence
+
+        /*
+            [0]xF0       [1]x90-BF       [2]UTF8-tail  [3]UTF8-tail
+            [0]xF1-F3    [1]UTF8-tail    [2]UTF8-tail  [3]UTF8-tail
+            [0]xF4       [1]x80-8F       [2]UTF8-tail  [3]UTF8-tail
+        */
+
+        if (((octet == 0xf0) && !((octet1 >= 0x90) && (octet1 <= 0xbf))) ||
+            ((octet == 0xf4) && !((octet1 >= 0x80) && (octet1 <= 0x8f)))) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if (octet >= 0xf0)
+        {
+            code = ((octet & 0x7) << 18) | ((octet1 & 0x3f) << 12) | ((octet2 & 0x3f) << 6) | (octet3 & 0x3f);
+            *bytesProcessed = 4;
+        }
     }
 
-    if (FT_Render_Glyph(Face->glyph, FT_RENDER_MODE_NORMAL)) {
-        //todo: error
-    }
+    if (code > 0x10ffff) code = 0x3f;     // Codepoints after U+10ffff are invalid
+
+    return code;
+}
+
+//note: function that returns two things, probably retard
+internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
+    i32 w, h, OffX, OffY, Advance;
+    f32 ScaleFactor = stbtt_ScaleForPixelHeight(Font, Size);
+    u8 *MonoBitmap = stbtt_GetCodepointBitmap(Font, ScaleFactor, ScaleFactor, Codepoint, &w, &h, &OffX, &OffY);
+
+    stbtt_GetCodepointHMetrics(Font, Codepoint, &Advance, NULL);
 
     glyph Glyph = {0}; {
-        Glyph.Codepoint   = Codepoint;
-        Glyph.Advance.x   = Face->glyph->metrics.horiAdvance;
-        Glyph.Advance.y   = Face->glyph->metrics.vertAdvance;
-        Glyph.Bitmap.Data = Face->glyph->bitmap.buffer;
-        Glyph.Bitmap.w    = Face->glyph->metrics.width;
-        Glyph.Bitmap.h    = Face->glyph->metrics.height;
+        Glyph.Codepoint  = Codepoint;
+        Glyph.Advance    = (i32)((f32)Advance * ScaleFactor);
+        Glyph.OffX       = OffX;
+        Glyph.OffY       = OffY;
+        Glyph.Image.w    = w;
+        Glyph.Image.h    = h;
+        Glyph.Image.Data = MonoBitmap;
     }
 
     return Glyph;
 }
-
-internal font LoadFont(c8 *Filename, r32 Size) {
-    FT_Library FreeTypeLib;
-    FT_Face    Face;
-    file FontFile = LoadFile(Filename);
-    if (!FontFile.Data)
-         FontFile = LoadFile("c:/windows/fonts/arial.ttf");
-    if (FT_Init_FreeType(&FreeTypeLib)) {
-        //todo: error
-    }
-    if (FT_New_Memory_Face(FreeTypeLib, FontFile.Data, FontFile.Size, 0, &Face)) {
-        //todo: error
-    }
-    FT_Set_Char_Size(Face, 0, Size * 64, 0, 0);
-
-    font Font = {0}; {
-        Font.NoChars = Face->num_glyphs;
-        Font.Size    = Size;
-        Font.Chars   = (glyph   *)AllocateMemory(Font.NoChars * sizeof(glyph));
-        Font.Rects   = (rectf32 *)AllocateMemory(Font.NoChars * sizeof(rectf32));
-    }
-
-    u32 RequiredW = 0;
-    u32 RequiredH = 0;
-    i32 Padding   = 2;
-    for (u32 i = 0; i < Font.NoChars; i++) {
-        Font.Chars[i] = GetGlyph(Face, i);
-        RequiredW += Font.Chars[i].Bitmap.w + 2 * Padding;
-        RequiredH += Font.Chars[i].Bitmap.h + 2 * Padding;
-    }
-
-    //note: stolen from raylib
-    image Atlas = {0}; {
-        Atlas.w    = RequiredW;
-        Atlas.h    = RequiredH;
-        Atlas.Data = AllocateMemory(Atlas.w * Atlas.h * sizeof(u32));
-    }
-
-    i32 OffsetX = Padding;
-    i32 OffsetY = Padding;
-
-    for (u32 i = 0; i < Font.NoChars; i++) {
-        // Copy pixel data from fc.data to atlas
-        for (i32 y = 0; y < Font.Chars[i].Bitmap.h; y++) {
-            for (i32 x = 0; x < Font.Chars[i].Bitmap.w; x++) {
-                ((u32 *)Atlas.Data)[(OffsetY + y)*Atlas.w + (OffsetX + x)] =
-                    ((((u8 *)Font.Chars[i].Bitmap.Data)[y*Font.Chars[i].Bitmap.w + x]) << 24) |
-                    ((((u8 *)Font.Chars[i].Bitmap.Data)[y*Font.Chars[i].Bitmap.w + x]) << 16) |
-                    ((((u8 *)Font.Chars[i].Bitmap.Data)[y*Font.Chars[i].Bitmap.w + x]) <<  8) |
-                    ((((u8 *)Font.Chars[i].Bitmap.Data)[y*Font.Chars[i].Bitmap.w + x]) <<  0);
-            }
-        }
-
-        Font.Rects[i].x = (f32)OffsetX;
-        Font.Rects[i].y = (f32)OffsetY;
-        Font.Rects[i].w = (f32)Font.Chars[i].Bitmap.w;
-        Font.Rects[i].h = (f32)Font.Chars[i].Bitmap.h;
-
-        OffsetX += (Font.Chars[i].Bitmap.w + 2 * Padding);
-
-        if (OffsetX >= (Atlas.w - Font.Chars[i].Bitmap.w - Padding)) {
-            OffsetX  = Padding;
-            OffsetY += (Size + 2 * Padding);
-
-            if (OffsetY > (Atlas.h - Size - Padding))
-                break;
-        }
-        
-        FreeMemory(Font.Chars[i].Bitmap.Data);
-    }
-
-    Font.Atlas.w   = Atlas.w;
-    Font.Atlas.h   = Atlas.h;
-    Font.Atlas.Id  = 0;
-
-    glGenTextures(1, &Font.Atlas.Id);
-    glBindTexture(GL_TEXTURE_2D, Font.Atlas.Id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Font.Atlas.w, Font.Atlas.h, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, Atlas.Data);
-    
-    FreeMemory(Atlas.Data);
-
-    return Font;
-}
-
-#if 0
 
 typedef struct _font {
     u32      NoChars;
@@ -250,6 +261,5 @@ i32 GetGlyphIndex(font Font, u32 Codepoint) {
     return (Codepoint - 32);
 #endif
 }
-#endif
 
 #endif//FONTS_H
