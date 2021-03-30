@@ -3,6 +3,7 @@
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
+#include FT_BITMAP_H
 
 #include "lingo.h"
 #include "graphics.h"
@@ -59,28 +60,28 @@ internal font LoadFont(c8 *Filename, r32 Size) {
     FT_Set_Char_Size(Face, 0, Size * 64, 0, 0);
 
     font Font = {0}; {
-        Font.NoChars = Face->num_glyphs;
+        Font.NoChars = 95;//Face->num_glyphs;
         Font.Size    = Size;
         Font.Chars   = (glyph   *)AllocateMemory(Font.NoChars * sizeof(glyph));
         Font.Rects   = (rectf32 *)AllocateMemory(Font.NoChars * sizeof(rectf32));
     }
 
-    u32 RequiredW = 0;
-    u32 RequiredH = 0;
-    i32 Padding   = 2;
+    f32 RequiredAreaForAtlas = 0;
+    i32 Padding              = 2;
     for (u32 i = 0; i < Font.NoChars; i++) {
-        Font.Chars[i] = GetGlyph(Face, i);
-        RequiredW += Font.Chars[i].Bitmap.w + 2 * Padding;
-        RequiredH += Font.Chars[i].Bitmap.h + 2 * Padding;
+        Font.Chars[i] = GetGlyph(Face, i + 32);
+        RequiredAreaForAtlas += (Font.Chars[i].Bitmap.w + 2 * Padding) *
+                                (Font.Chars[i].Bitmap.h + 2 * Padding);
     }
 
     //note: stolen from raylib
+    f32 GuessSize = Sqrt(RequiredAreaForAtlas) * 1.3f;
+    i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
     image Atlas = {0}; {
-        Atlas.w    = RequiredW;
-        Atlas.h    = RequiredH;
+        Atlas.w    = ImageSize;
+        Atlas.h    = ImageSize;
         Atlas.Data = AllocateMemory(Atlas.w * Atlas.h * sizeof(u32));
     }
-
     i32 OffsetX = Padding;
     i32 OffsetY = Padding;
 
