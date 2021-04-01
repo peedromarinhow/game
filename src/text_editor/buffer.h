@@ -30,6 +30,7 @@ internal buffer CreateBuffer(u32 Size) {
     return Result;
 }
 
+//something *very* wrong here
 internal void ShiftGapToPosition(buffer *Buffer, u32 Pos) {
     u32 Delta = 0;
     if (Pos < Buffer->Cursor.GapStart) {
