@@ -15,7 +15,7 @@ typedef struct _glyph {
     image Image;
 } glyph;
 
-i32 GetNextCodepoint(const char *text, int *bytesProcessed) {
+u32 GetNextCodepoint(const char *text, unsigned int *bytesProcessed) {
 /*
     UTF8 specs from https://www.ietf.org/rfc/rfc3629.txt
 

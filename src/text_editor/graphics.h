@@ -5,6 +5,8 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
+#define WHITE4F Color4f(1, 1, 1, 1)
+
 #include "lingo.h"
 #include "platform.h"
 #include "maths.h"
