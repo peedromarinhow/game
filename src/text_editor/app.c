@@ -33,18 +33,6 @@ external APP_INIT(Init) {
     State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
     State->Roboto     = LoadFont("roboto.ttf", 400, 32);
     State->Buffer     = CreateBuffer(32);
-
-    for (c8 c = 'a'; c <= 'z'; c++) {
-        InsertChar(&State->Buffer, c);
-        InsertChar(&State->Buffer, c + ('A' - 'a'));
-    }
-
-    State->Buffer.Cursor.Pos = 12;
-    InsertChar(&State->Buffer, '/');
-    InsertChar(&State->Buffer, '/');
-    InsertChar(&State->Buffer, '/');
-    InsertChar(&State->Buffer, '/');
-    InsertChar(&State->Buffer, '\0');
 }
 
 external APP_RELOAD(Reload) {
@@ -67,6 +55,28 @@ external APP_RELOAD(Reload) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
+
+    if (p->kLeft && State->Buffer.Cursor.Pos > 0)
+        State->Buffer.Cursor.Pos--;
+    else
+    if (p->kRight)
+        State->Buffer.Cursor.Pos++;
+
+    if (p->KeyboardCharacterCame) {
+        if (p->KeyboardCharacter == '\b')
+            RemoveChar(&State->Buffer);
+        if (p->KeyboardCharacter == '\r')
+            InsertChar(&State->Buffer, '\n');
+        else
+        if (p->KeyboardCharacter == '\t') {
+            InsertChar(&State->Buffer, ' ');
+            InsertChar(&State->Buffer, ' ');
+            InsertChar(&State->Buffer, ' ');
+            InsertChar(&State->Buffer, ' ');
+        }
+        else
+            InsertChar(&State->Buffer, p->KeyboardCharacter);
+    }
 
     DebugDrawBuffer(&State->Buffer, &State->RobotoMono);
 }
