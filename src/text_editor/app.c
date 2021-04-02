@@ -1,6 +1,5 @@
 #include "lingo.h"
 #include "app.h"
-#include "input.h"
 
 #include "maths.h"
 #include "platform.h"
@@ -13,11 +12,10 @@
 #include "command.h"
 
 typedef struct _app_state {
-    keymap     *Keymap;
-    input_event InputEvent;
-    font        RobotoMono;
-    font        Roboto;  
-    buffer     *Buffer;
+    keymap *Keymap;
+    font    RobotoMono;
+    font    Roboto;  
+    buffer *Buffer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -61,36 +59,34 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
     
-    input_event *InputEvent = &State->InputEvent;
-    if (p->WasDown != p->IsDown) {
-        //
-    }
+    key Key = KEY_NONE;
+    if (p->kChar)
+        Key = KEY_CHAR;
+    if (p->kDelete)
+        Key = KEY_DEL;
+    if (p->kBack)
+        Key = KEY_BACK;
+    if (p->kLeft)
+        Key = KEY_LEFT;
+    if (p->kRight)
+        Key = KEY_RIGHT;
+    if (p->kHome)
+        Key = KEY_HOME;
+    if (p->kEnd)
+        Key = KEY_END;
+    if (p->kReturn)
+        Key = KEY_RETURN;
+    
+    
+    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
 
     // if (p->kDelete) {
     //     DeleteFowardChar(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kBack) {
     //     DeleteBackwardChar(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kLeft) {
     //     State->Buffer->Point = GetPrevCharCursor(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kRight) {
     //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kHome) {
     //     State->Buffer->Point = GetBegginingOfLineCursor(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kEnd) {
     //     State->Buffer->Point = GetEndOfLineCursor(State->Buffer, State->Buffer->Point);
-    // }
-    // else
-    // if (p->kReturn) {
     //     InsertChar(State->Buffer, State->Buffer->Point, '\n');
     //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
     // }

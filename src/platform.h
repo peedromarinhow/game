@@ -4,7 +4,6 @@
 #include "lingo.h"
 #include "maths.h"
 #include "memory.h"
-#include "input.h"
 
 //note: these functions are to be implemented in each platform and passed by the app via "platform"
 

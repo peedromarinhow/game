@@ -165,7 +165,7 @@ internal b32  DeleteFowardChar(buffer *Buffer, u32 Cursor) {
     }
 }
 
-internal finginline u32 GetNextCharCursor(buffer *Buffer, u32 Cursor) {
+internal finginline u32 GetNextCursor(buffer *Buffer, u32 Cursor) {
     if (Cursor < GetBufferLen(Buffer)) {
         return Cursor + 1;
     }
@@ -174,7 +174,7 @@ internal finginline u32 GetNextCharCursor(buffer *Buffer, u32 Cursor) {
     }
 }
 
-internal finginline u32 GetPrevCharCursor(buffer *Buffer, u32 Cursor) {
+internal finginline u32 GetPrevCursor(buffer *Buffer, u32 Cursor) {
     if (Cursor > 0) {
         return Cursor - 1;
     }
@@ -185,13 +185,13 @@ internal finginline u32 GetPrevCharCursor(buffer *Buffer, u32 Cursor) {
 
 internal u32 GetBegginingOfLineCursor(buffer *Buffer, u32 Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
-    Cursor = GetPrevCharCursor(Buffer, Cursor);
+    Cursor = GetPrevCursor(Buffer, Cursor);
     while (Cursor > 0) {
         c8  Char = GetBufferChar(Buffer, Cursor);
         if (Char == '\n') {
-            return GetNextCharCursor(Buffer, Cursor);
+            return GetNextCursor(Buffer, Cursor);
         }
-        Cursor = GetPrevCharCursor(Buffer, Cursor);
+        Cursor = GetPrevCursor(Buffer, Cursor);
     }
     return 0;
 }
@@ -203,7 +203,7 @@ internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
         if (Char == '\n') {
             return Cursor;
         }
-        Cursor = GetNextCharCursor(Buffer, Cursor);
+        Cursor = GetNextCursor(Buffer, Cursor);
     }
     return GetBufferLen(Buffer);
 }

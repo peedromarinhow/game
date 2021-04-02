@@ -11,7 +11,6 @@
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"
-#include "input.h"
 
 #include "win32_internal.c"
 #include "win32_utils.c"
