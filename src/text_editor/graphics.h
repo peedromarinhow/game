@@ -103,8 +103,8 @@ void gDrawFilledCircle(rv2 Center, r32 Radius, u32 IterationCount){
 }
 
 void gDrawRectFromTexture(texture Texture,
-                          rectf32 SourceRect, 
-                          rectf32 DestRect,
+                          rectf32  SourceRect, 
+                          rectf32  DestRect,
                           rv2     Origin,
                           color4f Tint)
 {

@@ -71,18 +71,22 @@ typedef struct _platform {
     /* event_state */ b32 MouseMoved;
     i16 dMouseWheel;
     rv2 MousePos;
-    /* button_state */ b32 MouseButtons[MOUSE_MAX_BUTTONS];
+    // /* button_state */ b32 MouseButtons[MOUSE_MAX_BUTTONS];
     /* button_state */ b32 MouseLeft;
     /* button_state */ b32 MouseRight;
     /* button_state */ b32 MouseMiddle;
 
     /* keyboard input */
-    /* button_state */ b32 KeyboardButtons[KEYBOARD_MAX_BUTTONS];
+    // /* button_state */ b32 KeyboardButtons[KEYBOARD_MAX_BUTTONS];
     /* button_state */ b32 kUp;
     /* button_state */ b32 kDown;
     /* button_state */ b32 kLeft;
     /* button_state */ b32 kRight;
-    /* button_state */ b32 kBackSpace;
+    /* button_state */ b32 kHome;
+    /* button_state */ b32 kEnd;
+    /* button_state */ b32 kBack;
+    /* button_state */ b32 kDelete;
+    /* button_state */ b32 kReturn;
     /* button_state */ b32 kCtrl;
     /* button_state */ b32 kShift;
     /* button_state */ b32 kAlt;

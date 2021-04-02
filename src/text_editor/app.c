@@ -11,9 +11,9 @@
 #include "buffer.h"
 
 typedef struct _app_state {
-    font   RobotoMono;
-    font   Roboto;
-    buffer Buffer;
+    font    RobotoMono;
+    font    Roboto;  
+    buffer *Buffer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -32,7 +32,20 @@ external APP_INIT(Init) {
 
     State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
     State->Roboto     = LoadFont("roboto.ttf", 400, 32);
-    State->Buffer     = CreateBuffer(32);
+    State->Buffer     = CreateBuffer(2);
+
+    InsertChar(State->Buffer, 0, '\n');
+    InsertChar(State->Buffer, 0, 'a');
+    InsertChar(State->Buffer, 0, 'b');
+    InsertChar(State->Buffer, 0, 'c');
+    InsertChar(State->Buffer, 0, '\n');
+    InsertChar(State->Buffer, 0, 'a');
+    InsertChar(State->Buffer, 0, 'b');
+    InsertChar(State->Buffer, 0, 'c');
+    InsertChar(State->Buffer, 0, '\n');
+    InsertChar(State->Buffer, 0, 'a');
+    InsertChar(State->Buffer, 0, 'b');
+    InsertChar(State->Buffer, 0, 'c');
 }
 
 external APP_RELOAD(Reload) {
@@ -56,29 +69,40 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
 
-    if (p->kLeft && State->Buffer.Cursor.Pos > 0)
-        State->Buffer.Cursor.Pos--;
+    if (p->kDelete) {
+        DeleteFowardChar(State->Buffer, State->Buffer->Point);
+    }
     else
-    if (p->kRight)
-        State->Buffer.Cursor.Pos++;
-
-    if (p->KeyboardCharacterCame) {
-        if (p->KeyboardCharacter == '\b')
-            RemoveChar(&State->Buffer);
-        if (p->KeyboardCharacter == '\r')
-            InsertChar(&State->Buffer, '\n');
-        else
-        if (p->KeyboardCharacter == '\t') {
-            InsertChar(&State->Buffer, ' ');
-            InsertChar(&State->Buffer, ' ');
-            InsertChar(&State->Buffer, ' ');
-            InsertChar(&State->Buffer, ' ');
-        }
-        else
-            InsertChar(&State->Buffer, p->KeyboardCharacter);
+    if (p->kBack) {
+        DeleteBackwardChar(State->Buffer, State->Buffer->Point);
+    }
+    else
+    if (p->kLeft) {
+        State->Buffer->Point = GetPrevCharCursor(State->Buffer, State->Buffer->Point);
+    }
+    else
+    if (p->kRight) {
+        State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
+    }
+    else
+    if (p->kHome) {
+        State->Buffer->Point = GetBegginingOfLineCursor(State->Buffer, State->Buffer->Point);
+    }
+    else
+    if (p->kEnd) {
+        State->Buffer->Point = GetEndOfLineCursor(State->Buffer, State->Buffer->Point);
+    }
+    else
+    if (p->kReturn) {
+        InsertChar(State->Buffer, State->Buffer->Point, '\n');
+        State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
     }
 
-    DebugDrawBuffer(&State->Buffer, &State->RobotoMono);
+    if (p->KeyboardCharacterCame && (' ' <= p->KeyboardCharacter && p->KeyboardCharacter <= '~')) {
+        InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardCharacter);
+    }
+
+    DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
 }
 
 external APP_DEINIT(Deinit) {
@@ -143,19 +167,19 @@ void RemoveChar(buffer *Buffer) {
 
     if (p->KeyboardCharacterCame) {
         if (p->KeyboardCharacter == '\b')
-            RemoveChar(&State->Buffer);
+            RemoveChar(State->Buffer);
         else
         if (p->KeyboardCharacter == '\r')
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, '\n');
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, '\n');
         else
         if (p->KeyboardCharacter == '\t') {
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, ' ');
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, ' ');
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, ' ');
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, ' ');
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
         }
         else
-            InsertChar(&State->Buffer, State->Buffer.Cursor.GapStart, p->KeyboardCharacter);
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, p->KeyboardCharacter);
     }
 
     if (p->dMouseWheel > 0) {

@@ -97,15 +97,6 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                         // fullscreen switching?
                 }
                 else
-                if (VKCode == VK_CONTROL)
-                    Win32ProcessButtonMessage(&Platform->kCtrl, IsDown);
-                else
-                if (VKCode == VK_SHIFT)
-                    Win32ProcessButtonMessage(&Platform->kShift, IsDown);
-                else
-                if (VKCode == VK_MENU)
-                    Win32ProcessButtonMessage(&Platform->kAlt, IsDown);
-                else
                 if (VKCode == VK_UP)
                     Win32ProcessButtonMessage(&Platform->kUp, IsDown);
                 else
@@ -118,8 +109,29 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                 if (VKCode == VK_RIGHT)
                     Win32ProcessButtonMessage(&Platform->kRight, IsDown);
                 else
+                if (VKCode == VK_HOME)
+                    Win32ProcessButtonMessage(&Platform->kHome, IsDown);
+                else
+                if (VKCode == VK_END)
+                    Win32ProcessButtonMessage(&Platform->kEnd, IsDown);
+                else
                 if (VKCode == VK_BACK)
-                    Win32ProcessButtonMessage(&Platform->kBackSpace, IsDown);
+                    Win32ProcessButtonMessage(&Platform->kBack, IsDown);
+                else
+                if (VKCode == VK_DELETE)
+                    Win32ProcessButtonMessage(&Platform->kDelete, IsDown);
+                else
+                if (VKCode == VK_RETURN)
+                    Win32ProcessButtonMessage(&Platform->kReturn, IsDown);
+                else
+                if (VKCode == VK_CONTROL)
+                    Win32ProcessButtonMessage(&Platform->kCtrl, IsDown);
+                else
+                if (VKCode == VK_SHIFT)
+                    Win32ProcessButtonMessage(&Platform->kShift, IsDown);
+                else
+                if (VKCode == VK_MENU)
+                    Win32ProcessButtonMessage(&Platform->kAlt, IsDown);
                 else
                 if (VKCode == VK_F4) {
                     if (AltKeyWasDown) Platform->Running = 0;

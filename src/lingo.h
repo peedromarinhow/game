@@ -7,6 +7,7 @@
 #define internal static
 #define global   static
 #define persist  static
+#define finginline __forceinline //note: overkill, useless in debug build, but fucking inline, please
 
 #define PI32 3.14159265359f
 
