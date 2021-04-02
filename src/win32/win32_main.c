@@ -44,7 +44,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     MSG Message;
     i16 dMouseWheel = 0;
     Win32ProcessEventMessage(&Platform->MouseMoved, 0);
-    Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 0);
+    Win32ProcessEventMessage(&Platform->kChar,      0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
         /* mouse */
@@ -142,8 +142,8 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         else
         if (Message.message == WM_CHAR) {
             WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
-                               &Platform->KeyboardCharacter, 1, 0, 0);
-            Win32ProcessEventMessage(&Platform->KeyboardCharacterCame, 1);
+                               &Platform->KeyboardChar, 1, 0, 0);
+            Win32ProcessEventMessage(&Platform->kChar, 1);
         }
         else
         if (Message.message == WM_SIZE)

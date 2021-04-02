@@ -29,13 +29,13 @@ internal finginline u32 GetCursorIndex(buffer *Buffer, u32 Cursor) {
     return (Cursor < Buffer->GapStart)? Cursor : Cursor + GetBufferGapSize(Buffer);
 }
 
-internal void AssertBufferInvariants(buffer *Buffer) {
+internal finginline void AssertBufferInvariants(buffer *Buffer) {
     Assert(Buffer->Data);
     Assert(Buffer->GapStart <= Buffer->GapEnd);
     Assert(Buffer->GapEnd <= Buffer->End);
 }
 
-internal void AssertCursorInvariants(buffer *Buffer, u32 Cursor) {
+internal finginline void AssertCursorInvariants(buffer *Buffer, u32 Cursor) {
     Assert(Cursor <= GetBufferLen(Buffer));
 }
 

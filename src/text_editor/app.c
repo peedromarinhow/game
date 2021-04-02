@@ -9,6 +9,7 @@
 #include "graphics.h"
 #include "fonts.h"
 #include "buffer.h"
+#include "command.h"
 
 typedef struct _app_state {
     font    RobotoMono;
@@ -98,8 +99,8 @@ external APP_UPDATE(Update) {
         State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
     }
 
-    if (p->KeyboardCharacterCame && (' ' <= p->KeyboardCharacter && p->KeyboardCharacter <= '~')) {
-        InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardCharacter);
+    if (p->kChar && (' ' <= p->KeyboardChar && p->KeyboardChar <= '~')) {
+        InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardChar);
     }
 
     DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
@@ -165,21 +166,21 @@ void RemoveChar(buffer *Buffer) {
     }
 }
 
-    if (p->KeyboardCharacterCame) {
-        if (p->KeyboardCharacter == '\b')
+    if (p->KeyboardCharCame) {
+        if (p->KeyboardChar == '\b')
             RemoveChar(State->Buffer);
         else
-        if (p->KeyboardCharacter == '\r')
+        if (p->KeyboardChar == '\r')
             InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, '\n');
         else
-        if (p->KeyboardCharacter == '\t') {
+        if (p->KeyboardChar == '\t') {
             InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
             InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
             InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
             InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, ' ');
         }
         else
-            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, p->KeyboardCharacter);
+            InsertChar(State->Buffer, State->Buffer.Cursor.GapStart, p->KeyboardChar);
     }
 
     if (p->dMouseWheel > 0) {

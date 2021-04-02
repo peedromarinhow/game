@@ -60,46 +60,31 @@ typedef struct _platform {
     /* options */
     b32 Fullscreen;
     b32 Running;
+    b32 WindowResized;
     iv2 WindowDimensions;
     r32 dtForFrame;
-    b32 CtrlKeyWasDown;
-    b32 ShiftKeyWasDown;
-    b32 AltKeyWasDown;
-    b32 WindowResized;
 
     /* mouse input */
-    /* event_state */ b32 MouseMoved;
+    b32  MouseMoved;
+    rv2  MousePos;
+    b32  MouseLeft, MouseRight, MouseMiddle;
     i16 dMouseWheel;
-    rv2 MousePos;
-    // /* button_state */ b32 MouseButtons[MOUSE_MAX_BUTTONS];
-    /* button_state */ b32 MouseLeft;
-    /* button_state */ b32 MouseRight;
-    /* button_state */ b32 MouseMiddle;
 
     /* keyboard input */
-    // /* button_state */ b32 KeyboardButtons[KEYBOARD_MAX_BUTTONS];
-    /* button_state */ b32 kUp;
-    /* button_state */ b32 kDown;
-    /* button_state */ b32 kLeft;
-    /* button_state */ b32 kRight;
-    /* button_state */ b32 kHome;
-    /* button_state */ b32 kEnd;
-    /* button_state */ b32 kBack;
-    /* button_state */ b32 kDelete;
-    /* button_state */ b32 kReturn;
-    /* button_state */ b32 kCtrl;
-    /* button_state */ b32 kShift;
-    /* button_state */ b32 kAlt;
-    /* event_state  */ b32 KeyboardCharacterCame;
-    c8 KeyboardCharacter;
+    b32 kUp, kDown, kLeft, kRight;
+    b32 kHome, kEnd;
+    b32 kBack, kDelete, kReturn;
+    b32 kCtrl, kShift,  kAlt;
+    b32 kChar;
+    c8  KeyboardChar;
 
     /* gamepad */
     //todo
     
     /* sound */
-    i16 *Samples;
-    i32  SamplesPerSecond;
-    i32  SampleCount;
+    // i16 *Samples;
+    // i32  SamplesPerSecond;
+    // i32  SampleCount;
 
     /* memory */
     app_memory Memory;
