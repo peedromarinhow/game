@@ -11,6 +11,7 @@
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"
+#include "input.h"
 
 #include "win32_internal.c"
 #include "win32_utils.c"
@@ -79,9 +80,9 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             SetCursor(LoadCursorA(0, IDC_ARROW));
 
         /* keyboard */
+        b32 AltKeyWasDown =  Message.lParam & (1 << 29);
         b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
         b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
-        b32 AltKeyWasDown = Message.lParam & (1 << 29);
         if (Message.message == WM_SYSKEYDOWN ||
             Message.message == WM_SYSKEYUP   ||
             Message.message == WM_KEYDOWN    ||
@@ -161,6 +162,8 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             DispatchMessage(&Message);
         }
         Platform->dMouseWheel = dMouseWheel;
+        Platform->WasDown     = WasDown;
+        Platform->IsDown      = IsDown;
     }
 }
 

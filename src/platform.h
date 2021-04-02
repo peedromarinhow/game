@@ -4,8 +4,9 @@
 #include "lingo.h"
 #include "maths.h"
 #include "memory.h"
+#include "input.h"
 
-//note: these functions are to be implemented in each platform and passed by the app via struct platform
+//note: these functions are to be implemented in each platform and passed by the app via "platform"
 
 typedef struct _file {
     void *Data;
@@ -50,8 +51,8 @@ typedef struct _event_state {
 } event_state;
 
 //note: this is how the platform and the app communicate with each other.
-#define KEYBOARD_MAX_BUTTONS 7
-#define MOUSE_MAX_BUTTONS    3
+#define KEYBOARD_MAX_KEYS 14
+#define MOUSE_MAX_BUTTONS  3
 typedef struct _platform {
     /* metadata */
     c8 *ExecutablePath;
@@ -71,12 +72,18 @@ typedef struct _platform {
     i16 dMouseWheel;
 
     /* keyboard input */
-    b32 kUp, kDown, kLeft, kRight;
-    b32 kHome, kEnd;
-    b32 kBack, kDelete, kReturn;
-    b32 kCtrl, kShift,  kAlt;
-    b32 kChar;
-    c8  KeyboardChar;
+    b32 WasDown, IsDown;
+    union {
+        b32 kKeys[KEYBOARD_MAX_KEYS];
+        struct {
+            b32 kUp, kDown, kLeft, kRight;
+            b32 kHome, kEnd;
+            b32 kBack, kDelete, kReturn;
+            b32 kCtrl, kShift,  kAlt;
+            b32 kChar;
+            c8  KeyboardChar;
+        };
+    };
 
     /* gamepad */
     //todo

@@ -15,7 +15,7 @@ Keymap->Commands[GetKeyComb(your, modifiers, and, base key)] = {"your command na
 
 typedef struct _command_context {
     /* DO NOT REMOVE */ buffer *CurrentBuffer;
-    /* DO NOT REMOVE */ c8      LastChar;
+    /* DO NOT REMOVE */ input   LastInput;
     //todo: line number, column number, etc
 } command_context;
 
@@ -37,7 +37,7 @@ EDITOR_COMMAND_FUNC(CommandFunc_DoNothing) {
 }
 
 EDITOR_COMMAND_FUNC(CommandFunc_SelfInsertChar) {
-    InsertChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point, Ctx.LastChar);
+    InsertChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point, Ctx.LastInput.Char);
 }
 
 internal keymap *CreateKeymap() {
@@ -49,14 +49,15 @@ internal keymap *CreateKeymap() {
     return Keymap;
 }
 
-internal keymap *CreateDeafultKeymap() {
+internal keymap *CreateDeafaultKeymap() {
     keymap *Keymap                = CreateKeymap();
     command CommandSelfInsertChar = {"self insert character", CommandFunc_SelfInsertChar};
-    for (c8 Char = 0; Char < 256; Char++) {
+    for (c8 Char = 0; Char < 127; Char++) {
         if (IsPrintableChar(Char)) {
             Keymap->Commands[Char] = CommandSelfInsertChar;
         }
     }
+    return Keymap;
 }
 
 internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, u8 Key) {

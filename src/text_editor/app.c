@@ -1,5 +1,6 @@
 #include "lingo.h"
 #include "app.h"
+#include "input.h"
 
 #include "maths.h"
 #include "platform.h"
@@ -12,9 +13,11 @@
 #include "command.h"
 
 typedef struct _app_state {
-    font    RobotoMono;
-    font    Roboto;  
-    buffer *Buffer;
+    keymap     *Keymap;
+    input_event InputEvent;
+    font        RobotoMono;
+    font        Roboto;  
+    buffer     *Buffer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -31,22 +34,10 @@ external APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
+    State->Keymap     = CreateDeafaultKeymap();
     State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
     State->Roboto     = LoadFont("roboto.ttf", 400, 32);
     State->Buffer     = CreateBuffer(2);
-
-    InsertChar(State->Buffer, 0, '\n');
-    InsertChar(State->Buffer, 0, 'a');
-    InsertChar(State->Buffer, 0, 'b');
-    InsertChar(State->Buffer, 0, 'c');
-    InsertChar(State->Buffer, 0, '\n');
-    InsertChar(State->Buffer, 0, 'a');
-    InsertChar(State->Buffer, 0, 'b');
-    InsertChar(State->Buffer, 0, 'c');
-    InsertChar(State->Buffer, 0, '\n');
-    InsertChar(State->Buffer, 0, 'a');
-    InsertChar(State->Buffer, 0, 'b');
-    InsertChar(State->Buffer, 0, 'c');
 }
 
 external APP_RELOAD(Reload) {
@@ -69,39 +60,44 @@ external APP_RELOAD(Reload) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
     gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
-
-    if (p->kDelete) {
-        DeleteFowardChar(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kBack) {
-        DeleteBackwardChar(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kLeft) {
-        State->Buffer->Point = GetPrevCharCursor(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kRight) {
-        State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kHome) {
-        State->Buffer->Point = GetBegginingOfLineCursor(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kEnd) {
-        State->Buffer->Point = GetEndOfLineCursor(State->Buffer, State->Buffer->Point);
-    }
-    else
-    if (p->kReturn) {
-        InsertChar(State->Buffer, State->Buffer->Point, '\n');
-        State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
+    
+    input_event *InputEvent = &State->InputEvent;
+    if (p->WasDown != p->IsDown) {
+        //
     }
 
-    if (p->kChar && (' ' <= p->KeyboardChar && p->KeyboardChar <= '~')) {
-        InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardChar);
-    }
+    // if (p->kDelete) {
+    //     DeleteFowardChar(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kBack) {
+    //     DeleteBackwardChar(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kLeft) {
+    //     State->Buffer->Point = GetPrevCharCursor(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kRight) {
+    //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kHome) {
+    //     State->Buffer->Point = GetBegginingOfLineCursor(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kEnd) {
+    //     State->Buffer->Point = GetEndOfLineCursor(State->Buffer, State->Buffer->Point);
+    // }
+    // else
+    // if (p->kReturn) {
+    //     InsertChar(State->Buffer, State->Buffer->Point, '\n');
+    //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
+    // }
+
+    // if (p->kChar && (' ' <= p->KeyboardChar && p->KeyboardChar <= '~')) {
+    //     InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardChar);
+    // }
 
     DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
 }
