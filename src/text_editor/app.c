@@ -57,9 +57,8 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     Clear(p->WindowDimensions, HexToColor(0x20202000));
-    DrawRect(ORIGIN_CENTERED, rv2_(500, 500), rv2_(100, 100), HexToColor(0xFAFAFAFF),
-             2, HexToColor(0x606060FF), 0);
-    DrawLine(rv2_(0, 0), rv2_(500, 500), 4, HexToColor(0xFA2020FF));
+    DrawRect(ORIGIN_CENTERED, rv2_(500, 500), rv2_(100, 100), HexToColor(0xFAFAFAFF), 0, HexToColor(0x606060FF));
+    DrawLine(rv2_(0, 0), rv2_(500, 500), 4, HexToColor(0x2020FAFF));
     
     // key Key = KEY_NONE;
     // if (p->kChar)

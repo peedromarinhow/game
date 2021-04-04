@@ -66,48 +66,59 @@ void Clear(iv2 WindowSize, color Color) {
     beeing an origin at the center. "Size" is absolute, mean-
     ing that it is independent from the origin. */
 void DrawRect(iv2 Origin, rv2 Pos, rv2 Size, color Color,
-              r32 StrokeWidth, color StrokeColor, b32 OnlyStroke)
+              r32 StrokeWidth, color StrokeColor)
 {
-    if (!OnlyStroke) {
+    rv2 TopLeft     = rv2_(0, 0);
+    rv2 TopRight    = rv2_(0, 0);
+    rv2 BottomRight = rv2_(0, 0);
+    rv2 BottomLeft  = rv2_(0, 0);
+
+    glColor4f(Color.r, Color.g, Color.b, Color.a);
+    if (Origin.x == 0 && Origin.y == 0) {
+        TopLeft     = rv2_(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
+        TopRight    = rv2_(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
+        BottomRight = rv2_(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
+        BottomLeft  = rv2_(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
+    }
+    else
+    if (Origin.x == 1 && Origin.y == 1) {
+        TopLeft     = rv2_(Pos.x - Size.w, Pos.y);
+        TopRight    = rv2_(Pos.x, Pos.y);
+        BottomRight = rv2_(Pos.x, Pos.y + Size.h);
+        BottomLeft  = rv2_(Pos.x - Size.w, Pos.y + Size.h);
+    }
+    else
+    if (Origin.x == 1 && Origin.y == -1) {
+        TopLeft     = rv2_(Pos.x - Size.w, Pos.y - Size.h);
+        TopRight    = rv2_(Pos.x, Pos.y - Size.h);
+        BottomRight = rv2_(Pos.x, Pos.y);
+        BottomLeft  = rv2_(Pos.x - Size.w, Pos.y);
+    }
+    else
+    if (Origin.x == -1 && Origin.y == -1) {
+        TopLeft     = rv2_(Pos.x, Pos.y - Size.h);
+        TopRight    = rv2_(Pos.x + Size.w, Pos.y - Size.h);
+        BottomRight = rv2_(Pos.x + Size.w, Pos.y);
+        BottomLeft  = rv2_(Pos.x, Pos.y);
+    }
+    else
+    if (Origin.x == -1 && Origin.y == 1) {
+        TopLeft     = rv2_(Pos.x, Pos.y);
+        TopRight    = rv2_(Pos.x + Size.w, Pos.y);
+        BottomRight = rv2_(Pos.x + Size.w, Pos.y + Size.h);
+        BottomLeft  = rv2_(Pos.x, Pos.y + Size.h);
+    }
+    else {
+        return;
+    }
+
+    if (Color.a != (0/255.f)) {
         glBegin(GL_POLYGON); {
             glColor4f(Color.r, Color.g, Color.b, Color.a);
-            if (Origin.x == 0 && Origin.y == 0) {
-                glVertex2f(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
-                glVertex2f(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
-                glVertex2f(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
-                glVertex2f(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
-            }
-            else
-            if (Origin.x == 1 && Origin.y == 1) {
-                glVertex2f(Pos.x - Size.w, Pos.y);
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x, Pos.y + Size.h);
-                glVertex2f(Pos.x - Size.w, Pos.y + Size.h);
-            }
-            else
-            if (Origin.x == 1 && Origin.y == -1) {
-                glVertex2f(Pos.x - Size.w, Pos.y - Size.h);
-                glVertex2f(Pos.x, Pos.y - Size.h);
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x - Size.w, Pos.y);
-            }
-            else
-            if (Origin.x == -1 && Origin.y == -1) {
-                glVertex2f(Pos.x, Pos.y - Size.h);
-                glVertex2f(Pos.x + Size.w, Pos.y - Size.h);
-                glVertex2f(Pos.x + Size.w, Pos.y);
-                glVertex2f(Pos.x, Pos.y);
-            }
-            else
-            if (Origin.x == -1 && Origin.y == 1) {
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x + Size.w, Pos.y);
-                glVertex2f(Pos.x + Size.w, Pos.y + Size.h);
-                glVertex2f(Pos.x, Pos.y + Size.h);
-            }
-            else {
-                return;
-            }
+            glVertex2f(TopLeft.x, TopLeft.y);
+            glVertex2f(TopRight.x, TopRight.y);
+            glVertex2f(BottomRight.x, BottomRight.y);
+            glVertex2f(BottomLeft.x, BottomLeft.y);
         } glEnd();
     }
 
@@ -115,43 +126,10 @@ void DrawRect(iv2 Origin, rv2 Pos, rv2 Size, color Color,
         glLineWidth(StrokeWidth);
         glBegin(GL_LINE_LOOP); {
             glColor4f(StrokeColor.r, StrokeColor.g, StrokeColor.b, StrokeColor.a);
-            if (Origin.x == 0 && Origin.y == 0) {
-                glVertex2f(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
-                glVertex2f(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
-                glVertex2f(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
-                glVertex2f(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
-            }
-            else
-            if (Origin.x == 1 && Origin.y == 1) {
-                glVertex2f(Pos.x - Size.w, Pos.y);
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x, Pos.y + Size.h);
-                glVertex2f(Pos.x - Size.w, Pos.y + Size.h);
-            }
-            else
-            if (Origin.x == 1 && Origin.y == -1) {
-                glVertex2f(Pos.x - Size.w, Pos.y - Size.h);
-                glVertex2f(Pos.x, Pos.y - Size.h);
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x - Size.w, Pos.y);
-            }
-            else
-            if (Origin.x == -1 && Origin.y == -1) {
-                glVertex2f(Pos.x, Pos.y - Size.h);
-                glVertex2f(Pos.x + Size.w, Pos.y - Size.h);
-                glVertex2f(Pos.x + Size.w, Pos.y);
-                glVertex2f(Pos.x, Pos.y);
-            }
-            else
-            if (Origin.x == -1 && Origin.y == 1) {
-                glVertex2f(Pos.x, Pos.y);
-                glVertex2f(Pos.x + Size.w, Pos.y);
-                glVertex2f(Pos.x + Size.w, Pos.y + Size.h);
-                glVertex2f(Pos.x, Pos.y + Size.h);
-            }
-            else {
-                return;
-            }
+            glVertex2f(TopLeft.x, TopLeft.y);
+            glVertex2f(TopRight.x, TopRight.y);
+            glVertex2f(BottomRight.x, BottomRight.y);
+            glVertex2f(BottomLeft.x, BottomLeft.y);
         } glEnd();
     }
 }
