@@ -7,15 +7,13 @@
 #include "opengl.h"
 
 #include "graphics.h"
-#include "fonts.h"
 #include "buffer.h"
-#include "command.h"
 
 typedef struct _app_state {
-    keymap *Keymap;
-    font    RobotoMono;
-    font    Roboto;  
+    keymap *Keymap;  
     buffer *Buffer;
+    // font    RobotoMono;
+    // font    Roboto;
 } app_state;
 
 external APP_INIT(Init) {
@@ -33,9 +31,9 @@ external APP_INIT(Init) {
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     State->Keymap     = CreateDeafaultKeymap();
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    State->Roboto     = LoadFont("roboto.ttf", 400, 32);
     State->Buffer     = CreateBuffer(2);
+    // State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    // State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
 
 external APP_RELOAD(Reload) {
@@ -51,51 +49,39 @@ external APP_RELOAD(Reload) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    State->Roboto     = LoadFont("roboto.ttf", 400, 32);
+    // State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    // State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0.2f, 0.2f, 0.2f, 1));
-    
-    key Key = KEY_NONE;
-    if (p->kChar)
-        Key = KEY_CHAR;
-    if (p->kDelete)
-        Key = KEY_DEL;
-    if (p->kBack)
-        Key = KEY_BACK;
-    if (p->kLeft)
-        Key = KEY_LEFT;
-    if (p->kRight)
-        Key = KEY_RIGHT;
-    if (p->kHome)
-        Key = KEY_HOME;
-    if (p->kEnd)
-        Key = KEY_END;
-    if (p->kReturn)
-        Key = KEY_RETURN;
-    
-    
-    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
 
-    // if (p->kDelete) {
-    //     DeleteFowardChar(State->Buffer, State->Buffer->Point);
-    //     DeleteBackwardChar(State->Buffer, State->Buffer->Point);
-    //     State->Buffer->Point = GetPrevCharCursor(State->Buffer, State->Buffer->Point);
-    //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
-    //     State->Buffer->Point = GetBegginingOfLineCursor(State->Buffer, State->Buffer->Point);
-    //     State->Buffer->Point = GetEndOfLineCursor(State->Buffer, State->Buffer->Point);
-    //     InsertChar(State->Buffer, State->Buffer->Point, '\n');
-    //     State->Buffer->Point = GetNextCharCursor(State->Buffer, State->Buffer->Point);
-    // }
+    Clear(p->WindowDimensions, HexToColor(0x20202000));
+    DrawRect(ORIGIN_CENTERED, rv2_(500, 500), rv2_(100, 100), HexToColor(0xFAFAFAFF),
+             2, HexToColor(0x606060FF), 0);
+    DrawLine(rv2_(0, 0), rv2_(500, 500), 4, HexToColor(0xFA2020FF));
+    
+    // key Key = KEY_NONE;
+    // if (p->kChar)
+    //     Key = KEY_CHAR;
+    // if (p->kDelete)
+    //     Key = KEY_DEL;
+    // if (p->kBack)
+    //     Key = KEY_BACK;
+    // if (p->kLeft)
+    //     Key = KEY_LEFT;
+    // if (p->kRight)
+    //     Key = KEY_RIGHT;
+    // if (p->kHome)
+    //     Key = KEY_HOME;
+    // if (p->kEnd)
+    //     Key = KEY_END;
+    // if (p->kReturn)
+    //     Key = KEY_RETURN;
+    
+    // State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
 
-    // if (p->kChar && (' ' <= p->KeyboardChar && p->KeyboardChar <= '~')) {
-    //     InsertChar(State->Buffer, State->Buffer->Point, p->KeyboardChar);
-    // }
-
-    DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
+    // DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
 }
 
 external APP_DEINIT(Deinit) {

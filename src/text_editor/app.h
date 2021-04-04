@@ -14,9 +14,4 @@ global platform_write_file_callback           *WriteFile_; //damn you, "windows.
 global platform_report_error_callback         *ReportError;
 global platform_report_error_and_die_callback *ReportErrorAndDie;
 
-typedef struct _allocator {
-    platform_allocate_memory_callback *Allocate;
-    platform_free_memory_callback     *Free;
-} allocator;
-
 #endif//APP_H

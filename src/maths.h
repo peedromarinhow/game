@@ -22,9 +22,11 @@ typedef union _iv2 {
         i32 w;
         i32 h;
     };
-    i32 Components[2];
+    i32 Comps[2];
 } iv2;
-#define Iv2(a, b) ((iv2){a, b})
+finginline iv2 iv2_(i32 x, i32 y) {
+    return (iv2){x, y};
+}
 
 typedef union _rv2 {
     struct {
@@ -35,21 +37,25 @@ typedef union _rv2 {
         r32 w;
         r32 h;
     };
-    r32 Components[2];
+    r32 Comps[2];
 } rv2;
-#define Rv2(a, b) ((rv2){a, b})
-
-inline rv2 SumRv2(rv2 a, rv2 b) {
-    return Rv2(a.x + b.x, a.y + b.y);
+finginline rv2 rv2_(r32 x, r32 y) {
+    return (rv2){x, y};
 }
 
-typedef struct _color4f {
+typedef struct _color {
     r32 r;
     r32 g;
     r32 b;
     r32 a;
-} color4f;
-#define Color4f(r, g, b, a) ((color4f){r, g, b, a})
+} color;
+
+finginline  color HexToColor(u32 Hex) {
+    return (color){((Hex >> 24) & 0xFF)/255.f,
+                   ((Hex >> 16) & 0xFF)/255.f,
+                   ((Hex >>  8) & 0xFF)/255.f,
+                   ((Hex >>  0) & 0xFF)/255.f};
+}
 
 typedef struct _color4b {
     u8 r;
@@ -57,7 +63,6 @@ typedef struct _color4b {
     u8 b;
     u8 a;
 } color4b;
-#define Color4b(r, g, b, a) ((color4b){r, g, b, a})
 
 typedef union _c32 {
     struct {
@@ -68,7 +73,7 @@ typedef union _c32 {
         r32 a;
         r32 b;
     };
-    r32 Components[2];
+    r32 Comps[2];
 } c32;
 
 inline c32 MulC32(c32 z, c32 w) {
