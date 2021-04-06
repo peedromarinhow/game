@@ -53,7 +53,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
         }
         else
         if (Message.message == WM_MOUSEMOVE){
-            Platform->MousePos = Win32GetMousePos(Window);
+            Platform->MousePos = Win32GetMousePos(Window, Platform->WindowDimensions);
             Win32ProcessEventMessage(&Platform->MouseMoved, 1);
         }
         else
@@ -233,8 +233,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
 
-        Platform.MousePos                  = Win32GetMousePos(Window);
         Platform.WindowDimensions          = Win32GetWindowDimensions(Window);
+        Platform.MousePos                  = Win32GetMousePos(Window, Platform.WindowDimensions);
     }
 
     /* load app code */
@@ -284,8 +284,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: sound
 
         /* update */ {
-            if (MousePosOutOfWindow) Platform.MousePos = Win32GetMousePos(Window);
             Platform.WindowDimensions                  = Win32GetWindowDimensions(Window);
+            if (MousePosOutOfWindow) Platform.MousePos = Win32GetMousePos(Window, Platform.WindowDimensions);
 
             AppCode.Update(&Platform);
 

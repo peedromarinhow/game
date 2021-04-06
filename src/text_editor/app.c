@@ -12,8 +12,8 @@
 typedef struct _app_state {
     keymap *Keymap;  
     buffer *Buffer;
-    // font    RobotoMono;
-    // font    Roboto;
+    font    RobotoMono;
+    font    Roboto;
 } app_state;
 
 external APP_INIT(Init) {
@@ -32,8 +32,8 @@ external APP_INIT(Init) {
 
     State->Keymap     = CreateDeafaultKeymap();
     State->Buffer     = CreateBuffer(2);
-    // State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    // State->Roboto     = LoadFont("roboto.ttf", 400, 32);
+    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
 
 external APP_RELOAD(Reload) {
@@ -49,38 +49,38 @@ external APP_RELOAD(Reload) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    // State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    // State->Roboto     = LoadFont("roboto.ttf", 400, 32);
+    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    Clear(p->WindowDimensions, HexToColor(0x20202000));
-    DrawRect(ORIGIN_CENTERED, rv2_(500, 500), rv2_(100, 100), HexToColor(0xFAFAFAFF), 0, HexToColor(0x606060FF));
-    DrawLine(rv2_(0, 0), rv2_(500, 500), 4, HexToColor(0x2020FAFF));
+    Clear(ORIGIN_CENTERED, p->WindowDimensions, HexToColor(0x20202000));
+    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFAFAFAFF), 0, HexToColor(0x606060FF));
+    DrawLine(rv2_(0, 0), p->MousePos, 4, HexToColor(0x4040FAFF));
+    DrawText_(&State->RobotoMono, "a\n\tb\rcdef", rv2_(200, 600), 32, 0, 0, HexToColor(0xFAFAFAFF));
+    DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     
-    // key Key = KEY_NONE;
-    // if (p->kChar)
-    //     Key = KEY_CHAR;
-    // if (p->kDelete)
-    //     Key = KEY_DEL;
-    // if (p->kBack)
-    //     Key = KEY_BACK;
-    // if (p->kLeft)
-    //     Key = KEY_LEFT;
-    // if (p->kRight)
-    //     Key = KEY_RIGHT;
-    // if (p->kHome)
-    //     Key = KEY_HOME;
-    // if (p->kEnd)
-    //     Key = KEY_END;
-    // if (p->kReturn)
-    //     Key = KEY_RETURN;
+    key Key = KEY_NONE;
+    if (p->kChar)
+        Key = KEY_CHAR;
+    if (p->kDelete)
+        Key = KEY_DEL;
+    if (p->kBack)
+        Key = KEY_BACK;
+    if (p->kLeft)
+        Key = KEY_LEFT;
+    if (p->kRight)
+        Key = KEY_RIGHT;
+    if (p->kHome)
+        Key = KEY_HOME;
+    if (p->kEnd)
+        Key = KEY_END;
+    if (p->kReturn)
+        Key = KEY_RETURN;
     
-    // State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
-
-    // DrawBuffer(State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
+    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
 }
 
 external APP_DEINIT(Deinit) {

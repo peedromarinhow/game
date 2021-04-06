@@ -37,29 +37,31 @@ texture TextureFromImage(image Image) {
     return Result;
 }
 
-void Clear(iv2 WindowSize, color Color) {
-    glLoadIdentity();
-    glViewport(0, 0, WindowSize.w, WindowSize.h);
-    glClearColor(Color.r, Color.g, Color.b, Color.a);
-    glClear(GL_COLOR_BUFFER_BIT);
-    r32 a = 2.0f/WindowSize.w;
-    r32 b = 2.0f/WindowSize.h;
-    r32 Proj[] = {
-        a,  0,  0,  0,
-        0, -b,  0,  0,
-        0,  0,  1,  0,
-       -1,  1,  0,  1
-    };
-    glLoadMatrixf(Proj);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-}
-
 #define ORIGIN_CENTERED iv2_( 0,  0)
 #define ORIGIN_TOPRIGHT iv2_( 1,  1)
 #define ORIGIN_BOTRIGHT iv2_( 1, -1)
 #define ORIGIN_BOTLEFT  iv2_(-1, -1)
 #define ORIGIN_TOPLEFT  iv2_(-1,  1)
+
+void Clear(iv2 Origin, iv2 WindowSize, color Color) {
+    glLoadIdentity();
+    glViewport(0, 0, WindowSize.w, WindowSize.h);
+
+    r32 a = 2.0f/WindowSize.w;
+    r32 b = 2.0f/WindowSize.h;
+    r32 Proj[] = {
+        a, 0, 0, 0,
+        0, b, 0, 0,
+        0, 0, 1, 0,
+       -1,-1, 0, 1
+    };
+
+    glLoadMatrixf(Proj);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glClearColor(Color.r, Color.g, Color.b, Color.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+}
 //doc:
 /* "Origin" is a vector, where the quadrant wich it points to
     represents wich corner of the rect is the origin. <0, 0>
@@ -142,72 +144,6 @@ void DrawLine(rv2 a, rv2 b, r32 StrokeWidth, color Color) {
         glVertex2f(a.x, a.y);
         glVertex2f(b.x, b.y);
     } glEnd();
-}
-
-void gDrawFilledCircle(rv2 Center, r32 Radius, u32 IterationCount){
-	GLfloat TwoPi = 2.0f * PI32;
-	glBegin(GL_TRIANGLE_FAN);
-		glVertex2f(Center.x, Center.y); // center of circle
-		for(u32 IterationIndex = 0; IterationIndex <= IterationCount; IterationIndex++) { 
-			glVertex2f(
-		        Center.x + (Radius * Cos(IterationIndex * TwoPi / IterationCount)), 
-			    Center.y + (Radius * Sin(IterationIndex * TwoPi / IterationCount))
-			);
-		}
-	glEnd();
-}
-
-void gDrawRectFromTexture(texture Texture,
-                          rectf32  SourceRect, 
-                          rectf32  DestRect,
-                          rv2     Origin,
-                          color Tint)
-{
-    f32 w = (f32)Texture.w;
-    f32 h = (f32)Texture.h;
-
-    b32 FlipX = 0;
-
-    if (SourceRect.w < 0) {
-        FlipX = 0;
-        SourceRect.w *= -1;
-    }
-    if (SourceRect.h < 0) {
-        SourceRect.y -= SourceRect.h;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, Texture.Id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_QUADS); {
-        glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
-        glNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
-
-        // Bottom-left corner for texture and quad
-        if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
-        else       glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
-        glVertex2f(0.0f, 0.0f);
-
-        // Bottom-right corner for texture and quad
-        if (FlipX) glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
-        else       glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
-        glVertex2f(0.0f, DestRect.h);
-
-        // Top-right corner for texture and quad
-        if (FlipX) glTexCoord2f(SourceRect.x/w, (SourceRect.y + SourceRect.h)/h);
-        else       glTexCoord2f((SourceRect.x + SourceRect.w)/w, (SourceRect.y + SourceRect.h)/h);
-        glVertex2f(DestRect.w, DestRect.h);
-
-        // Top-left corner for texture and quad
-        if (FlipX) glTexCoord2f(SourceRect.x/w, SourceRect.y/h);
-        else       glTexCoord2f((SourceRect.x + SourceRect.w)/w, SourceRect.y/h);
-        glVertex2f(DestRect.w, 0.0f);
-    } glEnd();
-    glDisable(GL_BLEND);
-    glDisable(GL_TEXTURE_2D);
 }
 
 void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color Tint) {
@@ -388,6 +324,7 @@ typedef struct _font {
     texture  Texture;
 } font;
 
+//note: stolen from raylib
 internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
     file FontFile = LoadFile(Filename);
     if (!FontFile.Data)
@@ -413,7 +350,6 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
                                 (Result.Chars[i].Image.h + 2 * Padding);
     }
 
-    //note: stolen from raylib
     f32 GuessSize = Sqrt(RequiredAreaForAtlas) * 1.3f;
     i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
     image Atlas = {0}; {
@@ -462,6 +398,15 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
             if (Result.Chars[i].Codepoint == ' ') {
                 Result.Rects[i].w = Result.Chars[i].Advance;
             }
+            if (Result.Chars[i].Codepoint == '\t') {
+                Result.Rects[i].w = Result.Chars[i].Advance;
+            }
+            if (Result.Chars[i].Codepoint == '\r') {
+                Result.Rects[i].w = Result.Chars[i].Advance;
+            }
+            if (Result.Chars[i].Codepoint == '\n') {
+                Result.Rects[i].w = Result.Chars[i].Advance;
+            }
             
             FreeMemory(Result.Chars[i].Image.Data);
         }
@@ -482,6 +427,7 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
     return Result;
 }
 
+//note: stolen from raylib
 i32 GetGlyphIndex(font Font, u32 Codepoint) {
 #define TEXT_CHARACTER_NOTFOUND     '?'
 #define UNORDERED_CHARSET
@@ -501,25 +447,18 @@ i32 GetGlyphIndex(font Font, u32 Codepoint) {
 #endif
 }
 
-void gDrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
-               f32 LineSpacing, color Tint, rv2 *ReturnDimensions)
+void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
+               f32 LineSpacing, color Tint)
 {
     f32 ScaleFactor = Size/Font->Size;
     f32 CharOffset  = 0;
     f32 LineOffset  = 0;
-
-    i32 TempLen   = 0;
-    i32 Len       = 0;
-    r32 TempTextW = 0;
-    r32 TextW     = 0;
-    r32 TextH     = Font->Size;
 
     glBindTexture(GL_TEXTURE_2D, Font->Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glEnable(GL_TEXTURE_2D);
     glBegin(GL_QUADS); {
-        Len++;
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
         i32 i = 0;
         while (Text[i] != '\0') {
@@ -530,37 +469,18 @@ void gDrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
 
             if (Text[i] == '\t') {
                 CharOffset += Font->Size * 1.5f;
-                i++;
-                continue; //note: skips the rest, so the caracter is not drawn
+                Index = GetGlyphIndex(*Font, ' ');
             }
 
             if (Text[i] == '\n') {
                 LineOffset += Font->Size + (LineSpacing * ScaleFactor);
                 CharOffset = 0;
-                i++;
-
-                if (TempTextW < TextW)
-                    TempTextW = TextW;
-                
-                Len    = 0;
-                TextW  = 0;
-                TextH += LineOffset;
-
-                continue; //note: skips the rest, so the caracter is not drawn
+                Index = GetGlyphIndex(*Font, ' ');
             }
 
             if (Text[i] == '\r') {
-                i++;
-                continue;
+                Index = GetGlyphIndex(*Font, ' ');
             }
-
-            if (TempLen < Len)
-                TempLen = Len;
-
-            if (Font->Chars[Index].Advance != 0)
-                TextW += Font->Chars[Index].Advance;
-            else
-                TextW += (Font->Rects[Index].w + Font->Chars[Index].OffX);
 
             rectf32 Rect = Font->Rects[Index];
             f32 w        = Font->Texture.w;
@@ -568,19 +488,19 @@ void gDrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
 
             glTexCoord2f(Rect.x/w, Rect.y/h);
             glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + OffY);
+                         Pos.y - LineOffset - OffY);
 
             glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
             glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + OffY);
+                         Pos.y - LineOffset - OffY);
 
             glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
             glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
+                         Pos.y - LineOffset - Rect.h - OffY);
 
             glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
             glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
+                         Pos.y - LineOffset - Rect.h - OffY);
 
             CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
                           (CharSpacing * ScaleFactor);
@@ -588,14 +508,6 @@ void gDrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
         }
     } glEnd();
     glDisable(GL_TEXTURE_2D);
-
-    if (TempTextW < TextW)
-        TempTextW = TextW;
-
-    if (ReturnDimensions) {
-        ReturnDimensions->w = TempTextW * ScaleFactor + (r32)((TempLen - 1) * CharSpacing);
-        ReturnDimensions->h = TextH * ScaleFactor;
-    }
 }
 
 void gDrawTextLen(font *Font, r32 Size, rv2 Pos,
@@ -636,19 +548,19 @@ void gDrawTextLen(font *Font, r32 Size, rv2 Pos,
 
             glTexCoord2f(Rect.x/w, Rect.y/h);
             glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + OffY);
+                         Pos.y + LineOffset - OffY);
 
             glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
             glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + OffY);
+                         Pos.y + LineOffset - OffY);
 
             glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
             glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
+                         Pos.y + LineOffset + Rect.h - OffY);
 
             glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
             glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y + LineOffset + Rect.h + OffY);
+                         Pos.y + LineOffset + Rect.h - OffY);
 
             CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
                           (CharSpacing * ScaleFactor);

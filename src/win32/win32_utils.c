@@ -183,13 +183,13 @@ inline iv2 Win32GetWindowDimensions(HWND Window) {
     return Result;
 }
 
-inline rv2 Win32GetMousePos(HWND Window) {
+inline rv2 Win32GetMousePos(HWND Window, iv2 WindowDimensions) {
     rv2 Result = {0};
     POINT MousePoint;
     GetCursorPos(&MousePoint);
     ScreenToClient(Window, &MousePoint);
-    Result.x = MousePoint.x;
-    Result.y = MousePoint.y;
+    Result.x =  MousePoint.x;
+    Result.y = -MousePoint.y + WindowDimensions.y;
     return Result;
 }
 

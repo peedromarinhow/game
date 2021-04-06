@@ -225,15 +225,13 @@ internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *
     return i;
 }
 
-internal void DrawBuffer(buffer *Buffer, font *Font, f32 LineHeight) {
+internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
     c8 Line[256];
-    f32 x = 16;
-    f32 y = 32;
     for (u32 Cursor = 0; Cursor < GetBufferLen(Buffer); Cursor++) {
         u32  LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
-        gDrawText(Font, Line, (rv2){x, y}, Font->Size, 0, 0, HexToColor(0xFAFAFAFF), NULL);
-        y += LineHeight;
+        DrawText_(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
+        Pos.y -= LineHeight;
     }
 }
 
