@@ -30,7 +30,7 @@ typedef PLATFORM_LOAD_FILE_TO_ARENA(platform_load_file_to_arena_callback);
 #define PLATFORM_FREE_FILE_FROM_ARENA(Name) void Name(memory_arena *Arena, file File)
 typedef PLATFORM_FREE_FILE_FROM_ARENA(platform_free_file_from_arena_callback);
 
-#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u64 Size, c8 *Filename)
+#define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u32 Size, c8 *Filename, b32 Append)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
 #define PLATFORM_REPORT_ERROR(Name) void Name(c8 *Title, c8 *ErrorMessage)

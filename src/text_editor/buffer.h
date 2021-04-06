@@ -12,7 +12,8 @@ typedef struct _buffer {
     u32 GapStart;
     u32 GapEnd;
     u32 End;
-     
+    
+    c8 *Filename;
     u32 Point;
 } buffer;
 
@@ -57,7 +58,7 @@ internal buffer *CreateBuffer(u32 InitialGapSize) {
         Buffer->GapEnd   = InitialGapSize;
         Buffer->End      = InitialGapSize;
 
-        
+        Buffer->Filename = "a.c";
         Buffer->Point = 0;
     }
 
@@ -207,6 +208,11 @@ internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
     return GetBufferLen(Buffer);
 }
 
+internal void SaveBufferToFile(buffer *Buffer) {
+    // WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 1);
+    WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
+}
+
 internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *OutCursor) {
     u32 Cursor = *OutCursor;
     i32 i;
@@ -255,7 +261,7 @@ void OutputDebugBuffer(buffer *Buffer) {
 #define COMMAND_H
 
 typedef struct _command_context {
-    /* DO NOT REMOVE */ buffer *CurrentBuffer;
+    /* DO NOT REMOVE */ buffer *Buffer;
     //todo: line number, column number, etc
     c8 LastChar;
 } command_context;
@@ -264,7 +270,7 @@ typedef struct _command_context {
 typedef EDITOR_COMMAND_FUNC(command_func);
 
 typedef struct _command {
-    const c8     *Name;
+    const c8     *Desc;
     command_func *Func;
 } command;
 
@@ -285,10 +291,6 @@ typedef enum _key {
     KEY_RETURN
 } key;
 
-internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, key Key) {
-    return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
-}
-
 internal command *GetKeyCommand(keymap *Keymap, u16 KeyComb) {
     Assert(KeyComb < MAX_KEY_COMBS);
     return Keymap->Commands + KeyComb;
@@ -297,6 +299,54 @@ internal command *GetKeyCommand(keymap *Keymap, u16 KeyComb) {
 EDITOR_COMMAND_FUNC(CmdFunc_DoNothing) {
     //note: does nothing for now, consider error message.
 }
+
+EDITOR_COMMAND_FUNC(CmdFunc_InsertChar) {
+    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, Ctx.LastChar);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharFoward) {
+    DeleteFowardChar(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharBackward) {
+    DeleteBackwardChar(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretLeft) {
+    Ctx.Buffer->Point = GetPrevCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretRight) {
+    Ctx.Buffer->Point = GetNextCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToBegginningOfLine) {
+    Ctx.Buffer->Point = GetBegginingOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToEndOfLine) {
+    Ctx.Buffer->Point = GetEndOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_InsertNewLine) {
+    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, '\n');
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_SaveBuffer) {
+    SaveBufferToFile(Ctx.Buffer);
+    DrawRect(iv2_(0, 0), rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF), 0, (color){0});
+}
+
+internal finginline command NewCommand(command_func *Func, c8 *Description) {
+    return (command){Description, Func};
+}
+
+internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, key Key) {
+    return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
+}
+
+#define BIND(k, KeyComb, CommandFunc, CommandDesc) \
+    k->Commands[KeyComb] = NewCommand(CommandFunc, CommandDesc);
 
 internal keymap *CreateKeymap() {
     keymap *Keymap           = AllocateMemory(sizeof(keymap));
@@ -307,53 +357,18 @@ internal keymap *CreateKeymap() {
     return Keymap;
 }
 
-internal finginline command NewCommand(c8 *Name, command_func *Func) {
-    return (command){Name, Func};
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_InsertChar) {
-    InsertChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point, Ctx.LastChar);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharFoward) {
-    DeleteFowardChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharBackward) {
-    DeleteBackwardChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretLeft) {
-    Ctx.CurrentBuffer->Point = GetPrevCursor(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretRight) {
-    Ctx.CurrentBuffer->Point = GetNextCursor(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToBegginningOfLine) {
-    Ctx.CurrentBuffer->Point = GetBegginingOfLineCursor(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToEndOfLine) {
-    Ctx.CurrentBuffer->Point = GetEndOfLineCursor(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_InsertNewLine) {
-    InsertChar(Ctx.CurrentBuffer, Ctx.CurrentBuffer->Point, '\n');
-}
-
-
-internal keymap *CreateDeafaultKeymap() {
+internal keymap *CreateMyKeymap() {
     keymap *Keymap = CreateKeymap();
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_CHAR)]   = NewCommand("insert char",                       CmdFunc_InsertChar);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_DEL)]    = NewCommand("delete char foward",                CmdFunc_DeleteCharFoward);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_BACK)]   = NewCommand("delete char backward",              CmdFunc_DeleteCharBackward);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_LEFT)]   = NewCommand("move carret left",                  CmdFunc_MoveCarretLeft);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_RIGHT)]  = NewCommand("move carret right",                 CmdFunc_MoveCarretRight);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_HOME)]   = NewCommand("move carret to begginning of line", CmdFunc_MoveCarretToBegginningOfLine);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_END)]    = NewCommand("move carret to end of line",        CmdFunc_MoveCarretToEndOfLine);
-    Keymap->Commands[GetKeyComb(0, 0, 0, KEY_RETURN)] = NewCommand("insert new line",                   CmdFunc_InsertNewLine);
+
+    BIND(Keymap, KEY_CHAR,   CmdFunc_InsertChar,                   "insert char");
+    BIND(Keymap, KEY_DEL,    CmdFunc_DeleteCharFoward,             "delete char foward");
+    BIND(Keymap, KEY_BACK,   CmdFunc_DeleteCharBackward,           "delete char backward");
+    BIND(Keymap, KEY_LEFT,   CmdFunc_MoveCarretLeft,               "move carret left");
+    BIND(Keymap, KEY_RIGHT,  CmdFunc_MoveCarretRight,              "move carret right");
+    BIND(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
+    BIND(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
+    BIND(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
+    BIND(Keymap, GetKeyComb(1, 0, 0, 's'), CmdFunc_SaveBuffer,     "save buffer");
     
     return Keymap;
 }

@@ -108,12 +108,20 @@ PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
 }
 
 PLATFORM_WRITE_FILE(Win32WriteFile) {
-    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
-                                    0, 0, CREATE_ALWAYS, 0, 0);
+    HANDLE FileHandle = {0};
+    if (Append) {
+        CreateFileA(Filename, FILE_APPEND_DATA,
+                    FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+    }
+    else {
+        CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                    0, 0, CREATE_ALWAYS, 0, 0);
+    }
+    
     if (FileHandle != INVALID_HANDLE_VALUE)
     {
         void *DataToWrite     = Data;
-        DWORD DataToWriteSize = Size;
+        DWORD DataToWriteSize = Size;//(Size > 0)? Size : sizeof(Data);
         DWORD BytesWritten    = 0;
 
         WriteFile(FileHandle, DataToWrite, DataToWriteSize, &BytesWritten, NULL);

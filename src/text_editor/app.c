@@ -30,25 +30,8 @@ external APP_INIT(Init) {
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    State->Keymap     = CreateDeafaultKeymap();
+    State->Keymap     = CreateMyKeymap();
     State->Buffer     = CreateBuffer(2);
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
-    State->Roboto     = LoadFont("roboto.ttf", 400, 32);
-}
-
-external APP_RELOAD(Reload) {
-    app_state *State = (app_state *)p->Memory.Contents;
-
-    AllocateMemory    = p->AllocateMemoryCallback;
-    FreeMemory        = p->FreeMemoryCallback;
-    LoadFile          = p->LoadFileCallback;
-    FreeFile          = p->FreeFileCallback;
-    LoadFileToArena   = p->LoadFileToArenaCallback;
-    FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_        = p->WriteFileCallback;
-    ReportError       = p->ReportErrorCallback;
-    ReportErrorAndDie = p->ReportErrorAndDieCallback;
-
     State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
     State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
@@ -63,6 +46,7 @@ external APP_UPDATE(Update) {
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     
     key Key = KEY_NONE;
+
     if (p->kChar)
         Key = KEY_CHAR;
     if (p->kDelete)
@@ -79,8 +63,30 @@ external APP_UPDATE(Update) {
         Key = KEY_END;
     if (p->kReturn)
         Key = KEY_RETURN;
+    if (p->KeyboardChar == 's')
+        Key = 's';
+    if (p->kCtrl)
+        Key = GetKeyComb(1, 0, 0, Key);
+    if (p->kAlt)
+        Key = GetKeyComb(0, 1, 0, Key);
+    if (p->kShift)
+        Key = GetKeyComb(0, 0, 1, Key);
     
     State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
+}
+
+external APP_RELOAD(Reload) {
+    app_state *State = (app_state *)p->Memory.Contents;
+
+    AllocateMemory    = p->AllocateMemoryCallback;
+    FreeMemory        = p->FreeMemoryCallback;
+    LoadFile          = p->LoadFileCallback;
+    FreeFile          = p->FreeFileCallback;
+    LoadFileToArena   = p->LoadFileToArenaCallback;
+    FreeFileFromArena = p->FreeFileFromArenaCallback;
+    WriteFile_        = p->WriteFileCallback;
+    ReportError       = p->ReportErrorCallback;
+    ReportErrorAndDie = p->ReportErrorAndDieCallback;
 }
 
 external APP_DEINIT(Deinit) {
