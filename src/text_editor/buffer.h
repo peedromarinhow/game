@@ -209,7 +209,7 @@ internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
 }
 
 internal void SaveBufferToFile(buffer *Buffer) {
-    // WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 1);
+    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 1);
     WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
 }
 
@@ -281,14 +281,14 @@ typedef struct _keymap {
 
 typedef enum _key {
     KEY_NONE = 0,
-    KEY_CHAR,
     KEY_DEL,
     KEY_BACK,
     KEY_LEFT,
     KEY_RIGHT,
     KEY_HOME,
     KEY_END,
-    KEY_RETURN
+    KEY_RETURN,
+    KEY_CHAR,
 } key;
 
 internal command *GetKeyCommand(keymap *Keymap, u16 KeyComb) {
@@ -360,7 +360,13 @@ internal keymap *CreateKeymap() {
 internal keymap *CreateMyKeymap() {
     keymap *Keymap = CreateKeymap();
 
-    BIND(Keymap, KEY_CHAR,   CmdFunc_InsertChar,                   "insert char");
+    for (c8 Key = 0; Key < 127; Key++) {
+        if (IsPrintableChar(Key)) {
+            BIND(Keymap, GetKeyComb(0, 0, 0, Key), CmdFunc_InsertChar, "insert char");
+            BIND(Keymap, GetKeyComb(0, 0, 1, Key), CmdFunc_InsertChar, "insert char");
+        }
+    }
+
     BIND(Keymap, KEY_DEL,    CmdFunc_DeleteCharFoward,             "delete char foward");
     BIND(Keymap, KEY_BACK,   CmdFunc_DeleteCharBackward,           "delete char backward");
     BIND(Keymap, KEY_LEFT,   CmdFunc_MoveCarretLeft,               "move carret left");
@@ -368,7 +374,7 @@ internal keymap *CreateMyKeymap() {
     BIND(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
     BIND(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
     BIND(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
-    BIND(Keymap, GetKeyComb(1, 0, 0, 's'), CmdFunc_SaveBuffer,     "save buffer");
+    BIND(Keymap, GetKeyComb(1, 0, 0, 'S'), CmdFunc_SaveBuffer,     "save buffer");
     
     return Keymap;
 }

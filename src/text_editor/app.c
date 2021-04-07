@@ -46,31 +46,23 @@ external APP_UPDATE(Update) {
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     
     key Key = KEY_NONE;
-
-    if (p->kChar)
-        Key = KEY_CHAR;
+    
     if (p->kDelete)
-        Key = KEY_DEL;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_DEL);
     if (p->kBack)
-        Key = KEY_BACK;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_BACK);
     if (p->kLeft)
-        Key = KEY_LEFT;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_LEFT);
     if (p->kRight)
-        Key = KEY_RIGHT;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RIGHT);
     if (p->kHome)
-        Key = KEY_HOME;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_HOME);
     if (p->kEnd)
-        Key = KEY_END;
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_END);
     if (p->kReturn)
-        Key = KEY_RETURN;
-    if (p->KeyboardChar == 's')
-        Key = 's';
-    if (p->kCtrl)
-        Key = GetKeyComb(1, 0, 0, Key);
-    if (p->kAlt)
-        Key = GetKeyComb(0, 1, 0, Key);
-    if (p->kShift)
-        Key = GetKeyComb(0, 0, 1, Key);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RETURN);
+    if (p->kChar)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->KeyboardChar);
     
     State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
 }

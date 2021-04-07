@@ -110,12 +110,13 @@ PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
 PLATFORM_WRITE_FILE(Win32WriteFile) {
     HANDLE FileHandle = {0};
     if (Append) {
-        CreateFileA(Filename, FILE_APPEND_DATA,
-                    FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+        FileHandle = CreateFileA(Filename, FILE_APPEND_DATA,
+                                 FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+        SetFilePointer(FileHandle, 0, 0, FILE_END);
     }
     else {
-        CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
-                    0, 0, CREATE_ALWAYS, 0, 0);
+        FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
+                                 0, 0, CREATE_ALWAYS, 0, 0);
     }
     
     if (FileHandle != INVALID_HANDLE_VALUE)
