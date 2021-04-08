@@ -1,5 +1,5 @@
 #include "lingo.h"
-#include "app.h"
+#include "api.h"
 
 #include "maths.h"
 #include "platform.h"
@@ -17,6 +17,9 @@ typedef struct _app_state {
 } app_state;
 
 external APP_INIT(Init) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
@@ -37,12 +40,10 @@ external APP_INIT(Init) {
 }
 
 external APP_UPDATE(Update) {
+    Clear(p->WindowDimensions, HexToColor(0x20202000));
     app_state *State = (app_state *)p->Memory.Contents;
 
-    Clear(ORIGIN_CENTERED, p->WindowDimensions, HexToColor(0x20202000));
-    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFAFAFAFF), 0, HexToColor(0x606060FF));
-    DrawLine(rv2_(0, 0), p->MousePos, 4, HexToColor(0x4040FAFF));
-    DrawText_(&State->RobotoMono, "a\n\tb\rcdef", rv2_(200, 600), 32, 0, 0, HexToColor(0xFAFAFAFF));
+    DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     
     key Key = KEY_NONE;
@@ -244,4 +245,5 @@ internal u32 CopyLineFromBuffer(buffer *Buffer, c8 *Dest, u32 DestSize, u32 Pos)
     }
     return Pos;
 }
+
 #endif

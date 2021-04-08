@@ -24,26 +24,15 @@ typedef struct _texture {
     i32 Format;
 } texture;
 
-texture TextureFromImage(image Image) {
-    texture Result = {0};
-    if (Image.Data && Image.w != 0 && Image.h != 0) {
-        glGenTextures(1, &Result.Id);
-        glBindTexture(GL_TEXTURE_2D, Result.Id);
-    }
-    Result.w      = Image.w;
-    Result.h      = Image.h;
-    Result.Format = Image.Format;
+typedef enum _origin_mode {
+    ORIGIN_CENTERED, //iv2_( 0,  0)
+    ORIGIN_TOPRIGHT, //iv2_( 1,  1)
+    ORIGIN_BOTRIGHT, //iv2_( 1, -1)
+    ORIGIN_BOTLEFT,  //iv2_(-1, -1)
+    ORIGIN_TOPLEFT   //iv2_(-1,  1)
+} origin_mode;
 
-    return Result;
-}
-
-#define ORIGIN_CENTERED iv2_( 0,  0)
-#define ORIGIN_TOPRIGHT iv2_( 1,  1)
-#define ORIGIN_BOTRIGHT iv2_( 1, -1)
-#define ORIGIN_BOTLEFT  iv2_(-1, -1)
-#define ORIGIN_TOPLEFT  iv2_(-1,  1)
-
-void Clear(iv2 Origin, iv2 WindowSize, color Color) {
+void Clear(iv2 WindowSize, color Color) {
     glLoadIdentity();
     glViewport(0, 0, WindowSize.w, WindowSize.h);
 
@@ -57,18 +46,12 @@ void Clear(iv2 Origin, iv2 WindowSize, color Color) {
     };
 
     glLoadMatrixf(Proj);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);
 }
-//doc:
-/* "Origin" is a vector, where the quadrant wich it points to
-    represents wich corner of the rect is the origin. <0, 0>
-    beeing an origin at the center. "Size" is absolute, mean-
-    ing that it is independent from the origin. */
-void DrawRect(iv2 Origin, rv2 Pos, rv2 Size, color Color,
-              r32 StrokeWidth, color StrokeColor)
+
+void DrawRectPro(origin_mode Origin, rv2 Pos, rv2 Size, color Color,
+                 r32 StrokeWidth, color StrokeColor)
 {
     rv2 TopLeft     = rv2_(0, 0);
     rv2 TopRight    = rv2_(0, 0);
@@ -76,35 +59,35 @@ void DrawRect(iv2 Origin, rv2 Pos, rv2 Size, color Color,
     rv2 BottomLeft  = rv2_(0, 0);
 
     glColor4f(Color.r, Color.g, Color.b, Color.a);
-    if (Origin.x == 0 && Origin.y == 0) {
+    if (Origin == ORIGIN_CENTERED) { // Origin.x == 0 && Origin.y == 0
         TopLeft     = rv2_(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
         TopRight    = rv2_(Pos.x + Size.w/2.0f, Pos.y - Size.h/2.0f);
         BottomRight = rv2_(Pos.x + Size.w/2.0f, Pos.y + Size.h/2.0f);
         BottomLeft  = rv2_(Pos.x - Size.w/2.0f, Pos.y + Size.h/2.0f);
     }
     else
-    if (Origin.x == 1 && Origin.y == 1) {
+    if (Origin == ORIGIN_TOPRIGHT) { // Origin.x == 1 && Origin.y == 1
         TopLeft     = rv2_(Pos.x - Size.w, Pos.y);
         TopRight    = rv2_(Pos.x, Pos.y);
         BottomRight = rv2_(Pos.x, Pos.y + Size.h);
         BottomLeft  = rv2_(Pos.x - Size.w, Pos.y + Size.h);
     }
     else
-    if (Origin.x == 1 && Origin.y == -1) {
+    if (Origin == ORIGIN_BOTRIGHT) { // Origin.x == 1 && Origin.y == -1
         TopLeft     = rv2_(Pos.x - Size.w, Pos.y - Size.h);
         TopRight    = rv2_(Pos.x, Pos.y - Size.h);
         BottomRight = rv2_(Pos.x, Pos.y);
         BottomLeft  = rv2_(Pos.x - Size.w, Pos.y);
     }
     else
-    if (Origin.x == -1 && Origin.y == -1) {
+    if (Origin == ORIGIN_BOTLEFT) { // Origin.x == -1 && Origin.y == -1
         TopLeft     = rv2_(Pos.x, Pos.y - Size.h);
         TopRight    = rv2_(Pos.x + Size.w, Pos.y - Size.h);
         BottomRight = rv2_(Pos.x + Size.w, Pos.y);
         BottomLeft  = rv2_(Pos.x, Pos.y);
     }
     else
-    if (Origin.x == -1 && Origin.y == 1) {
+    if (Origin == ORIGIN_TOPLEFT) { // Origin.x == -1 && Origin.y == 1
         TopLeft     = rv2_(Pos.x, Pos.y);
         TopRight    = rv2_(Pos.x + Size.w, Pos.y);
         BottomRight = rv2_(Pos.x + Size.w, Pos.y + Size.h);
@@ -136,6 +119,14 @@ void DrawRect(iv2 Origin, rv2 Pos, rv2 Size, color Color,
     }
 }
 
+void DrawRect(origin_mode Origin, rv2 Pos, rv2 Size, color Color) {
+    DrawRectPro(Origin, Pos, Size, Color, 0, (color){0});
+}
+
+void DrawRectOutline(origin_mode Origin, rv2 Pos, rv2 Size, r32 StrokeWidth, color Color) {
+    DrawRectPro(Origin, Pos, Size, (color){0}, StrokeWidth, Color);
+}
+
 void DrawLine(rv2 a, rv2 b, r32 StrokeWidth, color Color) {
     glLineWidth(StrokeWidth);
     glEnable(GL_LINE_SMOOTH);
@@ -144,9 +135,10 @@ void DrawLine(rv2 a, rv2 b, r32 StrokeWidth, color Color) {
         glVertex2f(a.x, a.y);
         glVertex2f(b.x, b.y);
     } glEnd();
+    glDisable(GL_LINE_SMOOTH);
 }
 
-void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color Tint) {
+void DrawTexture(texture Texture, rv2 Center, color Tint) {
     glBindTexture(GL_TEXTURE_2D, Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -154,13 +146,13 @@ void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color Tint) {
     glBegin(GL_QUADS); {
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
         glTexCoord2f(0, 0);
-        glVertex2f  (Center.x - Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f  (Center.x - Texture.w/2.0f, Center.y - Texture.h/2.0f);
         glTexCoord2f(1, 0);
-        glVertex2f  (Center.x + Size.w/2.0f, Center.y - Size.h/2.0f);
+        glVertex2f  (Center.x + Texture.w/2.0f, Center.y - Texture.h/2.0f);
         glTexCoord2f(1, 1);
-        glVertex2f  (Center.x + Size.w/2.0f, Center.y + Size.h/2.0f);
+        glVertex2f  (Center.x + Texture.w/2.0f, Center.y + Texture.h/2.0f);
         glTexCoord2f(0, 1);
-        glVertex2f  (Center.x - Size.w/2.0f, Center.y + Size.h/2.0f);
+        glVertex2f  (Center.x - Texture.w/2.0f, Center.y + Texture.h/2.0f);
     } glEnd();
     glDisable(GL_TEXTURE_2D);
 }
@@ -182,28 +174,7 @@ void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color Tint) {
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "libs/stb_truetype.h"
 
-typedef struct _glyph {
-    u32   Codepoint;
-    i32   Advance;
-    i32   OffX;
-    i32   OffY;
-    image Image;
-} glyph;
-
 u32 GetNextCodepoint(const char *text, unsigned int *bytesProcessed) {
-/*
-    UTF8 specs from https://www.ietf.org/rfc/rfc3629.txt
-
-    Char. number range  |        UTF-8 octet sequence
-      (hexadecimal)    |              (binary)
-    --------------------+---------------------------------------------
-    0000 0000-0000 007F | 0xxxxxxx
-    0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-    0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-    0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-*/
-    // NOTE: on decode errors we return as soon as possible
-
     int code = 0x3f;   // Codepoint (defaults to '?')
     int octet = (unsigned char)(text[0]); // The first UTF8 octet
     *bytesProcessed = 1;
@@ -295,7 +266,22 @@ u32 GetNextCodepoint(const char *text, unsigned int *bytesProcessed) {
     return code;
 }
 
-//note: function that returns two things, probably retard
+typedef struct _glyph {
+    u32   Codepoint;
+    i32   Advance;
+    i32   OffX;
+    i32   OffY;
+    image Image;
+} glyph;
+
+typedef struct _font {
+    u32      NoChars;
+    f32      Size;
+    glyph   *Chars;
+    rectf32 *Rects;
+    texture  Texture;
+} font;
+
 internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
     i32 w, h, OffX, OffY, Advance;
     f32 ScaleFactor = stbtt_ScaleForPixelHeight(Font, Size);
@@ -316,14 +302,6 @@ internal glyph GetGlyph(stbtt_fontinfo *Font, r32 Size, u32 Codepoint) {
     return Glyph;
 }
 
-typedef struct _font {
-    u32      NoChars;
-    f32      Size;
-    glyph   *Chars;
-    rectf32 *Rects;
-    texture  Texture;
-} font;
-
 //note: stolen from raylib
 internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
     file FontFile = LoadFile(Filename);
@@ -335,12 +313,12 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 
     NoChars = (NoChars > 0)? NoChars : 95;
 
-    font Result = {0}; {
-        Result.NoChars = NoChars;
-        Result.Size    = Size;
-        Result.Chars   = (glyph   *)AllocateMemory(NoChars * sizeof(glyph));
-        Result.Rects   = (rectf32 *)AllocateMemory(NoChars * sizeof(rectf32));
-    }
+    font Result = {
+        .NoChars = NoChars,
+        .Size    = Size,
+        .Chars   = (glyph   *)AllocateMemory(NoChars * sizeof(glyph)),
+        .Rects   = (rectf32 *)AllocateMemory(NoChars * sizeof(rectf32))
+    };
 
     f32 RequiredAreaForAtlas = 0;
     i32 Padding              = 2;
@@ -352,64 +330,62 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 
     f32 GuessSize = Sqrt(RequiredAreaForAtlas) * 1.3f;
     i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
-    image Atlas = {0}; {
-        Atlas.w    = ImageSize;
-        Atlas.h    = ImageSize;
-        Atlas.Data = AllocateMemory(Atlas.w * Atlas.h * sizeof(u32));
-    }
+    image Atlas = {
+        .w    = ImageSize,
+        .h    = ImageSize,
+        .Data = AllocateMemory(ImageSize * ImageSize * sizeof(u32))
+    };
 
-    /* generate font atlas */ {
-        i32 OffsetX = Padding;
-        i32 OffsetY = Padding;
+    i32 OffsetX = Padding;
+    i32 OffsetY = Padding;
 
-        // NOTE: Using simple packaging, one char after another
-        for (u32 i = 0; i < NoChars; i++) {
-            // Copy pixel data from fc.data to atlas
-            for (i32 y = 0; y < Result.Chars[i].Image.h; y++) {
-                for (i32 x = 0; x < Result.Chars[i].Image.w; x++) {
-                    ((u32 *)Atlas.Data)[(OffsetY + y)*Atlas.w + (OffsetX + x)] =
-                        ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) << 24) |
-                        ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) << 16) |
-                        ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) <<  8) |
-                        ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) <<  0);
-                }
+    // NOTE: Using simple packaging, one char after another
+    for (u32 i = 0; i < NoChars; i++) {
+        // Copy pixel data from fc.data to atlas
+        for (i32 y = 0; y < Result.Chars[i].Image.h; y++) {
+            for (i32 x = 0; x < Result.Chars[i].Image.w; x++) {
+                ((u32 *)Atlas.Data)[(OffsetY + y)*Atlas.w + (OffsetX + x)] =
+                    ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) << 24) |
+                    ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) << 16) |
+                    ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) <<  8) |
+                    ((((u8 *)Result.Chars[i].Image.Data)[y*Result.Chars[i].Image.w + x]) <<  0);
             }
-
-            // Fill chars rectangles in atlas info
-            Result.Rects[i].x = (f32)OffsetX;
-            Result.Rects[i].y = (f32)OffsetY;
-            Result.Rects[i].w = (f32)Result.Chars[i].Image.w;
-            Result.Rects[i].h = (f32)Result.Chars[i].Image.h;
-
-            // Move atlas position X for next character drawing
-            OffsetX += (Result.Chars[i].Image.w + 2 * Padding);
-
-            if (OffsetX >= (Atlas.w - Result.Chars[i].Image.w - Padding)) {
-                OffsetX = Padding;
-
-                // NOTE: Be careful on offsetY for SDF fonts, by default SDF
-                // use an internal padding of 4 pixels, it means char rectangle
-                // height is bigger than fontSize, it could be up to (fontSize + 8)
-                OffsetY += (Size + 2 * Padding);
-
-                if (OffsetY > (Atlas.h - Size - Padding)) break;
-            }
-
-            if (Result.Chars[i].Codepoint == ' ') {
-                Result.Rects[i].w = Result.Chars[i].Advance;
-            }
-            if (Result.Chars[i].Codepoint == '\t') {
-                Result.Rects[i].w = Result.Chars[i].Advance;
-            }
-            if (Result.Chars[i].Codepoint == '\r') {
-                Result.Rects[i].w = Result.Chars[i].Advance;
-            }
-            if (Result.Chars[i].Codepoint == '\n') {
-                Result.Rects[i].w = Result.Chars[i].Advance;
-            }
-            
-            FreeMemory(Result.Chars[i].Image.Data);
         }
+
+        // Fill chars rectangles in atlas info
+        Result.Rects[i].x = (f32)OffsetX;
+        Result.Rects[i].y = (f32)OffsetY;
+        Result.Rects[i].w = (f32)Result.Chars[i].Image.w;
+        Result.Rects[i].h = (f32)Result.Chars[i].Image.h;
+
+        // Move atlas position X for next character drawing
+        OffsetX += (Result.Chars[i].Image.w + 2 * Padding);
+
+        if (OffsetX >= (Atlas.w - Result.Chars[i].Image.w - Padding)) {
+            OffsetX = Padding;
+
+            // NOTE: Be careful on offsetY for SDF fonts, by default SDF
+            // use an internal padding of 4 pixels, it means char rectangle
+            // height is bigger than fontSize, it could be up to (fontSize + 8)
+            OffsetY += (Size + 2 * Padding);
+
+            if (OffsetY > (Atlas.h - Size - Padding)) break;
+        }
+
+        if (Result.Chars[i].Codepoint == ' ') {
+            Result.Rects[i].w = Result.Chars[i].Advance;
+        }
+        if (Result.Chars[i].Codepoint == '\t') {
+            Result.Rects[i].w = Result.Chars[i].Advance;
+        }
+        if (Result.Chars[i].Codepoint == '\r') {
+            Result.Rects[i].w = Result.Chars[i].Advance;
+        }
+        if (Result.Chars[i].Codepoint == '\n') {
+            Result.Rects[i].w = Result.Chars[i].Advance;
+        }
+        
+        FreeMemory(Result.Chars[i].Image.Data);
     }
 
 
@@ -429,10 +405,9 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 
 //note: stolen from raylib
 i32 GetGlyphIndex(font Font, u32 Codepoint) {
-#define TEXT_CHARACTER_NOTFOUND     '?'
 #define UNORDERED_CHARSET
 #if defined(UNORDERED_CHARSET)
-    i32 Index = TEXT_CHARACTER_NOTFOUND;
+    i32 Index = '?';
 
     for (u32 i = 0; i < Font.NoChars; i++) {
         if (Font.Chars[i].Codepoint == Codepoint) {
@@ -510,6 +485,9 @@ void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
     glDisable(GL_TEXTURE_2D);
 }
 
+#endif//FONTS_H
+
+#if 0
 void gDrawTextLen(font *Font, r32 Size, rv2 Pos,
                   f32 CharSpacing, f32 LineSpacing,
                   c8 *Text, u32 Len, color Tint)
@@ -568,5 +546,4 @@ void gDrawTextLen(font *Font, r32 Size, rv2 Pos,
     } glEnd();
     glDisable(GL_TEXTURE_2D);
 }
-
-#endif//FONTS_H
+#endif

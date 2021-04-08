@@ -2,7 +2,7 @@
 #define BUFFER_H
 
 #include "lingo.h"
-#include "app.h"
+#include "api.h"
 #include "graphics.h"
 
 typedef struct _buffer {
@@ -74,7 +74,7 @@ internal void ReleaseBuffer(buffer *Buffer) {
     }
 }
 
-internal u32  MoveBufferPosFoward(buffer *Buffer, u32 Pos) {
+internal u32 MoveBufferPosFoward(buffer *Buffer, u32 Pos) {
     Assert(Pos != Buffer->End);
     Pos++;
     if (Pos == Buffer->GapStart)
@@ -137,7 +137,7 @@ internal void InsertChar(buffer *Buffer, u32 Cursor, c8 Char) {
         Buffer->Point++;
 }
 
-internal b32  DeleteBackwardChar(buffer *Buffer, u32 Cursor) {
+internal b32 DeleteBackwardChar(buffer *Buffer, u32 Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
     if (Cursor > 0) {
         ShiftGapToCursor(Buffer, Cursor);
@@ -151,7 +151,7 @@ internal b32  DeleteBackwardChar(buffer *Buffer, u32 Cursor) {
     }
 }
 
-internal b32  DeleteFowardChar(buffer *Buffer, u32 Cursor) {
+internal b32 DeleteFowardChar(buffer *Buffer, u32 Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
     if (Cursor < GetBufferLen(Buffer)) {
         ShiftGapToCursor(Buffer, Cursor);
@@ -209,7 +209,7 @@ internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
 }
 
 internal void SaveBufferToFile(buffer *Buffer) {
-    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 1);
+    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 0);
     WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
 }
 
@@ -234,7 +234,7 @@ internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *
 internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
     c8 Line[256];
     for (u32 Cursor = 0; Cursor < GetBufferLen(Buffer); Cursor++) {
-        u32  LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
+        u32 LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
         DrawText_(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
         Pos.y -= LineHeight;
@@ -273,7 +273,6 @@ typedef struct _command {
     const c8     *Desc;
     command_func *Func;
 } command;
-
 #define MAX_KEY_COMBS (1 << (8 + 3))
 typedef struct _keymap {
     command Commands[MAX_KEY_COMBS];
@@ -334,7 +333,7 @@ EDITOR_COMMAND_FUNC(CmdFunc_InsertNewLine) {
 
 EDITOR_COMMAND_FUNC(CmdFunc_SaveBuffer) {
     SaveBufferToFile(Ctx.Buffer);
-    DrawRect(iv2_(0, 0), rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF), 0, (color){0});
+    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
 }
 
 internal finginline command NewCommand(command_func *Func, c8 *Description) {
@@ -374,7 +373,8 @@ internal keymap *CreateMyKeymap() {
     BIND(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
     BIND(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
     BIND(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
-    BIND(Keymap, GetKeyComb(1, 0, 0, 'S'), CmdFunc_SaveBuffer,     "save buffer");
+    BIND(Keymap, GetKeyComb(1, 0, 0, 'S'-64), CmdFunc_SaveBuffer, "save buffer");
+                                    //hack
     
     return Keymap;
 }
