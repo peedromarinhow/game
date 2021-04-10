@@ -45,7 +45,7 @@ external APP_UPDATE(Update) {
 
     DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
-    c8 *Text = "a\nab";
+    c8 *Text = "aAJTiI\nabcdefg\n..........";
     rv2 Pos = rv2_(16, p->WindowDimensions.y - 64);
     rv2 Dim = GetTextSize(&State->RobotoMono, Text, State->RobotoMono.Size, 0, 0);
     DrawRect(ORIGIN_TOPLEFT, rv2_(Pos.x, Pos.y + State->RobotoMono.Size), Dim, HexToColor(0x4040FFFF));
@@ -86,6 +86,8 @@ external APP_RELOAD(Reload) {
     WriteFile_        = p->WriteFileCallback;
     ReportError       = p->ReportErrorCallback;
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    State->Keymap     = CreateMyKeymap();
 }
 
 external APP_DEINIT(Deinit) {

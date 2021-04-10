@@ -289,7 +289,7 @@ typedef struct _command_context {
 typedef EDITOR_COMMAND_FUNC(command_func);
 
 typedef struct _command {
-    const c8     *Desc;
+    c8           *Desc;
     command_func *Func;
 } command;
 #define MAX_KEY_COMBS (1 << (8 + 3))
