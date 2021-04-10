@@ -49,7 +49,7 @@ internal finginline void SetBufferChar(buffer *Buffer, u32 Cursor, c8 Char) {
     Buffer->Data[GetCursorIndex(Buffer, Cursor)] = Char;
 }
 
-internal buffer *CreateBuffer(u32 InitialGapSize) {
+internal buffer *CreateBuffer(u32 InitialGapSize, c8 *Filename) {
     buffer *Buffer = AllocateMemory(sizeof(buffer)); {
         Buffer->ReferenceCount = 1;
 
@@ -58,11 +58,17 @@ internal buffer *CreateBuffer(u32 InitialGapSize) {
         Buffer->GapEnd   = InitialGapSize;
         Buffer->End      = InitialGapSize;
 
-        Buffer->Filename = "a.c";
+        Buffer->Filename = Filename;
         Buffer->Point = 0;
     }
 
     return Buffer;
+}
+
+internal void DeleteBuffer(buffer *Buffer) {
+    Buffer->GapStart = 0;
+    Buffer->GapEnd   = Buffer->End;
+    Buffer->Point    = 0;
 }
 
 internal void ReleaseBuffer(buffer *Buffer) {
@@ -105,7 +111,7 @@ internal void ShiftGapToCursor(buffer *Buffer, u32 Cursor) {
 internal void EnsureGapSize(buffer *Buffer, u32 Min) {
     if (GetBufferGapSize(Buffer) < Min) {
         ShiftGapToCursor(Buffer, GetBufferLen(Buffer));
-        u32 NewEnd = 2 * Buffer->End;
+        u32 NewEnd = Max(2 * Buffer->End, Buffer->End + Min - GetBufferGapSize(Buffer));
         void *Temp     = AllocateMemory(NewEnd);
         CopyMemory(Temp, Buffer->Data, Buffer->End);
         FreeMemory(Buffer->Data);
@@ -208,11 +214,6 @@ internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
     return GetBufferLen(Buffer);
 }
 
-internal void SaveBufferToFile(buffer *Buffer) {
-    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 0);
-    WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
-}
-
 internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *OutCursor) {
     u32 Cursor = *OutCursor;
     i32 i;
@@ -233,7 +234,8 @@ internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *
 
 internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
     c8 Line[256];
-    for (u32 Cursor = 0; Cursor < GetBufferLen(Buffer); Cursor++) {
+    u32 Len = (GetBufferLen(Buffer) == 0)? Buffer->End : GetBufferLen(Buffer);
+    for (u32 Cursor = 0; Cursor < Len; Cursor++) {
         u32 LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
         DrawText_(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
@@ -249,6 +251,23 @@ void OutputDebugBuffer(buffer *Buffer) {
     CopyMemory(temp, Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd);
     temp[Buffer->End - Buffer->GapEnd] = 0;
     OutputDebugStringA(temp);
+}
+
+internal void SaveBuffer(buffer *Buffer) {
+    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 0);
+    WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
+}
+
+internal void LoadBuffer(buffer *Buffer) {
+    if (Buffer->Filename) {
+        file File = LoadFile(Buffer->Filename);
+        DeleteBuffer(Buffer);
+        EnsureGapSize(Buffer, File.Size);
+        //todo: unecessary CopyMemory?
+        CopyMemory(Buffer->Data, File.Data, File.Size);
+        Buffer->GapStart = File.Size;
+        FreeFile(File);
+    }
 }
 
 #endif//BUFFER_H
@@ -332,8 +351,13 @@ EDITOR_COMMAND_FUNC(CmdFunc_InsertNewLine) {
 }
 
 EDITOR_COMMAND_FUNC(CmdFunc_SaveBuffer) {
-    SaveBufferToFile(Ctx.Buffer);
+    SaveBuffer(Ctx.Buffer);
     DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+}
+
+EDITOR_COMMAND_FUNC(CmdFunc_LoadBuffer) {
+    LoadBuffer(Ctx.Buffer);
+    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
 }
 
 internal finginline command NewCommand(command_func *Func, c8 *Description) {
@@ -344,7 +368,11 @@ internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, key Key) {
     return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
 }
 
-#define BIND(k, KeyComb, CommandFunc, CommandDesc) \
+internal finginline u16 Ctrl(u8 Key) {
+    return GetKeyComb(1, 0, 0, Key);
+}
+
+#define Bind(k, KeyComb, CommandFunc, CommandDesc) \
     k->Commands[KeyComb] = NewCommand(CommandFunc, CommandDesc);
 
 internal keymap *CreateKeymap() {
@@ -361,20 +389,20 @@ internal keymap *CreateMyKeymap() {
 
     for (c8 Key = 0; Key < 127; Key++) {
         if (IsPrintableChar(Key)) {
-            BIND(Keymap, GetKeyComb(0, 0, 0, Key), CmdFunc_InsertChar, "insert char");
-            BIND(Keymap, GetKeyComb(0, 0, 1, Key), CmdFunc_InsertChar, "insert char");
+            Bind(Keymap, GetKeyComb(0, 0, 0, Key), CmdFunc_InsertChar, "insert char");
+            Bind(Keymap, GetKeyComb(0, 0, 1, Key), CmdFunc_InsertChar, "insert char");
         }
     }
 
-    BIND(Keymap, KEY_DEL,    CmdFunc_DeleteCharFoward,             "delete char foward");
-    BIND(Keymap, KEY_BACK,   CmdFunc_DeleteCharBackward,           "delete char backward");
-    BIND(Keymap, KEY_LEFT,   CmdFunc_MoveCarretLeft,               "move carret left");
-    BIND(Keymap, KEY_RIGHT,  CmdFunc_MoveCarretRight,              "move carret right");
-    BIND(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
-    BIND(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
-    BIND(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
-    BIND(Keymap, GetKeyComb(1, 0, 0, 'S'-64), CmdFunc_SaveBuffer, "save buffer");
-                                    //hack
+    Bind(Keymap, KEY_DEL,    CmdFunc_DeleteCharFoward,             "delete char foward");
+    Bind(Keymap, KEY_BACK,   CmdFunc_DeleteCharBackward,           "delete char backward");
+    Bind(Keymap, KEY_LEFT,   CmdFunc_MoveCarretLeft,               "move carret left");
+    Bind(Keymap, KEY_RIGHT,  CmdFunc_MoveCarretRight,              "move carret right");
+    Bind(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
+    Bind(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
+    Bind(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
+    Bind(Keymap, Ctrl('S'),  CmdFunc_SaveBuffer,                   "save buffer");
+    Bind(Keymap, Ctrl('O'),  CmdFunc_LoadBuffer,                   "load buffer");
     
     return Keymap;
 }

@@ -36,6 +36,8 @@ typedef r64 f64;
 #define Gigabytes(Value) (Megabytes(Value)* 1024)
 #define Terabytes(Value) (Gigabytes(Value)* 1024)
 
+#define Max(x, y) ((x) >= (y) ? (x) : (y))
+
 inline u32 SafeTruncateU64(u64 Value) {
     u32 Result = 0;
     if (Value <= 0xFFFFFFFF) Result = (u32)Value;

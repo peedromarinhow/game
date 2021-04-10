@@ -81,8 +81,8 @@ void DrawRectPro(origin_mode Origin, rv2 Pos, rv2 Size, color Color,
     }
     else
     if (Origin == ORIGIN_BOTLEFT) { // Origin.x == -1 && Origin.y == -1
-        TopLeft     = rv2_(Pos.x, Pos.y - Size.h);
-        TopRight    = rv2_(Pos.x + Size.w, Pos.y - Size.h);
+        TopLeft     = rv2_(Pos.x, Pos.y + Size.h);
+        TopRight    = rv2_(Pos.x + Size.w, Pos.y + Size.h);
         BottomRight = rv2_(Pos.x + Size.w, Pos.y);
         BottomLeft  = rv2_(Pos.x, Pos.y);
     }
@@ -90,8 +90,8 @@ void DrawRectPro(origin_mode Origin, rv2 Pos, rv2 Size, color Color,
     if (Origin == ORIGIN_TOPLEFT) { // Origin.x == -1 && Origin.y == 1
         TopLeft     = rv2_(Pos.x, Pos.y);
         TopRight    = rv2_(Pos.x + Size.w, Pos.y);
-        BottomRight = rv2_(Pos.x + Size.w, Pos.y + Size.h);
-        BottomLeft  = rv2_(Pos.x, Pos.y + Size.h);
+        BottomRight = rv2_(Pos.x + Size.w, Pos.y - Size.h);
+        BottomLeft  = rv2_(Pos.x, Pos.y - Size.h);
     }
     else {
         return;
@@ -422,6 +422,45 @@ i32 GetGlyphIndex(font Font, u32 Codepoint) {
 #endif
 }
 
+internal rv2 GetTextSize(font *Font, c8 *Text, r32 Size, r32 CharSpacing, r32 LineSpacing) {
+    f32 ScaleFactor = Size/Font->Size;
+    i32 Index = 0;
+
+    f32 w = 0;
+    f32 h = Font->Size;
+    f32 TempW = 0;
+
+    for (i32 i = 0; Text[i] != '\0'; i++) {
+        Index = GetGlyphIndex(*Font, Text[i]);
+
+        glyph   Char = Font->Chars[Index];
+        rectf32 Rect = Font->Rects[Index];
+
+        if (Text[i] == '\n') {
+            if (TempW < w)
+                TempW = w;
+            w   = 0;
+            h  += Font->Size + LineSpacing;
+        }
+        else {
+            if (Char.Advance != 0)
+                w += Char.Advance + CharSpacing;
+            else
+                w += Rect.w + Char.OffX;
+        }
+    }
+
+    if (TempW < w)
+        TempW = w;
+
+    rv2 Result = {
+        .w = TempW * ScaleFactor + CharSpacing,
+        .h = h * ScaleFactor
+    };
+
+    return Result;
+}
+
 void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                f32 LineSpacing, color Tint)
 {
@@ -435,51 +474,41 @@ void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
     glEnable(GL_TEXTURE_2D);
     glBegin(GL_QUADS); {
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
-        i32 i = 0;
-        while (Text[i] != '\0') {
-            i32 Index     = GetGlyphIndex(*Font, Text[i]);
-            i32 Codepoint = Font->Chars[Index].Codepoint;
-            i32 OffY      = Font->Chars[Index].OffY;
-            i32 OffX      = Font->Chars[Index].OffX;
+        i32 Index     = 0;
+        i32 OffY      = 0;
+        i32 OffX      = 0;
+        for (i32 i = 0; Text[i] != '\0'; i++) {
+            Index     = GetGlyphIndex(*Font, Text[i]);
+            OffY      = Font->Chars[Index].OffY * ScaleFactor;
+            OffX      = Font->Chars[Index].OffX;
 
             if (Text[i] == '\t') {
                 CharOffset += Font->Size * 1.5f;
-                Index = GetGlyphIndex(*Font, ' ');
             }
-
+            else
             if (Text[i] == '\n') {
-                LineOffset += Font->Size + (LineSpacing * ScaleFactor);
+                LineOffset += (Font->Size + LineSpacing) * ScaleFactor;
                 CharOffset = 0;
-                Index = GetGlyphIndex(*Font, ' ');
             }
+            else {           
+                rectf32 Rect = Font->Rects[Index];
+                f32 w        = Font->Texture.w;
+                f32 h        = Font->Texture.h;
 
-            if (Text[i] == '\r') {
-                Index = GetGlyphIndex(*Font, ' ');
+                glTexCoord2f(Rect.x/w, Rect.y/h);
+                glVertex2f  (Pos.x + CharOffset + OffX, Pos.y - LineOffset - OffY);
+
+                glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
+                glVertex2f  (Pos.x + CharOffset + (Rect.w * ScaleFactor) + OffX, Pos.y - LineOffset - OffY);
+
+                glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
+                glVertex2f  (Pos.x + CharOffset + (Rect.w * ScaleFactor) + OffX, Pos.y - LineOffset - (Rect.h * ScaleFactor) - OffY);
+
+                glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
+                glVertex2f  (Pos.x + CharOffset + OffX, Pos.y - LineOffset - (Rect.h * ScaleFactor) - OffY);
+
+                CharOffset += (Font->Chars[Index].Advance + CharSpacing) * ScaleFactor;
             }
-
-            rectf32 Rect = Font->Rects[Index];
-            f32 w        = Font->Texture.w;
-            f32 h        = Font->Texture.h;
-
-            glTexCoord2f(Rect.x/w, Rect.y/h);
-            glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y - LineOffset - OffY);
-
-            glTexCoord2f((Rect.x + Rect.w)/w, Rect.y/h);
-            glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y - LineOffset - OffY);
-
-            glTexCoord2f((Rect.x + Rect.w)/w, (Rect.y + Rect.h)/h);
-            glVertex2f  (Pos.x + CharOffset + Rect.w + OffX,
-                         Pos.y - LineOffset - Rect.h - OffY);
-
-            glTexCoord2f(Rect.x/w, (Rect.y + Rect.h)/h);
-            glVertex2f  (Pos.x + CharOffset + OffX,
-                         Pos.y - LineOffset - Rect.h - OffY);
-
-            CharOffset += (Font->Chars[Index].Advance * ScaleFactor) +
-                          (CharSpacing * ScaleFactor);
-            i++;
         }
     } glEnd();
     glDisable(GL_TEXTURE_2D);

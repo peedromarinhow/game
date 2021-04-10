@@ -137,14 +137,30 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
                     if (AltKeyWasDown) Platform->Running = 0;
                 }
             }
+
+            if (Message.message == WM_SYSKEYDOWN ||
+                Message.message == WM_KEYDOWN)
+            {
+                BYTE KeyboardState[256];
+				GetKeyboardState(KeyboardState);
+				WORD Chars;
+				if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {     
+					Platform->Char = (u8)Chars;
+                    Win32ProcessEventMessage(&Platform->kChar, 1);
+				}else {
+					Platform->Char = 0;
+				}
+                if (!IsPrintableChar(Platform->Char))
+                    Platform->Char = Message.wParam;
+            }
+
             TranslateMessage(&Message);
         }
-        else
-        if (Message.message == WM_CHAR) {
-            WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
-                               &Platform->KeyboardChar, 1, 0, 0);
-            Win32ProcessEventMessage(&Platform->kChar, 1);
-        }
+        // else
+        // if (Message.message == WM_CHAR) {
+        //     WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
+        //                        &Platform->Char, 1, 0, 0);
+        // }
         else
         if (Message.message == WM_SIZE)
             Win32ProcessEventMessage(&Platform->WindowResized, 1);

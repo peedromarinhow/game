@@ -34,8 +34,8 @@ external APP_INIT(Init) {
     ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     State->Keymap     = CreateMyKeymap();
-    State->Buffer     = CreateBuffer(2);
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 32);
+    State->Buffer     = CreateBuffer(2, "a.c");
+    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont("roboto.ttf", 400, 32);
 }
 
@@ -45,6 +45,12 @@ external APP_UPDATE(Update) {
 
     DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
+    c8 *Text = "a\nab";
+    rv2 Pos = rv2_(16, p->WindowDimensions.y - 64);
+    rv2 Dim = GetTextSize(&State->RobotoMono, Text, State->RobotoMono.Size, 0, 0);
+    DrawRect(ORIGIN_TOPLEFT, rv2_(Pos.x, Pos.y + State->RobotoMono.Size), Dim, HexToColor(0x4040FFFF));
+    DrawText_(&State->RobotoMono, Text, Pos, 24, 0, 0, HexToColor(0xFA6060FF));
+    
     
     key Key = KEY_NONE;
     
@@ -63,9 +69,9 @@ external APP_UPDATE(Update) {
     if (p->kReturn)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RETURN);
     if (p->kChar)
-        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->KeyboardChar);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
     
-    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->KeyboardChar});
+    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});
 }
 
 external APP_RELOAD(Reload) {

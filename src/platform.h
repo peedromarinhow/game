@@ -65,9 +65,9 @@ typedef struct _platform {
     r32 dtForFrame;
 
     /* mouse input */
-    b32  MouseMoved;
-    rv2  MousePos;
-    b32  MouseLeft, MouseRight, MouseMiddle;
+    b32 MouseMoved;
+    rv2 MousePos;
+    b32 MouseLeft, MouseRight, MouseMiddle;
     i16 dMouseWheel;
 
     /* keyboard input */
@@ -80,7 +80,7 @@ typedef struct _platform {
             b32 kBack, kDelete, kReturn;
             b32 kCtrl, kShift,  kAlt;
             b32 kChar;
-            c8  KeyboardChar;
+            c8  Char;
         };
     };
 
