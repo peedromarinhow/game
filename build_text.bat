@@ -15,6 +15,6 @@ echo AAAAAAAAAAAAAAAAAAAAA
 
 pushd build_text
 del *.pdb > NUL 2> NUL
-cl.exe %BuildOptions% %CompileFlags% ../src/text_editor/app.c  -Fmapp.map /LD    /link %AppLinkerFlags%    /PDB:"app_%random%.pdb"
-cl.exe %BuildOptions% %CompileFlags% ../src/win32/win32_main.c -Fmwin32_main.map /link %PlatformLinkFlags% /PDB:"main.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/text_editor/app.cpp -Fmapp.map /LD    /link %AppLinkerFlags%    /PDB:"app_%random%.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/win32/win32_main.c  -Fmwin32_main.map /link %PlatformLinkFlags% /PDB:"main.pdb"
 popd

@@ -50,10 +50,10 @@ internal finginline void SetBufferChar(buffer *Buffer, u32 Cursor, c8 Char) {
 }
 
 internal buffer *CreateBuffer(u32 InitialGapSize, c8 *Filename) {
-    buffer *Buffer = AllocateMemory(sizeof(buffer)); {
+    buffer *Buffer = (buffer *)AllocateMemory(sizeof(buffer)); {
         Buffer->ReferenceCount = 1;
 
-        Buffer->Data     = AllocateMemory(InitialGapSize);
+        Buffer->Data     = (c8 *)AllocateMemory(InitialGapSize);
         Buffer->GapStart = 0;
         Buffer->GapEnd   = InitialGapSize;
         Buffer->End      = InitialGapSize;
@@ -111,8 +111,8 @@ internal void ShiftGapToCursor(buffer *Buffer, u32 Cursor) {
 internal void EnsureGapSize(buffer *Buffer, u32 Min) {
     if (GetBufferGapSize(Buffer) < Min) {
         ShiftGapToCursor(Buffer, GetBufferLen(Buffer));
-        u32 NewEnd = Max(2 * Buffer->End, Buffer->End + Min - GetBufferGapSize(Buffer));
-        void *Temp     = AllocateMemory(NewEnd);
+        u32 NewEnd     = Max(2 * Buffer->End, Buffer->End + Min - GetBufferGapSize(Buffer));
+        c8 *Temp       = (c8 *)AllocateMemory(NewEnd);
         CopyMemory(Temp, Buffer->Data, Buffer->End);
         FreeMemory(Buffer->Data);
         Buffer->Data   = Temp;
@@ -238,7 +238,7 @@ internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
     for (u32 Cursor = 0; Cursor < Len; Cursor++) {
         u32 LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
-        DrawText_(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
+        DrawText(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
         Pos.y -= LineHeight;
     }
 }
@@ -297,7 +297,7 @@ typedef struct _keymap {
     command Commands[MAX_KEY_COMBS];
 } keymap;
 
-typedef enum _key {
+typedef enum _key : u8 {
     KEY_NONE = 0,
     KEY_DEL,
     KEY_BACK,
@@ -361,14 +361,14 @@ EDITOR_COMMAND_FUNC(CmdFunc_LoadBuffer) {
 }
 
 internal finginline command NewCommand(command_func *Func, c8 *Description) {
-    return (command){Description, Func};
+    return {Description, Func};
 }
 
 internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, key Key) {
     return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
 }
 
-internal finginline u16 Ctrl(u8 Key) {
+internal finginline u16 Ctrl(key Key) {
     return GetKeyComb(1, 0, 0, Key);
 }
 
@@ -376,7 +376,7 @@ internal finginline u16 Ctrl(u8 Key) {
     k->Commands[KeyComb] = NewCommand(CommandFunc, CommandDesc);
 
 internal keymap *CreateKeymap() {
-    keymap *Keymap           = AllocateMemory(sizeof(keymap));
+    keymap *Keymap           = (keymap *)AllocateMemory(sizeof(keymap));
     command CommandDoNothing = {"do nothing", CmdFunc_DoNothing};
     for (u32 i = 0; i < MAX_KEY_COMBS; i++) {
         Keymap->Commands[i] = CommandDoNothing;
@@ -389,8 +389,8 @@ internal keymap *CreateMyKeymap() {
 
     for (c8 Key = 0; Key < 127; Key++) {
         if (IsPrintableChar(Key)) {
-            Bind(Keymap, GetKeyComb(0, 0, 0, Key), CmdFunc_InsertChar, "insert char");
-            Bind(Keymap, GetKeyComb(0, 0, 1, Key), CmdFunc_InsertChar, "insert char");
+            Bind(Keymap, GetKeyComb(0, 0, 0, (key)Key), CmdFunc_InsertChar, "insert char");
+            Bind(Keymap, GetKeyComb(0, 0, 1, (key)Key), CmdFunc_InsertChar, "insert char");
         }
     }
 
@@ -401,8 +401,8 @@ internal keymap *CreateMyKeymap() {
     Bind(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
     Bind(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
     Bind(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
-    Bind(Keymap, Ctrl('S'),  CmdFunc_SaveBuffer,                   "save buffer");
-    Bind(Keymap, Ctrl('O'),  CmdFunc_LoadBuffer,                   "load buffer");
+    Bind(Keymap, Ctrl((key)'S'),  CmdFunc_SaveBuffer,                   "save buffer");
+    Bind(Keymap, Ctrl((key)'O'),  CmdFunc_LoadBuffer,                   "load buffer");
     
     return Keymap;
 }

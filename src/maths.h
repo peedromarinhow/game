@@ -25,7 +25,8 @@ typedef union _iv2 {
     i32 Comps[2];
 } iv2;
 finginline iv2 iv2_(i32 x, i32 y) {
-    return (iv2){x, y};
+    iv2    Res = {x, y};
+    return Res;
 }
 
 typedef union _rv2 {
@@ -40,7 +41,8 @@ typedef union _rv2 {
     r32 Comps[2];
 } rv2;
 finginline rv2 rv2_(r32 x, r32 y) {
-    return (rv2){x, y};
+    rv2    Res = {x, y};
+    return Res;
 }
 
 typedef struct _color {
@@ -50,11 +52,12 @@ typedef struct _color {
     r32 a;
 } color;
 
-finginline  color HexToColor(u32 Hex) {
-    return (color){((Hex >> 24) & 0xFF)/255.f,
-                   ((Hex >> 16) & 0xFF)/255.f,
-                   ((Hex >>  8) & 0xFF)/255.f,
-                   ((Hex >>  0) & 0xFF)/255.f};
+finginline color HexToColor(u32 Hex) {
+    color Res = {((Hex >> 24) & 0xFF)/255.f,
+                 ((Hex >> 16) & 0xFF)/255.f,
+                 ((Hex >>  8) & 0xFF)/255.f,
+                 ((Hex >>  0) & 0xFF)/255.f};
+    return Res;
 }
 
 typedef struct _color4b {
@@ -77,11 +80,13 @@ typedef union _c32 {
 } c32;
 
 inline c32 MulC32(c32 z, c32 w) {
-    return (c32){(z.a * w.a), (z.b * w.b)};
+    c32    Res = {(z.a * w.a), (z.b * w.b)};
+    return Res;
 }
 
 inline c32 ExpC32(c32 z) {
-    return (c32){(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sin(z.b))};
+    c32    Res = {(Exp(z.a) * Cos(z.b)), (Exp(z.a) * Sin(z.b))};
+    return Res;
 }
 
 inline c32 LogC32(c32 z) {
@@ -89,7 +94,8 @@ inline c32 LogC32(c32 z) {
     r32 d = Arctan(z.b/z.a);
         c = Log(c);
     if (z.a < 0) d += PI32;
-    return (c32){c, d};
+    c32    Res = {c, d};
+    return Res;
 }
 
 inline c32 PowC32(c32 z, c32 p) {
@@ -104,10 +110,24 @@ typedef struct _recti32 {
 } recti32;
 
 typedef struct _rectf32 {
-    f32 x;
-    f32 y;
-    f32 w;
-    f32 h;
+    union {
+        struct { rv2 Pos; };
+        struct {
+            f32 x;
+            f32 y;
+        };
+    };
+    union {
+        struct { rv2 Dim; };
+        struct {
+            f32 w;
+            f32 h;
+        };
+    };
 } rectf32;
+finginline rectf32 rectf32_(r32 x, r32 y, r32 w, r32 h) {
+    rectf32 Res = {x, y, w, h};
+    return Res;
+}
 
 #endif

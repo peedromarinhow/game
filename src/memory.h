@@ -18,7 +18,7 @@ typedef struct _memory_arena {
 internal memory_arena InitializeArena(u64 MaxSize, void *Base) {
     memory_arena Arena = {0};
     Arena.MaxSize = MaxSize;
-    Arena.Base    = Base;
+    Arena.Base    = (u8 *)Base;
     Arena.Used    = 0;
     return Arena;
 }
