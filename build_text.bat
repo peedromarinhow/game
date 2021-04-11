@@ -1,7 +1,7 @@
 @echo off
 
 set application_name= app
-set BuildOptions= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
+set BuildOptions= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1 -DBUILD_TEXT
 set CompileFlags= -nologo -FC -FS -Zi -MTd -Gm- -GR- -EHa- -Od -Oi -Ob1 -WX -W4 -wd4201 -wd4100 -wd4189 -wd4701 -wd4244 -wd4505 -I ../src/ -I D:/freetype-2.10.4/include
 set CommonLinkerFlags= -incremental:no -opt:ref opengl32.lib
 set AppLinkerFlags= %CommonLinkerFlags% D:\code\platform-layer\src\libs\freetype.lib
@@ -15,6 +15,6 @@ echo AAAAAAAAAAAAAAAAAAAAA
 
 pushd build_text
 del *.pdb > NUL 2> NUL
-cl.exe %BuildOptions% %CompileFlags% ../src/text_editor/app.cpp -Fmapp.map /LD    /link %AppLinkerFlags%    /PDB:"app_%random%.pdb"
-cl.exe %BuildOptions% %CompileFlags% ../src/win32/win32_main.c  -Fmwin32_main.map /link %PlatformLinkFlags% /PDB:"main.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/text_editor/app.cc -Fmapp.map /LD    /link %AppLinkerFlags%    /PDB:"app_%random%.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/win32/win32_main.c -Fmwin32_main.map /link %PlatformLinkFlags% /PDB:"main.pdb"
 popd

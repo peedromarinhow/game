@@ -2,9 +2,9 @@
 #define UI_H
 
 #include "lingo.h"
-#include "api.h"
-#include "maths.h"
-#include "graphics.h"
+#include "api.hh"
+#include "maths.hh"
+#include "graphics.hh"
 
 internal b32 IsInsideRect(rv2 Pos, rectf32 Rect) {
         return (Pos.x > Rect.x && Pos.x < Rect.x + Rect.w) &&

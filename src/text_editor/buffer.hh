@@ -2,8 +2,8 @@
 #define BUFFER_H
 
 #include "lingo.h"
-#include "api.h"
-#include "graphics.h"
+#include "api.hh"
+#include "graphics.hh"
 
 typedef struct _buffer {
     u32 ReferenceCount;

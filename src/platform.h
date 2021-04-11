@@ -2,7 +2,11 @@
 #define PLATFORM_H
 
 #include "lingo.h"
+#ifdef BUILD_TEXT
+#include "text_editor/maths.hh"
+#else
 #include "maths.h"
+#endif
 #include "memory.h"
 
 //note: these functions are to be implemented in each platform and passed by the app via "platform"

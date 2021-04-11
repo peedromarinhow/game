@@ -8,7 +8,7 @@
 
 #include "lingo.h"
 #include "platform.h"
-#include "maths.h"
+#include "maths.hh"
 #include "memory.h"
 
 typedef struct _image {
@@ -170,7 +170,7 @@ void DrawTexture(texture Texture, rv2 Center, color Tint) {
 #define FONTS_H
 
 #include "lingo.h"
-#include "graphics.h"
+#include "graphics.hh"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "libs/stb_truetype.h"

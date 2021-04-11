@@ -1,18 +1,18 @@
 #include "lingo.h"
-#include "api.h"
+#include "api.hh"
 
-#include "maths.h"
+#include "maths.hh"
 #include "platform.h"
 #include "memory.h"
 #include "opengl.h"
 
-#include "graphics.h"
-#include "buffer.h"
+#include "graphics.hh"
+#include "buffer.hh"
 
-#include "ui.h"
+#include "ui.hh"
 
 typedef struct _app_state {
-    keymap *Keymap;  
+    keymap *Keymap;  ]
     buffer *Buffer;
     font    RobotoMono;
     font    Roboto;
