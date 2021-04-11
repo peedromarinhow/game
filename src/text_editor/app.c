@@ -1,18 +1,18 @@
 #include "lingo.h"
-#include "api.hh"
+#include "api.h"
 
-#include "maths.hh"
+#include "maths.h"
 #include "platform.h"
 #include "memory.h"
 #include "opengl.h"
 
-#include "graphics.hh"
-#include "buffer.hh"
+#include "graphics.h"
+#include "buffer.h"
 
-#include "ui.hh"
+#include "ui.h"
 
 typedef struct _app_state {
-    keymap *Keymap;  ]
+    keymap *Keymap;  
     buffer *Buffer;
     font    RobotoMono;
     font    Roboto;
@@ -45,36 +45,36 @@ external APP_UPDATE(Update) {
     Clear(p->WindowDimensions, HexToColor(0x20202000));
     app_state *State = (app_state *)p->Memory.Contents;
 
-    DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, {0});
+    DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     c8 *Text = "aAJTiI\nabcdefg\n.........g";
     rv2 Pos = rv2_(16, p->WindowDimensions.y - 64);
     rv2 Dim = GetTextSize(&State->RobotoMono, Text, State->RobotoMono.Size, 0, 0);
     DrawRect(ORIGIN_TOPLEFT, rv2_(Pos.x, Pos.y + State->RobotoMono.Size), Dim, HexToColor(0x4040FFFF));
-    DrawText(&State->RobotoMono, Text, Pos, 24, 0, 0, HexToColor(0xFA6060FF));
+    DrawText_(&State->RobotoMono, Text, Pos, 24, 0, 0, HexToColor(0xFA6060FF));
     
-    DrawButton(&State->RobotoMono, rv2_(400, 400), "This is a button with really long text", p->MousePos);
+    DrawMenu(&State->RobotoMono, rv2_(400, 400), p->MousePos);
 
     key Key = KEY_NONE;
     
     if (p->kDelete)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_DEL);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_DEL);
     if (p->kBack)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_BACK);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_BACK);
     if (p->kLeft)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_LEFT);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_LEFT);
     if (p->kRight)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RIGHT);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RIGHT);
     if (p->kHome)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_HOME);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_HOME);
     if (p->kEnd)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_END);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_END);
     if (p->kReturn)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RETURN);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RETURN);
     if (p->kChar)
-        Key = (key)GetKeyComb(p->kCtrl, p->kAlt, p->kShift, (key)p->Char);
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
     
-    State->Keymap->Commands[Key].Func({State->Buffer, p->Char});
+    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});
 }
 
 external APP_RELOAD(Reload) {

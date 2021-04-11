@@ -3,12 +3,11 @@
 
 #include <windows.h>
 #include <gl/gl.h>
-#undef DrawText
 //todo: how to get rid of these?
 
 #include "lingo.h"
 #include "platform.h"
-#include "maths.hh"
+#include "maths.h"
 #include "memory.h"
 
 typedef struct _image {
@@ -121,11 +120,11 @@ void DrawRectPro(origin_mode Origin, rv2 Pos, rv2 Size, color Color,
 }
 
 void DrawRect(origin_mode Origin, rv2 Pos, rv2 Size, color Color) {
-    DrawRectPro(Origin, Pos, Size, Color, 0, {0});
+    DrawRectPro(Origin, Pos, Size, Color, 0, (color){0});
 }
 
 void DrawRectOutline(origin_mode Origin, rv2 Pos, rv2 Size, r32 StrokeWidth, color Color) {
-    DrawRectPro(Origin, Pos, Size, {0}, StrokeWidth, Color);
+    DrawRectPro(Origin, Pos, Size, (color){0}, StrokeWidth, Color);
 }
 
 void DrawLine(rv2 a, rv2 b, r32 StrokeWidth, color Color) {
@@ -170,7 +169,7 @@ void DrawTexture(texture Texture, rv2 Center, color Tint) {
 #define FONTS_H
 
 #include "lingo.h"
-#include "graphics.hh"
+#include "graphics.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "libs/stb_truetype.h"
@@ -309,18 +308,17 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
     if (!FontFile.Data)
          FontFile = LoadFile("c:/windows/fonts/arial.ttf");
     stbtt_fontinfo  Font;
-    const unsigned char *Data = (const unsigned char *)FontFile.Data;
-    stbtt_InitFont(&Font, Data, stbtt_GetFontOffsetForIndex(Data, 0));
+    stbtt_InitFont(&Font, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
     FreeFile(FontFile);
 
     NoChars = (NoChars > 0)? NoChars : 95;
 
-    font Result = {0}; {
-        Result.NoChars = NoChars;
-        Result.Size    = Size;
-        Result.Chars   = (glyph   *)AllocateMemory(NoChars * sizeof(glyph));
-        Result.Rects   = (rectf32 *)AllocateMemory(NoChars * sizeof(rectf32));
-    }
+    font Result = {
+        .NoChars = NoChars,
+        .Size    = Size,
+        .Chars   = (glyph   *)AllocateMemory(NoChars * sizeof(glyph)),
+        .Rects   = (rectf32 *)AllocateMemory(NoChars * sizeof(rectf32))
+    };
 
     f32 RequiredAreaForAtlas = 0;
     i32 Padding              = 2;
@@ -332,11 +330,11 @@ internal font LoadFont(c8 *Filename, u32 NoChars, r32 Size) {
 
     f32 GuessSize = Sqrt(RequiredAreaForAtlas) * 1.3f;
     i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
-    image Atlas = {0}; {
-        Atlas.w    = ImageSize;
-        Atlas.h    = ImageSize;
-        Atlas.Data = AllocateMemory(ImageSize * ImageSize * sizeof(u32));
-    }
+    image Atlas = {
+        .w    = ImageSize,
+        .h    = ImageSize,
+        .Data = AllocateMemory(ImageSize * ImageSize * sizeof(u32))
+    };
 
     i32 OffsetX = Padding;
     i32 OffsetY = Padding;
@@ -455,15 +453,15 @@ internal rv2 GetTextSize(font *Font, c8 *Text, r32 Size, r32 CharSpacing, r32 Li
     if (TempW < w)
         TempW = w;
 
-    rv2 Result = {0}; {
-        Result.w = TempW * ScaleFactor + CharSpacing;
-        Result.h = h * ScaleFactor;
-    }
+    rv2 Result = {
+        .w = TempW * ScaleFactor + CharSpacing,
+        .h = h * ScaleFactor
+    };
 
     return Result;
 }
 
-void DrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
+void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                f32 LineSpacing, color Tint)
 {
     f32 ScaleFactor = Size/Font->Size;
