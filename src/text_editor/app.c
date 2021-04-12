@@ -49,11 +49,11 @@ external APP_UPDATE(Update) {
     DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     c8 *Text = "aAJTiI\nabcdefg\n.........g";
     rv2 Pos = rv2_(16, p->WindowDimensions.y - 64);
-    rv2 Dim = GetTextSize(&State->RobotoMono, Text, State->RobotoMono.Size, 0, 0);
+    rv2 Dim = GetTextSize(&State->RobotoMono, Text, 0, 0, State->RobotoMono.Size, 0, 0);
     DrawRect(ORIGIN_TOPLEFT, rv2_(Pos.x, Pos.y + State->RobotoMono.Size), Dim, HexToColor(0x4040FFFF));
-    DrawText_(&State->RobotoMono, Text, Pos, 24, 0, 0, HexToColor(0xFA6060FF));
+    DrawText(&State->RobotoMono, Text, Pos, 24, 0, 0, HexToColor(0xFA6060FF));
     
-    DrawMenu(&State->RobotoMono, rv2_(400, 400), p->MousePos);
+    DrawTextBackGround(&State->RobotoMono, "this is a button", rv2_(400, 400), 0, HexToColor(0xFAFAFAFF), HexToColor(0x404040FF));
 
     key Key = KEY_NONE;
     

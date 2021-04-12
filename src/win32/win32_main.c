@@ -259,13 +259,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Win32ReportErrorAndDie("ERROR!!", "App code failed to load");
     }
 
-    // /* get refresh rate */
-    // f32 MonitorRefreshRate = 60.0f; {
-    //     DEVMODEA DeviceMode = {0};
-    //     if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
-    //         MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
-    //     }
-    // }
+    /* get refresh rate */
+    f32 MonitorRefreshRate = 60.0f; {
+        DEVMODEA DeviceMode = {0};
+        if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
+            MonitorRefreshRate = (float)DeviceMode.dmDisplayFrequency;
+        }
+    }
 
     //todo: sound
     
@@ -287,12 +287,12 @@ int CALLBACK WinMain(HINSTANCE Instance,
     u64 FrameEnd         = 0;
     u64 FrameDuration    = 0;
 
-    win32_timer Timer = {0}; {
-        Timer.FrameBegin       = Win32GetTime();
-        Timer.CounterFrequency = Win32GetCounterFrequency();
-        Timer.FrameEnd         = 0;
-        Timer.FrameDuration    = 0;
-    }
+    win32_timer Timer = {
+        .FrameBegin       = Win32GetTime(),
+        .CounterFrequency = Win32GetCounterFrequency(),
+        .FrameEnd         = 0,
+        .FrameDuration    = 0
+    };
 
     while (Platform.Running) {
         Win32ProcessPendingMessages(Window, &Platform);
@@ -300,8 +300,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
         //todo: sound
 
         /* update */ {
-            Platform.WindowDimensions                  = Win32GetWindowDimensions(Window);
-            if (MousePosOutOfWindow) Platform.MousePos = Win32GetMousePos(Window, Platform.WindowDimensions);
+            Platform.WindowDimensions = Win32GetWindowDimensions(Window);
+            if (MousePosOutOfWindow)
+                Platform.MousePos = Win32GetMousePos(Window, Platform.WindowDimensions);
 
             AppCode.Update(&Platform);
 
@@ -311,7 +312,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         if (Win32UpdateAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             AppCode.Reload(&Platform);
 
-        Platform.dtForFrame = Win32GetFrameTime(&Timer);
+        Platform.dtForFrame = Win32GetFrameTime(&Timer, 1.f/MonitorRefreshRate);
     }
 
     AppCode.Deinit(&Platform);

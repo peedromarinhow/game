@@ -221,9 +221,32 @@ inline u64 Win32GetCounterFrequency() {
     return Result.QuadPart;
 }
 
-inline r32 Win32GetFrameTime(win32_timer *t) {
+inline r32 Win32GetFrameTime(win32_timer *t, f32 TargetSecondsPerFrame) {
     t->FrameEnd      = Win32GetTime();
     t->FrameDuration = (t->FrameEnd - t->FrameBegin);
-    t->FrameBegin = Win32GetTime();
-    return (r32)t->FrameDuration / (r32)t->CounterFrequency;
+    t->FrameBegin    = Win32GetTime();
+
+    r32 dt = (f32)t->FrameDuration / (r32)t->CounterFrequency;
+
+    // f64 TargetSeconds = (dt / 1000.0);
+    // i64 TargetCounts  = (i64)(TargetSeconds * t->CounterFrequency);
+    // i64 CountsToWait  = TargetCounts - t->FrameDuration;
+    
+    // LARGE_INTEGER WaitBegin;
+    // LARGE_INTEGER WaitEnd;
+    
+    // QueryPerformanceCounter(&WaitBegin);
+    
+    // while(CountsToWait > 0)
+    // {
+    //     DWORD MsToSleep = (DWORD)(1000.0 * ((f64)(CountsToWait) / t->CounterFrequency));
+    //     if(MsToSleep > 0)
+    //         Sleep(MsToSleep);
+        
+    //     QueryPerformanceCounter(&WaitEnd);
+    //     CountsToWait -= WaitEnd.QuadPart - WaitBegin.QuadPart;
+    //     WaitBegin = WaitEnd;
+    // }
+
+    return dt;
 }

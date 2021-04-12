@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <gl/gl.h>
+#undef DrawText
 //todo: how to get rid of these?
 
 #include "lingo.h"
@@ -35,7 +36,7 @@ typedef enum _origin_mode {
 void Clear(iv2 WindowSize, color Color) {
     glLoadIdentity();
     glViewport(0, 0, WindowSize.w, WindowSize.h);
-
+    
     r32 a = 2.0f/WindowSize.w;
     r32 b = 2.0f/WindowSize.h;
     r32 Proj[] = {
@@ -422,7 +423,9 @@ i32 GetGlyphIndex(font Font, u32 Codepoint) {
 #endif
 }
 
-internal rv2 GetTextSize(font *Font, c8 *Text, r32 Size, r32 CharSpacing, r32 LineSpacing) {
+internal rv2 GetTextSize(font *Font, c8 *Text, u32 RangeBegin, u32 RangeEnd,
+                         r32 Size, r32 CharSpacing, r32 LineSpacing)
+{
     f32 ScaleFactor = Size/Font->Size;
     i32 Index = 0;
 
@@ -430,7 +433,9 @@ internal rv2 GetTextSize(font *Font, c8 *Text, r32 Size, r32 CharSpacing, r32 Li
     f32 h = Font->Size;
     f32 TempW = 0;
 
-    for (i32 i = 0; Text[i] != '\0'; i++) {
+    for (u32 i = RangeBegin; Text[i] != '\0'; i++) {
+        if (i < RangeEnd && RangeEnd != 0)
+            break;
         Index = GetGlyphIndex(*Font, Text[i]);
 
         glyph   Char = Font->Chars[Index];
@@ -461,7 +466,7 @@ internal rv2 GetTextSize(font *Font, c8 *Text, r32 Size, r32 CharSpacing, r32 Li
     return Result;
 }
 
-void DrawText_(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
+void DrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                f32 LineSpacing, color Tint)
 {
     f32 ScaleFactor = Size/Font->Size;

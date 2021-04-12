@@ -171,46 +171,67 @@ internal b32 DeleteFowardChar(buffer *Buffer, u32 Cursor) {
     }
 }
 
-internal finginline u32 GetNextCursor(buffer *Buffer, u32 Cursor) {
-    if (Cursor < GetBufferLen(Buffer)) {
+internal finginline u32 GetNextCharCursor(buffer *Buffer, u32 Cursor) {
+    if (Cursor < GetBufferLen(Buffer))
         return Cursor + 1;
-    }
-    else {
+    else
         return Cursor;
-    }
 }
 
-internal finginline u32 GetPrevCursor(buffer *Buffer, u32 Cursor) {
-    if (Cursor > 0) {
+internal finginline u32 GetPrevCharCursor(buffer *Buffer, u32 Cursor) {
+    if (Cursor > 0)
         return Cursor - 1;
-    }
-    else {
+    else
         return Cursor;
-    }
 }
 
-internal u32 GetBegginingOfLineCursor(buffer *Buffer, u32 Cursor) {
+internal u32 GetBeginningOfLineCursor(buffer *Buffer, u32 Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
-    Cursor = GetPrevCursor(Buffer, Cursor);
+    Cursor = GetPrevCharCursor(Buffer, Cursor);
     while (Cursor > 0) {
         c8  Char = GetBufferChar(Buffer, Cursor);
         if (Char == '\n') {
-            return GetNextCursor(Buffer, Cursor);
+            return GetNextCharCursor(Buffer, Cursor);
         }
-        Cursor = GetPrevCursor(Buffer, Cursor);
+        Cursor = GetPrevCharCursor(Buffer, Cursor);
     }
     return 0;
 }
 
-internal u32 GetEndOfLineCursor(buffer *Buffer, u32 Cursor) {
-    AssertCursorInvariants(Buffer, Cursor);
-    while (Cursor < GetBufferLen(Buffer)) {
-        c8  Char = GetBufferChar(Buffer, Cursor);
+internal u32 GetEndOfLineCursor(buffer *Buffer, u32 CurrentCursor) {
+    AssertCursorInvariants(Buffer, CurrentCursor);
+    while (CurrentCursor < GetBufferLen(Buffer)) {
+        c8  Char = GetBufferChar(Buffer, CurrentCursor);
         if (Char == '\n') {
-            return Cursor;
+            return CurrentCursor;
         }
-        Cursor = GetNextCursor(Buffer, Cursor);
+        CurrentCursor = GetNextCharCursor(Buffer, CurrentCursor);
     }
+    return GetBufferLen(Buffer);
+}
+
+internal u32 GetBeginningOfNextLineCursor(buffer *Buffer, u32 CurrentCursor) {
+    return GetNextCharCursor(Buffer, GetEndOfLineCursor(Buffer, CurrentCursor));
+}
+
+internal u32 GetEndOfPrevLineCursor(buffer *Buffer, u32 CurrentCursor) {
+    return GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor));
+}
+
+internal u32 GetBeginningOfPrevLineCursor(buffer *Buffer, u32 CurrentCursor) {
+    return GetBeginningOfLineCursor(Buffer, GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor)));
+}
+
+internal u32 GetEndOfPrevPrevCursor(buffer *Buffer, u32 CurrentCursor) {
+    return GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor));
+}
+
+
+internal u32 GetBegginingOfBufferCursor(buffer *Buffer, u32 CurrentCursor) {
+    return 0;
+}
+
+internal u32 GetEndOfBufferCursor(buffer *Buffer, u32 CurrentCursor) {
     return GetBufferLen(Buffer);
 }
 
@@ -238,7 +259,7 @@ internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
     for (u32 Cursor = 0; Cursor < Len; Cursor++) {
         u32 LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
-        DrawText_(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
+        DrawText(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
         Pos.y -= LineHeight;
     }
 }
@@ -280,22 +301,20 @@ internal void LoadBuffer(buffer *Buffer) {
 #define COMMAND_H
 
 typedef struct _command_context {
-    /* DO NOT REMOVE */ buffer *Buffer;
-    //todo: line number, column number, etc
-    c8 LastChar;
+    /* DO NOT REMOVE */
+        buffer *Buffer;
+        c8      LastChar;        
+        //todo: line number, column number, etc
+    /* DO NOT REMOVE */
 } command_context;
 
-#define EDITOR_COMMAND_FUNC(Name) void Name(command_context Ctx)
-typedef EDITOR_COMMAND_FUNC(command_func);
+#define COMMAND_FUNC(Name) void CmdFunc_##Name(command_context Ctx)
+typedef void command_func(command_context Ctx);
 
 typedef struct _command {
     c8           *Desc;
     command_func *Func;
 } command;
-#define MAX_KEY_COMBS (1 << (8 + 3))
-typedef struct _keymap {
-    command Commands[MAX_KEY_COMBS];
-} keymap;
 
 typedef enum _key {
     KEY_NONE = 0,
@@ -309,60 +328,22 @@ typedef enum _key {
     KEY_CHAR,
 } key;
 
+#define MAX_KEY_COMBS (1 << (8 + 3))
+typedef struct _keymap {
+    command Commands[MAX_KEY_COMBS];
+} keymap;
+
 internal command *GetKeyCommand(keymap *Keymap, u16 KeyComb) {
     Assert(KeyComb < MAX_KEY_COMBS);
     return Keymap->Commands + KeyComb;
 }
 
-EDITOR_COMMAND_FUNC(CmdFunc_DoNothing) {
-    //note: does nothing for now, consider error message.
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_InsertChar) {
-    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, Ctx.LastChar);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharFoward) {
-    DeleteFowardChar(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_DeleteCharBackward) {
-    DeleteBackwardChar(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretLeft) {
-    Ctx.Buffer->Point = GetPrevCursor(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretRight) {
-    Ctx.Buffer->Point = GetNextCursor(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToBegginningOfLine) {
-    Ctx.Buffer->Point = GetBegginingOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_MoveCarretToEndOfLine) {
-    Ctx.Buffer->Point = GetEndOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_InsertNewLine) {
-    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, '\n');
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_SaveBuffer) {
-    SaveBuffer(Ctx.Buffer);
-    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
-}
-
-EDITOR_COMMAND_FUNC(CmdFunc_LoadBuffer) {
-    LoadBuffer(Ctx.Buffer);
-    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
-}
-
 internal finginline command NewCommand(command_func *Func, c8 *Description) {
     return (command){Description, Func};
 }
+
+#define Bind(k, KeyComb, CommandFunc, CommandDesc) \
+    k->Commands[KeyComb] = NewCommand(CommandFunc, CommandDesc);
 
 internal finginline u16 GetKeyComb(b8 Ctrl, b8 Alt, b8 Shift, key Key) {
     return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
@@ -372,8 +353,68 @@ internal finginline u16 Ctrl(u8 Key) {
     return GetKeyComb(1, 0, 0, Key);
 }
 
-#define Bind(k, KeyComb, CommandFunc, CommandDesc) \
-    k->Commands[KeyComb] = NewCommand(CommandFunc, CommandDesc);
+internal finginline u16 Alt(u8 Key) {
+    return GetKeyComb(0, 1, 0, Key);
+}
+
+internal finginline u16 Sh1ft(u8 Key) {
+    return GetKeyComb(0, 0, 1, Key);
+}
+
+COMMAND_FUNC(DoNothing) {
+    //note: does nothing for now, consider error message.
+}
+
+COMMAND_FUNC(InsertChar) {
+    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, Ctx.LastChar);
+}
+
+COMMAND_FUNC(DeleteCharFoward) {
+    DeleteFowardChar(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(DeleteCharBackward) {
+    DeleteBackwardChar(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretLeft) {
+    Ctx.Buffer->Point = GetPrevCharCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretRight) {
+    Ctx.Buffer->Point = GetNextCharCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretToBeginningOfLine) {
+    Ctx.Buffer->Point = GetBeginningOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretToEndOfLine) {
+    Ctx.Buffer->Point = GetEndOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretToBeginningOfBuffer) {
+    Ctx.Buffer->Point = GetBegginingOfBufferCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+COMMAND_FUNC(MoveCarretToEndOfBuffer) {
+    Ctx.Buffer->Point = GetEndOfBufferCursor(Ctx.Buffer, Ctx.Buffer->Point);
+}
+
+
+COMMAND_FUNC(InsertNewLine) {
+    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, '\n');
+}
+
+COMMAND_FUNC(SaveBuffer) {
+    SaveBuffer(Ctx.Buffer);
+    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+}
+
+COMMAND_FUNC(LoadBuffer) {
+    LoadBuffer(Ctx.Buffer);
+    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
+}
 
 internal keymap *CreateKeymap() {
     keymap *Keymap           = AllocateMemory(sizeof(keymap));
@@ -394,15 +435,17 @@ internal keymap *CreateMyKeymap() {
         }
     }
 
-    Bind(Keymap, KEY_DEL,    CmdFunc_DeleteCharFoward,             "delete char foward");
-    Bind(Keymap, KEY_BACK,   CmdFunc_DeleteCharBackward,           "delete char backward");
-    Bind(Keymap, KEY_LEFT,   CmdFunc_MoveCarretLeft,               "move carret left");
-    Bind(Keymap, KEY_RIGHT,  CmdFunc_MoveCarretRight,              "move carret right");
-    Bind(Keymap, KEY_HOME,   CmdFunc_MoveCarretToBegginningOfLine, "move carret to begginning of line");
-    Bind(Keymap, KEY_END,    CmdFunc_MoveCarretToEndOfLine,        "move carret to end of line");
-    Bind(Keymap, KEY_RETURN, CmdFunc_InsertNewLine,                "insert new line");
-    Bind(Keymap, Ctrl('S'),  CmdFunc_SaveBuffer,                   "save buffer");
-    Bind(Keymap, Ctrl('O'),  CmdFunc_LoadBuffer,                   "load buffer");
+    Bind(Keymap, KEY_DEL,        CmdFunc_DeleteCharFoward,               "delete char foward");
+    Bind(Keymap, KEY_BACK,       CmdFunc_DeleteCharBackward,             "delete char backward");
+    Bind(Keymap, KEY_LEFT,       CmdFunc_MoveCarretLeft,                 "move carret left");
+    Bind(Keymap, KEY_RIGHT,      CmdFunc_MoveCarretRight,                "move carret right");
+    Bind(Keymap, KEY_HOME,       CmdFunc_MoveCarretToBeginningOfLine,   "move carret to begginning of line");
+    Bind(Keymap, KEY_END,        CmdFunc_MoveCarretToEndOfLine,          "move carret to end of line");
+    Bind(Keymap, Ctrl(KEY_HOME), CmdFunc_MoveCarretToBeginningOfBuffer, "move carret to begginning of buffer");
+    Bind(Keymap, Ctrl(KEY_END),  CmdFunc_MoveCarretToEndOfBuffer,        "move carret to end of buffer");
+    Bind(Keymap, KEY_RETURN,     CmdFunc_InsertNewLine,                  "insert new line");
+    Bind(Keymap, Ctrl('S'),      CmdFunc_SaveBuffer,                     "save buffer");
+    Bind(Keymap, Ctrl('O'),      CmdFunc_LoadBuffer,                     "load buffer");
     
     return Keymap;
 }
