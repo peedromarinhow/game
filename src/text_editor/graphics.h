@@ -495,6 +495,9 @@ void DrawText(font *Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
                 LineOffset += (Font->Size + LineSpacing) * ScaleFactor;
                 CharOffset = 0;
             }
+            if (Text[i] == '\r') {
+                Assert(1);
+            }
             else {           
                 rectf32 Rect = Font->Rects[Index];
                 f32 w        = Font->Texture.w;

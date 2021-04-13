@@ -44,18 +44,21 @@ finginline rv2 rv2_(r32 x, r32 y) {
 }
 
 typedef struct _color {
-    r32 r;
-    r32 g;
-    r32 b;
-    r32 a;
+    r32 r, g, b, a;
 } color;
-
 finginline  color HexToColor(u32 Hex) {
     return (color){((Hex >> 24) & 0xFF)/255.f,
                    ((Hex >> 16) & 0xFF)/255.f,
                    ((Hex >>  8) & 0xFF)/255.f,
                    ((Hex >>  0) & 0xFF)/255.f};
 }
+
+typedef union _bcolor {
+    u32 rgba;
+    struct {
+        u8 r, g, b, a;
+    };
+} bcolor;
 
 typedef struct _color4b {
     u8 r;
@@ -109,5 +112,29 @@ typedef struct _rectf32 {
     f32 w;
     f32 h;
 } rectf32;
+
+typedef struct _rectf {
+    union {
+        struct { rv2 Pos; };
+        struct {
+            f32 x;
+            f32 y;
+        };
+    };
+    union {
+        struct { rv2 Dim; };
+        struct {
+            f32 w;
+            f32 h;
+        };
+    };
+} rectf;
+finginline rectf rectf_(r32 x, r32 y, r32 w, r32 h) {
+    return (rectf){x, y, w, h};
+}
+
+internal b32 IsInsideRect(rv2 Pos, rectf32 Rect) {
+    return (Pos.x > Rect.x && Pos.x < Rect.x + Rect.w) && (Pos.y < Rect.y && Pos.y > Rect.y - Rect.h);
+}
 
 #endif

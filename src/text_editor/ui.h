@@ -6,9 +6,21 @@
 #include "maths.h"
 #include "graphics.h"
 
-internal b32 IsInsideRect(rv2 Pos, rectf32 Rect) {
-    return (Pos.x > Rect.x && Pos.x < Rect.x + Rect.w) && (Pos.y < Rect.y && Pos.y > Rect.y - Rect.h);
-}
+typedef struct _ui_id {
+    u32 Owner;
+    u32 Item;
+} ui_id;
+
+typedef struct _ui_ctx {
+    ui_id Hot;
+    ui_id Act;
+
+    rv2 mPos;
+    b32 mLeft;
+    b32 mRight;
+} ui_ctx;
+
+
 
 internal void DrawTextBackGround(font *Font, c8 *Text, rv2 Pos, r32 Padding, color TextColor, color BackColor) {
     rv2 TextDim = GetTextSize(Font, Text, 0, 0, Font->Size, 0, 0);

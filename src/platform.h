@@ -65,10 +65,10 @@ typedef struct _platform {
     r32 dtForFrame;
 
     /* mouse input */
-    b32 MouseMoved;
-    rv2 MousePos;
-    b32 MouseLeft, MouseRight, MouseMiddle;
-    i16 dMouseWheel;
+    b32 mMoved;
+    rv2 mPos;
+    b32 mLeft, mRight, mMiddle;
+    i16 dmWheel;
 
     /* keyboard input */
     b32 WasDown, IsDown;

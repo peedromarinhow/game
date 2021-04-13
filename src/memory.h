@@ -16,10 +16,11 @@ typedef struct _memory_arena {
 } memory_arena;
 
 internal memory_arena InitializeArena(u64 MaxSize, void *Base) {
-    memory_arena Arena = {0};
-    Arena.MaxSize = MaxSize;
-    Arena.Base    = Base;
-    Arena.Used    = 0;
+    memory_arena Arena = {
+        .MaxSize = MaxSize,
+        .Base    = Base,
+        .Used    = 0
+    };
     return Arena;
 }
 

@@ -42,38 +42,38 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
     // since there is no "WM_MOUSE_DID_NOT_MOVE" message, assume that it didn't and
     // if it acually did, then update
     MSG Message;
-    i16 dMouseWheel = 0;
-    Win32ProcessEventMessage(&Platform->MouseMoved, 0);
+    i16 dmWheel = 0;
+    Win32ProcessEventMessage(&Platform->mMoved, 0);
     Win32ProcessEventMessage(&Platform->kChar,      0);
     while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
         //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
         /* mouse */
         if (Message.message == WM_MOUSEWHEEL) {
-            dMouseWheel = HIWORD(Message.wParam);
+            dmWheel = HIWORD(Message.wParam);
         }
         else
         if (Message.message == WM_MOUSEMOVE){
-            Platform->MousePos = Win32GetMousePos(Window, Platform->WindowDimensions);
-            Win32ProcessEventMessage(&Platform->MouseMoved, 1);
+            Platform->mPos = Win32GetMousePos(Window, Platform->WindowDimensions);
+            Win32ProcessEventMessage(&Platform->mMoved, 1);
         }
         else
         if (Message.message == WM_LBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->MouseLeft, 1);
+            Win32ProcessButtonMessage(&Platform->mLeft, 1);
         else
         if (Message.message == WM_LBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->MouseLeft, 0);
+            Win32ProcessButtonMessage(&Platform->mLeft, 0);
         else
         if (Message.message == WM_RBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->MouseRight, 1);
+            Win32ProcessButtonMessage(&Platform->mRight, 1);
         else
         if (Message.message == WM_RBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->MouseRight, 0);
+            Win32ProcessButtonMessage(&Platform->mRight, 0);
         else
         if (Message.message == WM_MBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->MouseMiddle, 1);
+            Win32ProcessButtonMessage(&Platform->mMiddle, 1);
         else
         if (Message.message == WM_MBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->MouseMiddle, 0);
+            Win32ProcessButtonMessage(&Platform->mMiddle, 0);
         else
         if (Message.message == WM_SETCURSOR)
             SetCursor(LoadCursorA(0, IDC_ARROW));
@@ -176,7 +176,7 @@ internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
             TranslateMessage(&Message);
             DispatchMessage(&Message);
         }
-        Platform->dMouseWheel = dMouseWheel;
+        Platform->dmWheel = dmWheel;
         Platform->WasDown     = WasDown;
         Platform->IsDown      = IsDown;
     }
@@ -249,8 +249,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
 
-        Platform.WindowDimensions          = Win32GetWindowDimensions(Window);
-        Platform.MousePos                  = Win32GetMousePos(Window, Platform.WindowDimensions);
+        Platform.WindowDimensions = Win32GetWindowDimensions(Window);
+        Platform.mPos             = Win32GetMousePos(Window, Platform.WindowDimensions);
     }
 
     /* load app code */
@@ -272,7 +272,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     HDC GlDeviceContext = GetDC(Window);
     Win32InitOpenGl(Window);
 
-    b32 MousePosOutOfWindow = 0;
+    b32 mPosOutOfWindow = 0;
 
     //note:
     // this "GlobalRunning" is just for the window closing messages
@@ -301,8 +301,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update */ {
             Platform.WindowDimensions = Win32GetWindowDimensions(Window);
-            if (MousePosOutOfWindow)
-                Platform.MousePos = Win32GetMousePos(Window, Platform.WindowDimensions);
+            if (mPosOutOfWindow)
+                Platform.mPos = Win32GetMousePos(Window, Platform.WindowDimensions);
 
             AppCode.Update(&Platform);
 
