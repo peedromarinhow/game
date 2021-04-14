@@ -12,6 +12,59 @@
 
 // #include "ui.h"
 
+void Clear(iv2 WindowSize, color Color) {
+    glLoadIdentity();
+    glViewport(0, 0, WindowSize.w, WindowSize.h);
+    
+    r32 a = 2.0f/WindowSize.w;
+    r32 b = 2.0f/WindowSize.h;
+    r32 Proj[] = {
+        a, 0, 0, 0,
+        0, b, 0, 0,
+        0, 0, 1, 0,
+       -1,-1, 0, 1
+    };
+
+    glLoadMatrixf(Proj);
+    glClearColor(Color.r, Color.g, Color.b, Color.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void DrawRectPro(rv2 Pos, rv2 Size, color Color,
+                 r32 StrokeWidth, color StrokeColor)
+{
+    rv2 TopLeft     = rv2_(0, 0);
+    rv2 TopRight    = rv2_(0, 0);
+    rv2 BottomRight = rv2_(0, 0);
+    rv2 BottomLeft  = rv2_(0, 0);
+
+    TopLeft     = rv2_(Pos.x, Pos.y + Size.h);
+    TopRight    = rv2_(Pos.x + Size.w, Pos.y + Size.h);
+    BottomRight = rv2_(Pos.x + Size.w, Pos.y);
+    BottomLeft  = rv2_(Pos.x, Pos.y);
+
+    if (Color.a != (0/255.f)) {
+        glBegin(GL_POLYGON); {
+            glColor4f(Color.r, Color.g, Color.b, Color.a);
+            glVertex2f(TopLeft.x, TopLeft.y);
+            glVertex2f(TopRight.x, TopRight.y);
+            glVertex2f(BottomRight.x, BottomRight.y);
+            glVertex2f(BottomLeft.x, BottomLeft.y);
+        } glEnd();
+    }
+
+    if (StrokeWidth > 0) {
+        glLineWidth(StrokeWidth);
+        glBegin(GL_LINE_LOOP); {
+            glColor4f(StrokeColor.r, StrokeColor.g, StrokeColor.b, StrokeColor.a);
+            glVertex2f(TopLeft.x, TopLeft.y);
+            glVertex2f(TopRight.x, TopRight.y);
+            glVertex2f(BottomRight.x, BottomRight.y);
+            glVertex2f(BottomLeft.x, BottomLeft.y);
+        } glEnd();
+    }
+}
+
 typedef struct _app_state {
     // keymap *Keymap;  
     // buffer *Buffer;
@@ -39,7 +92,7 @@ external APP_INIT(Init) {
 
     // State->Keymap     = CreateMyKeymap();
     // State->Buffer     = CreateBuffer(2, "a.c");
-    // State->RobotoMono = LoadFont(Platform, "roboto_mono.ttf", 400, 24);
+    State->RobotoMono = LoadFont(Platform, "roboto_mono.ttf", 400, 24);
     // State->Roboto     = LoadFont(Platform, "roboto.ttf", 400, 32);
 
     bcolor c;
@@ -49,30 +102,32 @@ external APP_INIT(Init) {
     c.a = 255;
 
     renderer Renderer = {
-        .BufferSize = Kilobytes(2),
-        .PushBuffer = Platform.AllocateMemory(Kilobytes(2)),
+        // .BufferSize = Kilobytes(2),
+        // .PushBuffer = Platform.AllocateMemory(Kilobytes(2)),
         .TargetDim  = p->WindowDimensions,
         .ClearColor = c
     };
 
     State->Renderer = Renderer;
 
-    c.r = 255;
-    c.g = 255;
-    c.b = 255;
+    c.r = 225;
+    c.g = 225;
+    c.b = 225;
     c.a = 255;
 
-    DrawRect(&State->Renderer, rectf_(10, 10, 30, 30), c);
+    DrawRect(&State->Renderer, rectf_(100, 100, 30, 30), c);
+    DrawRect(&State->Renderer, rectf_(200, 100, 30, 30), c);
+    DrawText(&State->Renderer, &State->RobotoMono, rv2_(500, 300), "WAgj", State->RobotoMono.Height, 0, 0, c);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 external APP_UPDATE(Update) {
-    // Clear(p->WindowDimensions, HexToColor(0x20202000));
+    Clear(p->WindowDimensions, HexToColor(0x20202000));
     app_state *State = (app_state *)p->Memory.Contents;
 
-    // DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
+    DrawRectPro(p->mPos, rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     // DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
     // c8 *Text = "aAJTiI\nabcdefg\n.........g";
     // rv2 Pos = rv2_(16, p->WindowDimensions.y - 64);
@@ -101,15 +156,9 @@ external APP_UPDATE(Update) {
     // if (p->kChar)
     //     Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
     
-    // State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});
+    // State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});  
 
     Render(&State->Renderer);
-
-/*
-    render_group RenderGroup;
-
-    Render(RenderGroup);
-*/
 }
 
 external APP_RELOAD(Reload) {

@@ -91,7 +91,9 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
     image *GlyphImages = p.AllocateMemory(NoChars * sizeof(image));
     for (u32 i = 0; i < NoChars; i++) {
         u32 Codepoint = i + 32;
-        GlyphImages[i].Data   = stbtt_GetCodepointBitmap(&FontInfo, ScaleFactor, ScaleFactor, Codepoint, &w, &h, &OffX, &OffY);
+        GlyphImages[i].Data = stbtt_GetCodepointBitmap(&FontInfo, ScaleFactor, ScaleFactor, Codepoint, &w, &h, &OffX, &OffY);
+        GlyphImages[i].w    = w;
+        GlyphImages[i].h    = h;
         stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Advance, NULL);
         Font.GlyphAdvances[i] = Advance;
         Font.GlyphOffsets[i]  = rv2_(OffX, OffY);
@@ -197,28 +199,15 @@ typedef struct _renderer {
     iv2    TargetDim;
     bcolor ClearColor;
 
-    void *PushBuffer;
-    u32 BufferSize;
+    render_piece Pieces[16];
+    u32 UsedPieces;
 
     font Fonts[2];
 } renderer;
 
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
-    void *Base = Renderer->PushBuffer;
-   *(u32 *)(Renderer->PushBuffer) = Piece.Type;
-    Renderer->PushBuffer = (u8 *)((u32 *)Renderer->PushBuffer + 1);
-    
-    if (Piece.Type == PIECE_RECT) {
-      *(render_piece_rect *)Renderer->PushBuffer = Piece.Rect;
-       Renderer->PushBuffer = (u8 *)Renderer->PushBuffer + sizeof(render_piece_rect);
-    }
-    else
-    if (Piece.Type == PIECE_GLYPH) {
-      *(render_piece_glyph *)Renderer->PushBuffer = Piece.Glyph;
-       Renderer->PushBuffer = (u8 *)((render_piece_glyph *)Renderer->PushBuffer + 1);
-    }
-
-    Renderer->PushBuffer = Base;
+    Renderer->Pieces[Renderer->UsedPieces] = Piece;
+    Renderer->UsedPieces++;
 }
 
 internal void DrawRect(renderer *Renderer, rectf Rect, bcolor Color) {
@@ -249,11 +238,10 @@ internal void DrawText(renderer *Renderer, font *Font, rv2 Pos,
                        r32 LineSpacing, r32 CharSpacing,
                        bcolor Color)
 {
-    u32 Index       = 0;
-
-    rv2   Advance;
-    rv2   Offset;
+    rv2   Advance = rv2_(0, 0);
+    rv2   Offset  = rv2_(0, 0);
     rectf Rect;
+    u32   Index = 0;
     for (u32 i = 0; Text[i] != '\0'; i++) {
         Index    = Text[i] - 32;
         if (Text[i] == '\n') {
@@ -270,45 +258,34 @@ internal void DrawText(renderer *Renderer, font *Font, rv2 Pos,
 #define CastStructAndIncrementIt(type, Data) (type *)Data; Data += sizeof(type)
 
 internal void Render(renderer *Renderer) {
-    glLoadIdentity();
-    glViewport(0, 0, Renderer->TargetDim.w, Renderer->TargetDim.h);
-    
-    r32 a = 2.0f/Renderer->TargetDim.w;
-    r32 b = 2.0f/Renderer->TargetDim.h;
-    r32 Proj[] = {
-        a, 0, 0, 0,
-        0, b, 0, 0,
-        0, 0, 1, 0,
-       -1,-1, 0, 1
-    };
+    for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
+        render_piece Piece = Renderer->Pieces[PieceIndex];
 
-    glLoadMatrixf(Proj);
-    glClearColor(Renderer->ClearColor.r, Renderer->ClearColor.g, Renderer->ClearColor.b, Renderer->ClearColor.a);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    u8 *BufferBase = Renderer->PushBuffer;
-    u8 *BufferEnd  = (u8 *)Renderer->PushBuffer + Renderer->BufferSize;
-
-    while (BufferBase < BufferEnd) {
-        render_piece_header *Header = CastStructAndIncrementIt(render_piece_header, BufferBase);
-        
-        u32 Type = Header->Type;
-        if (Type == PIECE_RECT) {
-            render_piece_rect *Rect = CastStructAndIncrementIt(render_piece_rect, BufferBase);
-
-            rectf RectData = Rect->Rect;
-
-            glColor4b(Rect->Color.r, Rect->Color.g, Rect->Color.b, Rect->Color.a);
-            glBegin(GL_QUADS); {
-                glVertex2f(RectData.x,              RectData.y);
-                glVertex2f(RectData.x + RectData.w, RectData.y);
-                glVertex2f(RectData.x + RectData.w, RectData.y + RectData.h);
-                glVertex2f(RectData.x,              RectData.y + RectData.h);
+        if (Piece.Type == PIECE_RECT) {
+            render_piece_rect Rect = Piece.Rect;
+            glBegin(GL_POLYGON); {
+                glColor4ub(Rect.Color.r, Rect.Color.g, Rect.Color.b, Rect.Color.a);
+                
+                glVertex2f(Rect.Rect.x,               Rect.Rect.y + Rect.Rect.h);
+                glVertex2f(Rect.Rect.x + Rect.Rect.w, Rect.Rect.y + Rect.Rect.h);
+                glVertex2f(Rect.Rect.x + Rect.Rect.w, Rect.Rect.y);
+                glVertex2f(Rect.Rect.x,               Rect.Rect.y);
             } glEnd();
         }
         else
-        if (Type == PIECE_GLYPH) {
-            render_piece_glyph *Glyph = CastStructAndIncrementIt(render_piece_glyph, BufferBase);
+        if (Piece.Type == PIECE_GLYPH) {
+            render_piece_glyph Glyph = Piece.Glyph;
+
+            glBegin(GL_QUADS); {
+                glColor4ub(Glyph.Color.r, Glyph.Color.g, Glyph.Color.b, Glyph.Color.a);
+
+                rectf GlyphRect = Glyph.Font->GlyphRects[Glyph.Char - 32];
+                
+                glVertex2f(Glyph.Pos.x,               Glyph.Pos.y + GlyphRect.h);
+                glVertex2f(Glyph.Pos.x + GlyphRect.w, Glyph.Pos.y + GlyphRect.h);
+                glVertex2f(Glyph.Pos.x + GlyphRect.w, Glyph.Pos.y);
+                glVertex2f(Glyph.Pos.x,               Glyph.Pos.y);
+            } glEnd();
         }
     }
 }
