@@ -160,6 +160,11 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
     return Font;
 }
 
+typedef struct _render_piece_head {
+    u32 Type;
+    u32 Temp;
+} render_piece_header;
+
 typedef struct _render_piece_rect {
     rectf  Rect;
     bcolor Color;
@@ -181,6 +186,7 @@ enum piece_type {
 
 typedef struct _render_piece {
     u32 Type;
+    u32 Temp;
     union {
         render_piece_rect  Rect;
         render_piece_glyph Glyph;
@@ -188,26 +194,42 @@ typedef struct _render_piece {
 } render_piece;
 
 typedef struct _renderer {
-    iv2  TargetDim;
+    iv2    TargetDim;
+    bcolor ClearColor;
 
     void *PushBuffer;
+    u32 BufferSize;
 
     font Fonts[2];
 } renderer;
 
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
+    void *Base = Renderer->PushBuffer;
    *(u32 *)(Renderer->PushBuffer) = Piece.Type;
-    Renderer->PushBuffer  = (c8 *)((u32 *)Renderer->PushBuffer + 1);
+    Renderer->PushBuffer = (u8 *)((u32 *)Renderer->PushBuffer + 1);
     
     if (Piece.Type == PIECE_RECT) {
-       *(render_piece_rect *)(Renderer->PushBuffer) = Piece.Rect;
-       Renderer->PushBuffer = (c8 *)((render_piece_rect *)Renderer->PushBuffer + 1);
+      *(render_piece_rect *)Renderer->PushBuffer = Piece.Rect;
+       Renderer->PushBuffer = (u8 *)Renderer->PushBuffer + sizeof(render_piece_rect);
     }
     else
     if (Piece.Type == PIECE_GLYPH) {
-       *(render_piece_glyph *)(Renderer->PushBuffer) = Piece.Glyph;
-       Renderer->PushBuffer = (c8 *)((render_piece_glyph *)Renderer->PushBuffer + 1);
+      *(render_piece_glyph *)Renderer->PushBuffer = Piece.Glyph;
+       Renderer->PushBuffer = (u8 *)((render_piece_glyph *)Renderer->PushBuffer + 1);
     }
+
+    Renderer->PushBuffer = Base;
+}
+
+internal void DrawRect(renderer *Renderer, rectf Rect, bcolor Color) {
+    render_piece Piece;
+
+    Piece.Type       = PIECE_RECT;
+    Piece.Temp       = 63;
+    Piece.Rect.Rect  = Rect;
+    Piece.Rect.Color = Color;
+
+    PushPiece(Renderer, Piece);
 }
 
 internal void DrawGlyph(renderer *Renderer, font *Font, c8 Char, rv2 Pos, bcolor Color) {
@@ -222,30 +244,73 @@ internal void DrawGlyph(renderer *Renderer, font *Font, c8 Char, rv2 Pos, bcolor
     PushPiece(Renderer, Piece);
 }
 
-internal void DrawText(renderer *r, font *Font, rv2 Pos,
+internal void DrawText(renderer *Renderer, font *Font, rv2 Pos,
                        c8 *Text, r32 Size,
                        r32 LineSpacing, r32 CharSpacing,
                        bcolor Color)
 {
-    f32 Advance     = 0;
-    f32 VerticalOff = 0;
     u32 Index       = 0;
-    rv2 Offset;
-    rv2 GlyphPos;
-    for (u32 i = 0; Text[i] != '\0'; i++) {
-        if (Text[i] == '\n') {
-            VerticalOff += Font->LineGap + LineSpacing;
-            Advance      = 0;
-        }
 
+    rv2   Advance;
+    rv2   Offset;
+    rectf Rect;
+    for (u32 i = 0; Text[i] != '\0'; i++) {
         Index    = Text[i] - 32;
-        Offset   = Font->GlyphOffsets[Index];
-        GlyphPos = rv2_(Pos.x + Advance + Offset.x,
-                        Pos.y - VerticalOff - Font->GlyphRects[i].h - Offset.y);
-        DrawGlyph(r, Font, Text[i], GlyphPos, Color);
-        Advance += Font->GlyphAdvances[Index] + CharSpacing;
+        if (Text[i] == '\n') {
+            Advance.y += Font->LineGap + LineSpacing;
+            Advance.x  = 0;
+        }
+        Offset = Font->GlyphOffsets[Index];
+        Rect   = Font->GlyphRects[Index];
+        DrawGlyph(Renderer, Font, Text[i], rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
+        Advance.x += Font->GlyphAdvances[Index] + CharSpacing;
     }
 }
 
+#define CastStructAndIncrementIt(type, Data) (type *)Data; Data += sizeof(type)
+
+internal void Render(renderer *Renderer) {
+    glLoadIdentity();
+    glViewport(0, 0, Renderer->TargetDim.w, Renderer->TargetDim.h);
+    
+    r32 a = 2.0f/Renderer->TargetDim.w;
+    r32 b = 2.0f/Renderer->TargetDim.h;
+    r32 Proj[] = {
+        a, 0, 0, 0,
+        0, b, 0, 0,
+        0, 0, 1, 0,
+       -1,-1, 0, 1
+    };
+
+    glLoadMatrixf(Proj);
+    glClearColor(Renderer->ClearColor.r, Renderer->ClearColor.g, Renderer->ClearColor.b, Renderer->ClearColor.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    u8 *BufferBase = Renderer->PushBuffer;
+    u8 *BufferEnd  = (u8 *)Renderer->PushBuffer + Renderer->BufferSize;
+
+    while (BufferBase < BufferEnd) {
+        render_piece_header *Header = CastStructAndIncrementIt(render_piece_header, BufferBase);
+        
+        u32 Type = Header->Type;
+        if (Type == PIECE_RECT) {
+            render_piece_rect *Rect = CastStructAndIncrementIt(render_piece_rect, BufferBase);
+
+            rectf RectData = Rect->Rect;
+
+            glColor4b(Rect->Color.r, Rect->Color.g, Rect->Color.b, Rect->Color.a);
+            glBegin(GL_QUADS); {
+                glVertex2f(RectData.x,              RectData.y);
+                glVertex2f(RectData.x + RectData.w, RectData.y);
+                glVertex2f(RectData.x + RectData.w, RectData.y + RectData.h);
+                glVertex2f(RectData.x,              RectData.y + RectData.h);
+            } glEnd();
+        }
+        else
+        if (Type == PIECE_GLYPH) {
+            render_piece_glyph *Glyph = CastStructAndIncrementIt(render_piece_glyph, BufferBase);
+        }
+    }
+}
 
 #endif//RENDER_GROUP_H

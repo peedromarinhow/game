@@ -17,6 +17,8 @@ typedef struct _app_state {
     // buffer *Buffer;
     font    RobotoMono;
     font    Roboto;
+
+    renderer Renderer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -37,8 +39,30 @@ external APP_INIT(Init) {
 
     // State->Keymap     = CreateMyKeymap();
     // State->Buffer     = CreateBuffer(2, "a.c");
-    State->RobotoMono = LoadFont(Platform, "roboto_mono.ttf", 400, 24);
-    State->Roboto     = LoadFont(Platform, "roboto.ttf", 400, 32);
+    // State->RobotoMono = LoadFont(Platform, "roboto_mono.ttf", 400, 24);
+    // State->Roboto     = LoadFont(Platform, "roboto.ttf", 400, 32);
+
+    bcolor c;
+    c.r = 0;
+    c.g = 0;
+    c.b = 0;
+    c.a = 255;
+
+    renderer Renderer = {
+        .BufferSize = Kilobytes(2),
+        .PushBuffer = Platform.AllocateMemory(Kilobytes(2)),
+        .TargetDim  = p->WindowDimensions,
+        .ClearColor = c
+    };
+
+    State->Renderer = Renderer;
+
+    c.r = 255;
+    c.g = 255;
+    c.b = 255;
+    c.a = 255;
+
+    DrawRect(&State->Renderer, rectf_(10, 10, 30, 30), c);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -46,7 +70,7 @@ external APP_INIT(Init) {
 
 external APP_UPDATE(Update) {
     // Clear(p->WindowDimensions, HexToColor(0x20202000));
-    // app_state *State = (app_state *)p->Memory.Contents;
+    app_state *State = (app_state *)p->Memory.Contents;
 
     // DrawRectPro(ORIGIN_CENTERED, rv2_(100, 100), rv2_(100, 100), HexToColor(0xFA6060FF), 0, (color){0});
     // DrawBuffer(rv2_(16, p->WindowDimensions.y - 32), State->Buffer, &State->RobotoMono, State->RobotoMono.Size);
@@ -78,6 +102,8 @@ external APP_UPDATE(Update) {
     //     Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
     
     // State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});
+
+    Render(&State->Renderer);
 
 /*
     render_group RenderGroup;
