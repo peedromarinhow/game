@@ -201,11 +201,18 @@ typedef struct _renderer {
     iv2    TargetDim;
     colorb ClearColor;
 
-    render_piece Pieces[16];
-    u32 UsedPieces;
+    render_piece Pieces[1024];
+    u32          UsedPieces;
 
     font Fonts[2];
 } renderer;
+
+internal finginline b32 AreRectsIntersecting(rectf a, rectf b) {
+    return IsInsideRect(rv2_(a.x,       a.y + a.h), (rectf32){b.x, b.y, b.w, b.h}) &&
+           IsInsideRect(rv2_(a.x + a.w, a.y + a.h), (rectf32){b.x, b.y, b.w, b.h}) &&
+           IsInsideRect(rv2_(a.x + a.w, a.y),       (rectf32){b.x, b.y, b.w, b.h}) &&
+           IsInsideRect(rv2_(a.x,       a.y),       (rectf32){b.x, b.y, b.w, b.h});
+}
 
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
     Renderer->Pieces[Renderer->UsedPieces] = Piece;
@@ -215,11 +222,11 @@ internal void PushPiece(renderer *Renderer, render_piece Piece) {
 internal void DrawRect(renderer *Renderer, rectf Rect, colorb Color) {
     render_piece Piece;
 
-    Piece.Origin     = rv2_(0, 0);
-    Piece.Type       = PIECE_RECT;
-    Piece.Pos        = Rect.Pos;
-    Piece.Rect.Rect  = Rect;
-    Piece.Color      = Color;
+    Piece.Origin    = rv2_(0, 0);
+    Piece.Type      = PIECE_RECT;
+    Piece.Pos       = Rect.Pos;
+    Piece.Rect.Rect = Rect;
+    Piece.Color     = Color;
 
     PushPiece(Renderer, Piece);
 }
@@ -234,7 +241,11 @@ internal void DrawGlyph(renderer *Renderer, u16 FontId, c8 Char, rv2 Pos, colorb
     Piece.Glyph.FontId = FontId;
     Piece.Glyph.Char   = Char;
 
-    PushPiece(Renderer, Piece);
+    // if (AreRectsIntersecting(Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32],
+    //     rectf_(0, 0, Renderer->TargetDim.x, Renderer->TargetDim.y)))
+    // {
+        PushPiece(Renderer, Piece);
+    // }
 }
 
 internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
@@ -242,6 +253,8 @@ internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
                        r32 LineSpacing, r32 CharSpacing,
                        colorb Color)
 {
+    font Font = Renderer->Fonts[FontId];
+
     rv2   Advance = rv2_(0, 0);
     rv2   Offset  = rv2_(0, 0);
     rectf Rect;
@@ -249,14 +262,14 @@ internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
     for (u32 i = 0; Text[i] != '\0'; i++) {
         Index    = Text[i] - 32;
         if (Text[i] == '\n') {
-            Advance.y += Renderer->Fonts[FontId].LineGap + LineSpacing;
+            Advance.y += Font.LineGap + LineSpacing;
             Advance.x  = 0;
         }
         else {
-            Offset = Renderer->Fonts[FontId].GlyphOffsets[Index];
-            Rect   = Renderer->Fonts[FontId].GlyphRects[Index];
+            Offset = Font.GlyphOffsets[Index];
+            Rect   = Font.GlyphRects[Index];
             DrawGlyph(Renderer, FontId, Text[i], rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
-            Advance.x += Renderer->Fonts[FontId].GlyphAdvances[Index] + CharSpacing;
+            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
         }
     }
 }
@@ -333,6 +346,8 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
             glDisable(GL_TEXTURE_2D);
         }
     }
+
+    Renderer->UsedPieces = 0;
 }
 
 #endif//RENDERER_H

@@ -3,7 +3,8 @@
 
 #include "lingo.h"
 #include "api.h"
-#include "graphics.h"
+
+#include "renderer.h"
 
 typedef struct _buffer {
     u32 ReferenceCount;
@@ -50,10 +51,10 @@ internal finginline void SetBufferChar(buffer *Buffer, u32 Cursor, c8 Char) {
 }
 
 internal buffer *CreateBuffer(u32 InitialGapSize, c8 *Filename) {
-    buffer *Buffer = AllocateMemory(sizeof(buffer)); {
+    buffer *Buffer = GlobalPlatformApi.AllocateMemory(sizeof(buffer)); {
         Buffer->ReferenceCount = 1;
 
-        Buffer->Data     = AllocateMemory(InitialGapSize);
+        Buffer->Data     = GlobalPlatformApi.AllocateMemory(InitialGapSize);
         Buffer->GapStart = 0;
         Buffer->GapEnd   = InitialGapSize;
         Buffer->End      = InitialGapSize;
@@ -75,8 +76,8 @@ internal void ReleaseBuffer(buffer *Buffer) {
     Assert(Buffer->ReferenceCount > 0);
     Buffer->ReferenceCount--;
     if (Buffer->ReferenceCount == 0) {
-        FreeMemory(Buffer->Data);
-        FreeMemory(Buffer);
+        GlobalPlatformApi.FreeMemory(Buffer->Data);
+        GlobalPlatformApi.FreeMemory(Buffer);
     }
 }
 
@@ -112,9 +113,9 @@ internal void EnsureGapSize(buffer *Buffer, u32 Min) {
     if (GetBufferGapSize(Buffer) < Min) {
         ShiftGapToCursor(Buffer, GetBufferLen(Buffer));
         u32 NewEnd = Max(2 * Buffer->End, Buffer->End + Min - GetBufferGapSize(Buffer));
-        void *Temp     = AllocateMemory(NewEnd);
+        void *Temp     = GlobalPlatformApi.AllocateMemory(NewEnd);
         CopyMemory(Temp, Buffer->Data, Buffer->End);
-        FreeMemory(Buffer->Data);
+        GlobalPlatformApi.FreeMemory(Buffer->Data);
         Buffer->Data   = Temp;
         Buffer->GapEnd = NewEnd;
         Buffer->End    = NewEnd; 
@@ -253,14 +254,21 @@ internal u32 CopyLineFromBuffer(c8 *Line, i32 MaxLineSize, buffer *Buffer, u32 *
     return i;
 }
 
-internal void DrawBuffer(rv2 Pos, buffer *Buffer, font *Font, f32 LineHeight) {
-    c8 Line[256];
+internal void DrawBuffer(renderer *Renderer, rv2 Pos, buffer *Buffer) {
+    colorb c;
+
+    c.r = 225;
+    c.g = 225;
+    c.b = 225;
+    c.a = 255;
+
+    c8  Line[128];
     u32 Len = (GetBufferLen(Buffer) == 0)? Buffer->End : GetBufferLen(Buffer);
     for (u32 Cursor = 0; Cursor < Len; Cursor++) {
         u32 LineLen = CopyLineFromBuffer(Line, sizeof(Line) - 1, Buffer, &Cursor);
         Line[LineLen] = '\0';
-        DrawText(Font, Line, Pos, Font->Size, 0, 0, HexToColor(0xFAFAFAFF));
-        Pos.y -= LineHeight;
+        DrawText(Renderer, 0, Pos, Line, 24, 0, 0, c);
+        Pos.y -= 24;
     }
 }
 
@@ -275,27 +283,25 @@ void OutputDebugBuffer(buffer *Buffer) {
 }
 
 internal void SaveBuffer(buffer *Buffer) {
-    WriteFile_(Buffer->Data, Buffer->GapStart, Buffer->Filename, 0);
-    WriteFile_(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
+    GlobalPlatformApi.WriteFile(Buffer->Data, Buffer->GapStart, Buffer->Filename, 0);
+    GlobalPlatformApi.WriteFile(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Buffer->Filename, 1);
 }
 
 internal void LoadBuffer(buffer *Buffer) {
     if (Buffer->Filename) {
-        file File = LoadFile(Buffer->Filename);
+        file File = GlobalPlatformApi.LoadFile(Buffer->Filename);
         DeleteBuffer(Buffer);
         EnsureGapSize(Buffer, File.Size);
         //todo: unecessary CopyMemory?
         CopyMemory(Buffer->Data, File.Data, File.Size);
         Buffer->GapStart = File.Size;
-        FreeFile(File);
+        GlobalPlatformApi.FreeFile(File);
     }
 }
 
 #endif//BUFFER_H
 
-
-
-
+///////////////////////////////////////////////////////////
 
 #ifndef COMMAND_H
 #define COMMAND_H
@@ -408,16 +414,16 @@ COMMAND_FUNC(InsertNewLine) {
 
 COMMAND_FUNC(SaveBuffer) {
     SaveBuffer(Ctx.Buffer);
-    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
 }
 
 COMMAND_FUNC(LoadBuffer) {
     LoadBuffer(Ctx.Buffer);
-    DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
 }
 
 internal keymap *CreateKeymap() {
-    keymap *Keymap           = AllocateMemory(sizeof(keymap));
+    keymap *Keymap           = GlobalPlatformApi.AllocateMemory(sizeof(keymap));
     command CommandDoNothing = {"do nothing", CmdFunc_DoNothing};
     for (u32 i = 0; i < MAX_KEY_COMBS; i++) {
         Keymap->Commands[i] = CommandDoNothing;

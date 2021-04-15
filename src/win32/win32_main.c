@@ -65,13 +65,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
         GetCurrentDirectoryA(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
-    WNDCLASS WindowClass = {0}; {
-        WindowClass.style         = CS_HREDRAW | CS_VREDRAW;
-        WindowClass.lpfnWndProc   = Win32MainWindowCallback;
-        WindowClass.hInstance     = Instance;
-        WindowClass.lpszClassName = WINDOW_TITLE;
-        WindowClass.hCursor       = LoadCursor(0, IDC_ARROW);
-    }
+    WNDCLASS WindowClass = {
+        .style         = CS_HREDRAW | CS_VREDRAW,
+        .lpfnWndProc   = Win32MainWindowCallback,
+        .hInstance     = Instance,
+        .lpszClassName = WINDOW_TITLE,
+        .hCursor       = LoadCursor(0, IDC_ARROW)
+    };
     if (!RegisterClass(&WindowClass))
          Win32ReportErrorAndDie("ERROR!!", "Window class failed to registrate");
 
@@ -89,7 +89,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
         Platform.Memory.Size          = Megabytes((u64)64);
-        Platform.Memory.Contents      = Win32AllocateMemory(Platform.Memory.Size); 
+        Platform.Memory.Contents      = Win32AllocateMemory(Platform.Memory.Size);
         if (!Platform.Memory.Contents)
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
@@ -106,7 +106,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         Platform.WindowDim = Win32GetWindowDim(Window);
         Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);
-    }
+    };
 
     /* load app code */
     win32_app_code AppCode = {0}; {
@@ -296,8 +296,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update */ {
             Platform.WindowDim = Win32GetWindowDim(Window);
-            if (mPosOutOfWindow)
-                Platform.mPos = Win32GetMousePos(Window, Platform.WindowDim);
+            Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);
 
             AppCode.Update(&Platform);
 
