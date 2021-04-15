@@ -61,7 +61,7 @@ typedef struct _platform {
     b32 Fullscreen;
     b32 Running;
     b32 WindowResized;
-    iv2 WindowDimensions;
+    iv2 WindowDim;
     r32 dtForFrame;
 
     /* mouse input */

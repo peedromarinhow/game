@@ -183,7 +183,7 @@ inline void Win32ProcessEventMessage(/* event_state */ b32 *EndedHappening, b32 
         *EndedHappening =  IsHappening;
 }
 
-inline iv2 Win32GetWindowDimensions(HWND Window) {
+inline iv2 Win32GetWindowDim(HWND Window) {
     iv2 Result = {0};
     RECT ClientRect;
     GetClientRect(Window, &ClientRect);

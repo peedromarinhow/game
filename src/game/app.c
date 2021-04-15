@@ -18,7 +18,7 @@ typedef struct _app_state {
 // coordinates in engine range from 0-20 (x)
 // and 0-10 (y)
 inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
-    return Rv2(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
+    return rv2_(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
 }
 
 external APP_INIT(Init) {
@@ -26,7 +26,7 @@ external APP_INIT(Init) {
     app_state *State = (app_state *)p->Memory.Contents;
 
 
-    State->PlayerPos = Rv2(100, 50);
+    State->PlayerPos = rv2_(100, 50);
 
     AllocateMemory    = p->AllocateMemoryCallback;
     FreeMemory        = p->FreeMemoryCallback;
@@ -58,14 +58,14 @@ external APP_RELOAD(Reload) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gBegin(Rv2(0, 0), p->WindowDimensions, Color4f(0, 0, 0, 1));
+    gBegin(rv2_(0, 0), p->WindowDimensions, HexToColor(0x000000FF));
     rectf32 Screen = {p->WindowDimensions.x/2, p->WindowDimensions.y/2.f,
                       p->WindowDimensions.x,   p->WindowDimensions.x/2.f};
-    gDrawRectFromCenter(Rv2(Screen.x, Screen.y),
-                        Rv2(Screen.w, Screen.h),
-                        Color4f(0.1f, 0.2f, 0.25f, 1));
+    gDrawRectFromCenter(rv2_(Screen.x, Screen.y),
+                        rv2_(Screen.w, Screen.h),
+                        HexToColor(0x404550FF));
     
-    const rv2 Gravity = Rv2(0, -50);
+    const rv2 Gravity = rv2_(0, -50);
 
     if (p->kUp)
         State->PlayerVel.y += 10;
@@ -81,7 +81,7 @@ external APP_UPDATE(Update) {
         State->PlayerVel.y += p->dtForFrame * Gravity.y;
     }
 
-    rv2 NewPos = Rv2(State->PlayerPos.x + p->dtForFrame * State->PlayerVel.x,
+    rv2 NewPos = rv2_(State->PlayerPos.x + p->dtForFrame * State->PlayerVel.x,
                      State->PlayerPos.y + p->dtForFrame * State->PlayerVel.y);
 
     if (NewPos.y < 100 &&
@@ -96,23 +96,24 @@ external APP_UPDATE(Update) {
         State->PlayerVel.y = 0;
     }
     
-    rv2 ScaledPlayerVel = SumRv2(State->PlayerPos, Rv2(State->PlayerVel.x/10.f, State->PlayerVel.y/10.f));
+    rv2 ScaledPlayerVel = rv2_(State->PlayerPos.x + State->PlayerVel.x/10.f,
+                               State->PlayerPos.y + State->PlayerVel.y/10.f);
     gDrawLineFromPoints(EngineCoordToScreenCoord(State->PlayerPos, Screen),
                         EngineCoordToScreenCoord(ScaledPlayerVel,  Screen),
-                        1.f, Color4f(1, 0.1f, 0.1f, 1));
+                        1.f, HexToColor(0xFF2020FF));
     gDrawRectFromCenter(EngineCoordToScreenCoord(State->PlayerPos, Screen),
-                        Rv2(10, 10), Color4f(0.6f, 0.5f, 0.5f, 1));
+                        rv2_(10, 10), HexToColor(0x908585FF));
     
     c8 *Text = "public static void main()";
-    rv2 TextPos = Rv2(10, 50);
-    rv2 TextDim = Rv2(10, 10);
+    rv2 TextPos = rv2_(10, 50);
+    rv2 TextDim = rv2_(10, 10);
     gDrawText(State->RobotoMono, Text, EngineCoordToScreenCoord(TextPos, Screen),
-              State->RobotoMono.Size, 0, -30, Color4f(1, 1, 1, 1), &TextDim);
+              State->RobotoMono.Size, 0, -30, HexToColor(0xFFFFFFFF), &TextDim);
     
-    rv2 TextRectPos = Rv2(0, 0);
+    rv2 TextRectPos = rv2_(0, 0);
     TextRectPos.w = EngineCoordToScreenCoord(TextPos, Screen).x + TextDim.w/2.f;
     TextRectPos.h = EngineCoordToScreenCoord(TextPos, Screen).y - TextDim.h/2.f;
-    gDrawRectFromCenter(TextRectPos, TextDim, Color4f(0.8f, 0.3f, 0.4f, 0.5));
+    gDrawRectFromCenter(TextRectPos, TextDim, HexToColor(0xAA4045FF));
 }
 
 external APP_DEINIT(Deinit) {
@@ -121,9 +122,9 @@ external APP_DEINIT(Deinit) {
 
 #if 0
     if (p->WindowResized)
-        State->Pos = Rv2(200, 200);
+        State->Pos = rv2_(200, 200);
 
-    const rv2 Gravity = Rv2(0, 1000);
+    const rv2 Gravity = rv2_(0, 1000);
 
     if (p->kUp)
         State->Vel.y = -1000;
@@ -139,7 +140,7 @@ if (p->kDown)
         State->Vel.y += p->dtForFrame * Gravity.y;
     }
 
-    rv2 NewPos = Rv2(State->Pos.x + p->dtForFrame * State->Vel.x,
+    rv2 NewPos = rv2_(State->Pos.x + p->dtForFrame * State->Vel.x,
                      State->Pos.y + p->dtForFrame * State->Vel.y);
 
     if (NewPos.y < Screen.h / 2 + Screen.y &&
@@ -154,24 +155,24 @@ if (p->kDown)
         State->Vel.y = 0;
     }
 
-    State->Size = Rv2(50, 50);
+    State->Size = rv2_(50, 50);
     State->Size.x += p->dMouseWheel/32;
     State->Size.y += p->dMouseWheel/32;
 
-    gDrawRectFromCenter(State->Pos, State->Size, Color4f(0.8f, 0.2f, 0.25f, 1));
-    // color4f Color = Color4f(1, 0, 0, 1);
+    gDrawRectFromCenter(State->Pos, State->Size, HexToColor(0.8f, 0.2f, 0.25f, 1));
+    // color4f Color = HexToColor(1, 0, 0, 1);
     // if (p->MouseLeft)
-    //     Color = Color4f(1, 1, 0, 1);
+    //     Color = HexToColor(1, 1, 0, 1);
     // if (p->MouseRight)
-    //     Color = Color4f(1, 0, 1, 1);
+    //     Color = HexToColor(1, 0, 1, 1);
 
-    // gDrawRectFromCenter(p->MousePos, Rv2(100, 100), Color);
+    // gDrawRectFromCenter(p->MousePos, rv2_(100, 100), Color);
 
     // texture a = State->Temp;
-    // gDrawTexture(a, Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h/2), Rv2(a.w, a.h));
+    // gDrawTexture(a, rv2_(p->WindowDimensions.w/2, p->WindowDimensions.h/2), rv2_(a.w, a.h));
 
     // State->AnimationTime    = 0;
-    // State->AnimationRectPos = Rv2(p->WindowDimensions.w/2, p->WindowDimensions.h/2);
+    // State->AnimationRectPos = rv2_(p->WindowDimensions.w/2, p->WindowDimensions.h/2);
 
     // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
@@ -192,7 +193,7 @@ if (p->kDown)
     //     State->AnimationTime += 0;
     // }
     
-    // gDrawRectFromCenter(State->AnimationRectPos, Rv2(100, 100), Color);
+    // gDrawRectFromCenter(State->AnimationRectPos, rv2_(100, 100), Color);
     // file Bitmap = p->LoadFile(&Arena, "D:/code/platform-layer/data/map.bmp");
     // bitmap_header *Header = (bitmap_header *)Bitmap.Data;
     // State->Image.w      = Header->Width;

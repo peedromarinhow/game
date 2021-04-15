@@ -53,12 +53,12 @@ finginline  color HexToColor(u32 Hex) {
                    ((Hex >>  0) & 0xFF)/255.f};
 }
 
-typedef union _bcolor {
+typedef union _colorb {
     u32 rgba;
     struct {
         u8 r, g, b, a;
     };
-} bcolor;
+} colorb;
 
 typedef struct _color4b {
     u8 r;

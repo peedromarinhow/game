@@ -1,20 +1,15 @@
-#ifndef RENDER_GROUP_H
-#define RENDER_GROUP_H
+#ifndef RENDERER_H
+#define RENDERER_H
 
 //note:
 //  heavily based on https://www.youtube.com/watch?v=ehVU2S-GXhM&
 
-//note:
-//  These are the vertices of the quad of the character
-//      Rect = Font->GlyphRects[Index];
-//      Rect.x          /Dim.w,  Rect.y          /Dim.h);
-//     (Rect.x + Rect.w)/Dim.w,  Rect.y          /Dim.h);
-//     (Rect.x + Rect.w)/Dim.w, (Rect.y + Rect.h)/Dim.h);
-//      Rect.x          /Dim.w, (Rect.y + Rect.h)/Dim.h);
-
 #include <windows.h>
 #include <gl/gl.h>
-#undef DrawText
+#undef    DrawText //damn you, windows.h
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "libs/stb_truetype.h"
 
 #include "lingo.h"
 #include "maths.h"
@@ -32,9 +27,6 @@ typedef struct _texture {
     i32 h;
     i32 Format;
 } texture;
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "libs/stb_truetype.h"
 
 typedef struct _font {
     u16 Id;
@@ -60,7 +52,6 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
     stbtt_InitFont(&FontInfo, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
     p.FreeFile(FontFile);
 
-    i32 w, h, OffX, OffY, Advance;
     f32 ScaleFactor          = stbtt_ScaleForPixelHeight(&FontInfo, Size);
     f32 RequiredAreaForAtlas = 0;
     i32 Padding              = 2;
@@ -88,6 +79,7 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
         .GlyphRects    = p.AllocateMemory(NoChars * sizeof(rectf)),
     };
 
+    i32 w, h, OffX, OffY, Advance;
     image *GlyphImages = p.AllocateMemory(NoChars * sizeof(image));
     for (u32 i = 0; i < NoChars; i++) {
         u32 Codepoint = i + 32;
@@ -95,7 +87,7 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
         GlyphImages[i].w    = w;
         GlyphImages[i].h    = h;
         stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Advance, NULL);
-        Font.GlyphAdvances[i] = Advance;
+        Font.GlyphAdvances[i] = Advance * ScaleFactor;
         Font.GlyphOffsets[i]  = rv2_(OffX, OffY);
         RequiredAreaForAtlas += (GlyphImages[i].w + 2 * Padding) *
                                 (GlyphImages[i].h + 2 * Padding);
@@ -147,7 +139,6 @@ internal font LoadFont(platform_api p, c8 *Filename, u32 NoChars, r32 Size) {
         p.FreeMemory(GlyphImages[i].Data);
     }
 
-
     Font.Atlas.w  = Atlas.w;
     Font.Atlas.h  = Atlas.h;
     Font.Atlas.Id = 0;
@@ -169,15 +160,15 @@ typedef struct _render_piece_head {
 
 typedef struct _render_piece_rect {
     rectf  Rect;
-    bcolor Color;
+    colorb Color;
 } render_piece_rect;
 
 typedef struct _render_piece_glyph {
     rv2    Pos;
-    bcolor Color;
+    colorb Color;
 
-    font *Font; //todo: use a u16 Id.
-    c8    Char;
+    u16 FontId;
+    c8  Char;
 } render_piece_glyph;
 
 enum piece_type {
@@ -197,7 +188,7 @@ typedef struct _render_piece {
 
 typedef struct _renderer {
     iv2    TargetDim;
-    bcolor ClearColor;
+    colorb ClearColor;
 
     render_piece Pieces[16];
     u32 UsedPieces;
@@ -210,7 +201,7 @@ internal void PushPiece(renderer *Renderer, render_piece Piece) {
     Renderer->UsedPieces++;
 }
 
-internal void DrawRect(renderer *Renderer, rectf Rect, bcolor Color) {
+internal void DrawRect(renderer *Renderer, rectf Rect, colorb Color) {
     render_piece Piece;
 
     Piece.Type       = PIECE_RECT;
@@ -221,22 +212,22 @@ internal void DrawRect(renderer *Renderer, rectf Rect, bcolor Color) {
     PushPiece(Renderer, Piece);
 }
 
-internal void DrawGlyph(renderer *Renderer, font *Font, c8 Char, rv2 Pos, bcolor Color) {
+internal void DrawGlyph(renderer *Renderer, u16 FontId, c8 Char, rv2 Pos, colorb Color) {
     render_piece Piece;
 
-    Piece.Type        = PIECE_GLYPH;
-    Piece.Glyph.Pos   = Pos;
-    Piece.Glyph.Color = Color;
-    Piece.Glyph.Font  = Font;
-    Piece.Glyph.Char  = Char;
+    Piece.Type         = PIECE_GLYPH;
+    Piece.Glyph.Pos    = Pos;
+    Piece.Glyph.Color  = Color;
+    Piece.Glyph.FontId = FontId;
+    Piece.Glyph.Char   = Char;
 
     PushPiece(Renderer, Piece);
 }
 
-internal void DrawText(renderer *Renderer, font *Font, rv2 Pos,
+internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
                        c8 *Text, r32 Size,
                        r32 LineSpacing, r32 CharSpacing,
-                       bcolor Color)
+                       colorb Color)
 {
     rv2   Advance = rv2_(0, 0);
     rv2   Offset  = rv2_(0, 0);
@@ -245,19 +236,40 @@ internal void DrawText(renderer *Renderer, font *Font, rv2 Pos,
     for (u32 i = 0; Text[i] != '\0'; i++) {
         Index    = Text[i] - 32;
         if (Text[i] == '\n') {
-            Advance.y += Font->LineGap + LineSpacing;
+            Advance.y += Renderer->Fonts[FontId].LineGap + LineSpacing;
             Advance.x  = 0;
         }
-        Offset = Font->GlyphOffsets[Index];
-        Rect   = Font->GlyphRects[Index];
-        DrawGlyph(Renderer, Font, Text[i], rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
-        Advance.x += Font->GlyphAdvances[Index] + CharSpacing;
+        Offset = Renderer->Fonts[FontId].GlyphOffsets[Index];
+        Rect   = Renderer->Fonts[FontId].GlyphRects[Index];
+        DrawGlyph(Renderer, FontId, Text[i], rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
+        Advance.x += Renderer->Fonts[FontId].GlyphAdvances[Index] + CharSpacing;
     }
 }
 
-#define CastStructAndIncrementIt(type, Data) (type *)Data; Data += sizeof(type)
+void Clear(iv2 TargetDim, color Color) {
+    glLoadIdentity();
+    glViewport(0, 0, TargetDim.w, TargetDim.h);
+    
+    r32 a = 2.0f/TargetDim.w;
+    r32 b = 2.0f/TargetDim.h;
+    r32 Proj[] = {
+        a, 0, 0, 0,
+        0, b, 0, 0,
+        0, 0, 1, 0,
+       -1,-1, 0, 1
+    };
 
-internal void Render(renderer *Renderer) {
+    glLoadMatrixf(Proj);
+    glClearColor(Color.r, Color.g, Color.b, Color.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
+internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
+    Renderer->TargetDim  = TargetDim;
+    Renderer->ClearColor = ClearColor;
+
+    Clear(Renderer->TargetDim, HexToColor(Renderer->ClearColor.rgba));
+
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
         render_piece Piece = Renderer->Pieces[PieceIndex];
 
@@ -275,19 +287,33 @@ internal void Render(renderer *Renderer) {
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
+            font Font                = Renderer->Fonts[Glyph.FontId];
 
+            glBindTexture(GL_TEXTURE_2D, Font.Atlas.Id);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glEnable(GL_TEXTURE_2D);
             glBegin(GL_QUADS); {
+                rv2   AtlasDim  = rv2_(Font.Atlas.w, Font.Atlas.h);
+                rectf GlyphRect = Font.GlyphRects[Glyph.Char - 32];
+
                 glColor4ub(Glyph.Color.r, Glyph.Color.g, Glyph.Color.b, Glyph.Color.a);
 
-                rectf GlyphRect = Glyph.Font->GlyphRects[Glyph.Char - 32];
-                
-                glVertex2f(Glyph.Pos.x,               Glyph.Pos.y + GlyphRect.h);
+                glTexCoord2f(GlyphRect.x /AtlasDim.w, GlyphRect.y /AtlasDim.h);
+                glVertex2f(Glyph.Pos.x, Glyph.Pos.y + GlyphRect.h);
+
+                glTexCoord2f((GlyphRect.x + GlyphRect.w)/AtlasDim.w, GlyphRect.y /AtlasDim.h);
                 glVertex2f(Glyph.Pos.x + GlyphRect.w, Glyph.Pos.y + GlyphRect.h);
+                
+                glTexCoord2f((GlyphRect.x + GlyphRect.w)/AtlasDim.w, (GlyphRect.y + GlyphRect.h)/AtlasDim.h);
                 glVertex2f(Glyph.Pos.x + GlyphRect.w, Glyph.Pos.y);
-                glVertex2f(Glyph.Pos.x,               Glyph.Pos.y);
+
+                glTexCoord2f(GlyphRect.x /AtlasDim.w, (GlyphRect.y + GlyphRect.h)/AtlasDim.h);
+                glVertex2f(Glyph.Pos.x, Glyph.Pos.y);
             } glEnd();
+            glDisable(GL_TEXTURE_2D);
         }
     }
 }
 
-#endif//RENDER_GROUP_H
+#endif//RENDERER_H

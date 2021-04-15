@@ -37,7 +37,7 @@ texture TextureFromImage(image Image) {
     return Result;
 }
 
-void gBegin(rv2 Shift, iv2 Size, color4f Color) {
+void gBegin(rv2 Shift, iv2 Size, color Color) {
     glLoadIdentity();
     glViewport(Shift.x, Shift.y, Size.w, Size.h);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
@@ -55,7 +55,7 @@ void gBegin(rv2 Shift, iv2 Size, color4f Color) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void gDrawRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
+void gDrawRectFromCenter(rv2 Pos, rv2 Size, color Color) {
     glBegin(GL_POLYGON); {
         glColor4f(Color.r, Color.g, Color.b, Color.a);
         glVertex2f(Pos.x - Size.w/2.0f, Pos.y - Size.h/2.0f);
@@ -65,7 +65,7 @@ void gDrawRectFromCenter(rv2 Pos, rv2 Size, color4f Color) {
     } glEnd();
 }
 
-void gDrawLineFromPoints(rv2 a, rv2 b, r32 StrokeWidth, color4f Color) {
+void gDrawLineFromPoints(rv2 a, rv2 b, r32 StrokeWidth, color Color) {
     glLineWidth(StrokeWidth);
     glEnable(GL_LINE_SMOOTH);
     glBegin(GL_LINES); {
@@ -104,7 +104,7 @@ void gDrawRectFromTexture(texture Texture,
                           rectf32 SourceRect, 
                           rectf32 DestRect,
                           rv2     Origin,
-                          color4f Tint)
+                          color Tint)
 {
     f32 w = (f32)Texture.w;
     f32 h = (f32)Texture.h;
@@ -153,7 +153,7 @@ void gDrawRectFromTexture(texture Texture,
     glDisable(GL_TEXTURE_2D);
 }
 
-void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color4f Tint) {
+void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color Tint) {
     glBindTexture(GL_TEXTURE_2D, Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -178,7 +178,7 @@ void gDrawTexture(texture Texture, rv2 Center, rv2 Size, color4f Tint) {
 #include "fonts.h"
 
 void gDrawText(font Font, c8 *Text, rv2 Pos, f32 Size, f32 CharSpacing,
-               f32 LineSpacing, color4f Tint, rv2 *ReturnDimensions)
+               f32 LineSpacing, color Tint, rv2 *ReturnDimensions)
 {
     f32 ScaleFactor = Size/Font.Size;
     f32 CharOffset  = 0;
