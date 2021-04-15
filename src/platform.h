@@ -71,7 +71,6 @@ typedef struct _platform {
     i16 dmWheel;
 
     /* keyboard input */
-    b32 WasDown, IsDown;
     union {
         b32 kKeys[KEYBOARD_MAX_KEYS];
         struct {

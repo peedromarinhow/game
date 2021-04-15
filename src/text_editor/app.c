@@ -62,23 +62,23 @@ external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    platform_api Platform;
+    platform_api PlatformApi;
 
-    Platform.AllocateMemory    = p->AllocateMemoryCallback;
-    Platform.FreeMemory        = p->FreeMemoryCallback;
-    Platform.LoadFile          = p->LoadFileCallback;
-    Platform.FreeFile          = p->FreeFileCallback;
-    Platform.LoadFileToArena   = p->LoadFileToArenaCallback;
-    Platform.FreeFileFromArena = p->FreeFileFromArenaCallback;
-    Platform.WriteFile         = p->WriteFileCallback;
-    Platform.ReportError       = p->ReportErrorCallback;
-    Platform.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    PlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
+    PlatformApi.FreeMemory        = p->FreeMemoryCallback;
+    PlatformApi.LoadFile          = p->LoadFileCallback;
+    PlatformApi.FreeFile          = p->FreeFileCallback;
+    PlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
+    PlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    PlatformApi.WriteFile         = p->WriteFileCallback;
+    PlatformApi.ReportError       = p->ReportErrorCallback;
+    PlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     // State->Keymap     = CreateMyKeymap();
     // State->Buffer     = CreateBuffer(2, "a.c");
     State->RobotoMono = 0;
     // State->Roboto     = LoadFont(Platform, "roboto.ttf", 400, 32);
-    State->Renderer.Fonts[State->RobotoMono] = LoadFont(Platform, "roboto_mono.ttf", 400, 24);
+    State->Renderer.Fonts[State->RobotoMono] = LoadFont(&PlatformApi, "roboto_mono.ttf", 400, 24);
 
     colorb c;
 
@@ -89,7 +89,7 @@ external APP_INIT(Init) {
 
     DrawRect(&State->Renderer, rectf_(100, 100, 30, 30), c);
     DrawRect(&State->Renderer, rectf_(200, 100, 30, 30), c);
-    DrawText(&State->Renderer, State->RobotoMono, rv2_(500, 300), "/r9k/", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
+    DrawText(&State->Renderer, State->RobotoMono, rv2_(500, 300), "hello\nworld", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
