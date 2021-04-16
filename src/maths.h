@@ -133,8 +133,15 @@ finginline rectf rectf_(r32 x, r32 y, r32 w, r32 h) {
     return (rectf){x, y, w, h};
 }
 
-internal b32 IsInsideRect(rv2 Pos, rectf32 Rect) {
+internal finginline b32 IsInsideRect(rv2 Pos, rectf Rect) {
     return (Pos.x > Rect.x && Pos.x < Rect.x + Rect.w) && (Pos.y < Rect.y && Pos.y > Rect.y - Rect.h);
+}
+
+internal finginline b32 AreRectsClipping(rectf a, rectf b) {
+    return IsInsideRect(rv2_(a.x,  a.y),             b) ||
+           IsInsideRect(rv2_(a.x + a.w,  a.y),       b) ||
+           IsInsideRect(rv2_(a.x + a.w,  a.y - a.h), b) ||
+           IsInsideRect(rv2_(a.x,  a.y - a.h),       b);
 }
 
 #endif

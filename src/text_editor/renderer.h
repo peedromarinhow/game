@@ -35,8 +35,6 @@ typedef struct _texture {
     i32 Format;
 } texture;
 
-///////////////////////////////////////////////////////////
-
 typedef struct _font {
     u16 Id;
     u32 NoChars;
@@ -53,7 +51,53 @@ typedef struct _font {
     texture Atlas;
 } font;
 
-internal font LoadFont(platform_api *p, c8 *Filename, u32 NoChars, r32 Size) {
+///////////////////////////////////////////////////////////
+
+enum piece_type {
+    PIECE_RECT,
+    PIECE_GLYPH
+    //...
+};
+
+typedef struct _render_piece_head {
+    rv2 Origin;
+    u32 Type;
+} render_piece_header;
+
+typedef struct _render_piece_rect {
+    rectf  Rect;
+} render_piece_rect;
+
+typedef struct _render_piece_glyph {
+    u16 FontId;
+    c8  Char;
+} render_piece_glyph;
+
+typedef struct _render_piece {
+    u32    Type;
+    rv2    Origin;
+    rv2    Pos;
+    colorb Color;
+    union {
+        render_piece_rect  Rect;
+        render_piece_glyph Glyph;
+    };
+} render_piece;
+
+typedef struct _renderer {
+    rectf  TargetClipRect;
+    colorb ClearColor;
+
+    render_piece Pieces[1024];
+    u32          UsedPieces;
+
+    font Fonts[2];
+    u32  UsedFonts;
+} renderer;
+
+///////////////////////////////////////////////////////////
+
+internal u16 LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoChars, r32 Size) {
     file FontFile = p->LoadFile(Filename);
     if (!FontFile.Data)
          FontFile = p->LoadFile("c:/windows/fonts/arial.ttf");
@@ -77,7 +121,7 @@ internal font LoadFont(platform_api *p, c8 *Filename, u32 NoChars, r32 Size) {
     LineGap = (LineGap == 0)? Ascender + -Descender : LineGap;
 
     font Font = {
-        .Id      = 0,
+        .Id      = Renderer->UsedFonts,
         .NoChars = NoChars,
 
         .Height    = (i32)(Ascender - Descender + LineGap),
@@ -161,59 +205,13 @@ internal font LoadFont(platform_api *p, c8 *Filename, u32 NoChars, r32 Size) {
     
     p->FreeMemory(Atlas.Data);
 
-    return Font;
+    Renderer->Fonts[Renderer->UsedFonts] = Font;
+    Renderer->UsedFonts++;
+
+    return Renderer->Fonts[Renderer->UsedFonts - 1].Id;
 }
 
 ///////////////////////////////////////////////////////////
-
-enum piece_type {
-    PIECE_RECT,
-    PIECE_GLYPH
-    //...
-};
-
-typedef struct _render_piece_head {
-    rv2 Origin;
-    u32 Type;
-} render_piece_header;
-
-typedef struct _render_piece_rect {
-    rectf  Rect;
-} render_piece_rect;
-
-typedef struct _render_piece_glyph {
-    u16 FontId;
-    c8  Char;
-} render_piece_glyph;
-
-typedef struct _render_piece {
-    u32    Type;
-    rv2    Origin;
-    rv2    Pos;
-    colorb Color;
-    union {
-        render_piece_rect  Rect;
-        render_piece_glyph Glyph;
-    };
-} render_piece;
-
-typedef struct _renderer {
-    iv2    TargetDim;
-    colorb ClearColor;
-
-    render_piece Pieces[1024];
-    u32          UsedPieces;
-
-    font Fonts[2];
-} renderer;
-
-internal finginline b32 AreRectsIntersecting(rectf a, rectf b) {
-    return IsInsideRect(rv2_(a.x,       a.y + a.h), (rectf32){b.x, b.y, b.w, b.h}) &&
-           IsInsideRect(rv2_(a.x + a.w, a.y + a.h), (rectf32){b.x, b.y, b.w, b.h}) &&
-           IsInsideRect(rv2_(a.x + a.w, a.y),       (rectf32){b.x, b.y, b.w, b.h}) &&
-           IsInsideRect(rv2_(a.x,       a.y),       (rectf32){b.x, b.y, b.w, b.h});
-}
-
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
     Renderer->Pieces[Renderer->UsedPieces] = Piece;
     Renderer->UsedPieces++;
@@ -228,7 +226,8 @@ internal void DrawRect(renderer *Renderer, rectf Rect, colorb Color) {
     Piece.Rect.Rect = Rect;
     Piece.Color     = Color;
 
-    PushPiece(Renderer, Piece);
+    if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect.Rect))
+        PushPiece(Renderer, Piece);
 }
 
 internal void DrawGlyph(renderer *Renderer, u16 FontId, c8 Char, rv2 Pos, colorb Color) {
@@ -241,8 +240,10 @@ internal void DrawGlyph(renderer *Renderer, u16 FontId, c8 Char, rv2 Pos, colorb
     Piece.Glyph.FontId = FontId;
     Piece.Glyph.Char   = Char;
 
-    // if (AreRectsIntersecting(Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32],
-    //     rectf_(0, 0, Renderer->TargetDim.x, Renderer->TargetDim.y)))
+    // if (AreRectsClipping(Renderer->TargetClipRect,
+    //     rectf_(Piece.Pos.x, Piece.Pos.y,
+    //            Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32].w,
+    //            Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32].h)))
     // {
         PushPiece(Renderer, Piece);
     // }
@@ -265,6 +266,10 @@ internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
             Advance.y += Font.LineGap + LineSpacing;
             Advance.x  = 0;
         }
+        else
+        if (Text[i] == '\r') {
+            Assert(1);
+        }
         else {
             Offset = Font.GlyphOffsets[Index];
             Rect   = Font.GlyphRects[Index];
@@ -274,7 +279,7 @@ internal void DrawText(renderer *Renderer, u16 FontId, rv2 Pos,
     }
 }
 
-void Clear(iv2 TargetDim, color Color) {
+void Clear(rv2 TargetDim, color Color) {
     glLoadIdentity();
     glViewport(0, 0, TargetDim.w, TargetDim.h);
     
@@ -293,10 +298,10 @@ void Clear(iv2 TargetDim, color Color) {
 }
 
 internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
-    Renderer->TargetDim  = TargetDim;
-    Renderer->ClearColor = ClearColor;
+    // Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
+    Renderer->ClearColor         = ClearColor;
 
-    Clear(Renderer->TargetDim, HexToColor(Renderer->ClearColor.rgba));
+    Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
         render_piece Piece = Renderer->Pieces[PieceIndex];

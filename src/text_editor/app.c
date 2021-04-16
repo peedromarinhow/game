@@ -80,12 +80,8 @@ external APP_INIT(Init) {
     State->Keymap     = CreateMyKeymap();
     State->Buffer     = CreateBuffer(2, "a.c");
 
-    State->RobotoMono = 0;
-    State->Roboto     = 1;
-    State->Renderer.Fonts[State->RobotoMono] = LoadFont(&PlatformApi, "roboto_mono.ttf", 400, 24);
-    State->Renderer.Fonts[State->RobotoMono].Id = State->RobotoMono;
-    State->Renderer.Fonts[State->Roboto]     = LoadFont(&PlatformApi, "roboto.ttf",      400, 32);
-    State->Renderer.Fonts[State->Roboto].Id     = State->Roboto;
+    State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
+    State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -122,11 +118,21 @@ external APP_UPDATE(Update) {
     c.g = 225;
     c.b = 225;
     c.a = 255;
+
+    rectf r1 = rectf_(100, 100, 30, 30);
+    rectf r2 = rectf_(p->mPos.x, p->mPos.y, 30, 30);
     
-    DrawRect(&State->Renderer, rectf_(100, 100, 30, 30), c);
-    DrawRect(&State->Renderer, rectf_(200, 100, 30, 30), c);
-    DrawText(&State->Renderer, State->RobotoMono, p->mPos, "hello\nworld", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
-    DrawText(&State->Renderer, State->Roboto, rv2_(90,90), "hello\nworld", State->Renderer.Fonts[State->Roboto].Height,     0, 0, c);
+    DrawRect(&State->Renderer, r1, c);
+    DrawRect(&State->Renderer, r2, c);
+    DrawText(&State->Renderer, State->RobotoMono, rv2_(90,90), "hello\nworld", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
+    DrawText(&State->Renderer, State->Roboto,   rv2_(600,600), "hello\nworld", State->Renderer.Fonts[State->Roboto].Height,     0, 0, c);
+
+    DrawGlyph(&State->Renderer, State->Roboto, 'W', p->mPos, c);
+
+    State->Renderer.TargetClipRect = rectf_(0, 0, p->WindowDim.x, p->WindowDim.y);
+
+    if (AreRectsClipping(r1, r2))
+        DrawRect(&State->Renderer, State->Renderer.TargetClipRect, c);
 
     Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }
