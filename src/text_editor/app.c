@@ -13,10 +13,11 @@ platform_api GlobalPlatformApi;
 
 typedef struct _app_state {
     keymap *Keymap;  
-    buffer *Buffer;
+    buffer *Buffers[2];
+    id CurrentBuffer;
 
-    u16 Roboto;
-    u16 RobotoMono;
+    id Roboto;
+    id RobotoMono;
 
     renderer Renderer;
 } app_state;
@@ -40,7 +41,8 @@ external APP_INIT(Init) {
     GlobalPlatformApi = PlatformApi;
 
     State->Keymap = CreateMyKeymap();
-    State->Buffer = CreateBuffer(2, "a.c");
+    State->Buffers[0] = CreateBuffer(2, "a.c");
+    State->Buffers[1] = CreateBuffer(2, "b.c");
 
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
@@ -51,7 +53,8 @@ external APP_INIT(Init) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32), State->Buffer);
+    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32), State->Buffers[State->CurrentBuffer]);
+    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x + 16, p->WindowDim.y - 32), State->Buffers[State->CurrentBuffer]);
 
     key Key = KEY_NONE;
     
@@ -72,7 +75,7 @@ external APP_UPDATE(Update) {
     if (p->kChar)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
     
-    State->Keymap->Commands[Key].Func((command_context){State->Buffer, p->Char});
+    State->Keymap->Commands[Key].Func((command_context){State->Buffers[State->CurrentBuffer], p->Char, State->CurrentBuffer, 2});
 
     colorb c;
 

@@ -309,7 +309,9 @@ internal void LoadBuffer(buffer *Buffer) {
 typedef struct _command_context {
     /* DO NOT REMOVE */
         buffer *Buffer;
-        c8      LastChar;        
+        c8      LastChar;
+        id      CurrentBuffer;
+        u16     NoBuffers;
         //todo: line number, column number, etc
     /* DO NOT REMOVE */
 } command_context;
@@ -328,6 +330,8 @@ typedef enum _key {
     KEY_BACK,
     KEY_LEFT,
     KEY_RIGHT,
+    KEY_PG_UP,
+    KEY_PG_DOWN,
     KEY_HOME,
     KEY_END,
     KEY_RETURN,
@@ -412,6 +416,16 @@ COMMAND_FUNC(InsertNewLine) {
     InsertChar(Ctx.Buffer, Ctx.Buffer->Point, '\n');
 }
 
+COMMAND_FUNC(NextBuffer) {
+    SaveBuffer(Ctx.Buffer);
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+}
+
+COMMAND_FUNC(PrevBuffer) {
+    SaveBuffer(Ctx.Buffer);
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+}
+
 COMMAND_FUNC(SaveBuffer) {
     SaveBuffer(Ctx.Buffer);
     // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
@@ -441,17 +455,19 @@ internal keymap *CreateMyKeymap() {
         }
     }
 
-    Bind(Keymap, KEY_DEL,        CmdFunc_DeleteCharFoward,               "delete char foward");
-    Bind(Keymap, KEY_BACK,       CmdFunc_DeleteCharBackward,             "delete char backward");
-    Bind(Keymap, KEY_LEFT,       CmdFunc_MoveCarretLeft,                 "move carret left");
-    Bind(Keymap, KEY_RIGHT,      CmdFunc_MoveCarretRight,                "move carret right");
-    Bind(Keymap, KEY_HOME,       CmdFunc_MoveCarretToBeginningOfLine,   "move carret to begginning of line");
-    Bind(Keymap, KEY_END,        CmdFunc_MoveCarretToEndOfLine,          "move carret to end of line");
-    Bind(Keymap, Ctrl(KEY_HOME), CmdFunc_MoveCarretToBeginningOfBuffer, "move carret to begginning of buffer");
-    Bind(Keymap, Ctrl(KEY_END),  CmdFunc_MoveCarretToEndOfBuffer,        "move carret to end of buffer");
-    Bind(Keymap, KEY_RETURN,     CmdFunc_InsertNewLine,                  "insert new line");
-    Bind(Keymap, Ctrl('S'),      CmdFunc_SaveBuffer,                     "save buffer");
-    Bind(Keymap, Ctrl('O'),      CmdFunc_LoadBuffer,                     "load buffer");
+    Bind(Keymap, KEY_DEL,           CmdFunc_DeleteCharFoward,               "delete char foward");
+    Bind(Keymap, KEY_BACK,          CmdFunc_DeleteCharBackward,             "delete char backward");
+    Bind(Keymap, KEY_LEFT,          CmdFunc_MoveCarretLeft,                 "move carret left");
+    Bind(Keymap, KEY_RIGHT,         CmdFunc_MoveCarretRight,                "move carret right");
+    Bind(Keymap, Crtl(KEY_PG_UP),   CmdFunc_NextBuffer,                     "use next buffer");
+    Bind(Keymap, Crtl(KEY_PG_DOWN), CmdFunc_PrevBuffer,                     "use prev buffer");
+    Bind(Keymap, KEY_HOME,          CmdFunc_MoveCarretToBeginningOfLine,    "move carret to begginning of line");
+    Bind(Keymap, KEY_END,           CmdFunc_MoveCarretToEndOfLine,          "move carret to end of line");
+    Bind(Keymap, Ctrl(KEY_HOME),    CmdFunc_MoveCarretToBeginningOfBuffer,  "move carret to begginning of buffer");
+    Bind(Keymap, Ctrl(KEY_END),     CmdFunc_MoveCarretToEndOfBuffer,        "move carret to end of buffer");
+    Bind(Keymap, KEY_RETURN,        CmdFunc_InsertNewLine,                  "insert new line");
+    Bind(Keymap, Ctrl('S'),         CmdFunc_SaveBuffer,                     "save buffer");
+    Bind(Keymap, Ctrl('O'),         CmdFunc_LoadBuffer,                     "load buffer");
     
     return Keymap;
 }
