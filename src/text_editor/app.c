@@ -12,9 +12,8 @@ platform_api GlobalPlatformApi;
 #include "text_buffer.h"
 
 typedef struct _app_state {
-    keymap *Keymap;  
-    buffer *Buffers[2];
-    id CurrentBuffer;
+    keymap *Keymap;
+    command_context CommandContext;
 
     id Roboto;
     id RobotoMono;
@@ -41,8 +40,6 @@ external APP_INIT(Init) {
     GlobalPlatformApi = PlatformApi;
 
     State->Keymap = CreateMyKeymap();
-    State->Buffers[0] = CreateBuffer(2, "a.c");
-    State->Buffers[1] = CreateBuffer(2, "b.c");
 
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
@@ -53,8 +50,6 @@ external APP_INIT(Init) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32), State->Buffers[State->CurrentBuffer]);
-    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x + 16, p->WindowDim.y - 32), State->Buffers[State->CurrentBuffer]);
 
     key Key = KEY_NONE;
     
@@ -68,14 +63,24 @@ external APP_UPDATE(Update) {
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RIGHT);
     if (p->kHome)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_HOME);
+    if (p->kPgUp)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_PG_UP);
+    if (p->kPgDown)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_PG_DOWN);
     if (p->kEnd)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_END);
     if (p->kReturn)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RETURN);
     if (p->kChar)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
+
+    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
+    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
+
+    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                  State->CommandContext.Buffers[0]);
+    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1]);
     
-    State->Keymap->Commands[Key].Func((command_context){State->Buffers[State->CurrentBuffer], p->Char, State->CurrentBuffer, 2});
+    State->Keymap->Commands[Key].Func(State->CommandContext);
 
     colorb c;
 

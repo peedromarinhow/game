@@ -308,7 +308,7 @@ internal void LoadBuffer(buffer *Buffer) {
 
 typedef struct _command_context {
     /* DO NOT REMOVE */
-        buffer *Buffer;
+        buffer *Buffers[2];
         c8      LastChar;
         id      CurrentBuffer;
         u16     NoBuffers;
@@ -376,63 +376,78 @@ COMMAND_FUNC(DoNothing) {
 }
 
 COMMAND_FUNC(InsertChar) {
-    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, Ctx.LastChar);
+    InsertChar(Ctx.Buffers[Ctx.CurrentBuffer],
+               Ctx.Buffers[Ctx.CurrentBuffer]->Point,
+               Ctx.LastChar);
 }
 
 COMMAND_FUNC(DeleteCharFoward) {
-    DeleteFowardChar(Ctx.Buffer, Ctx.Buffer->Point);
+    DeleteFowardChar(Ctx.Buffers[Ctx.CurrentBuffer],
+                     Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(DeleteCharBackward) {
-    DeleteBackwardChar(Ctx.Buffer, Ctx.Buffer->Point);
+    DeleteBackwardChar(Ctx.Buffers[Ctx.CurrentBuffer],
+                       Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretLeft) {
-    Ctx.Buffer->Point = GetPrevCharCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetPrevCharCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                          Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretRight) {
-    Ctx.Buffer->Point = GetNextCharCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetNextCharCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                          Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretToBeginningOfLine) {
-    Ctx.Buffer->Point = GetBeginningOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetBeginningOfLineCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                                 Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretToEndOfLine) {
-    Ctx.Buffer->Point = GetEndOfLineCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetEndOfLineCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                           Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretToBeginningOfBuffer) {
-    Ctx.Buffer->Point = GetBegginingOfBufferCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetBegginingOfBufferCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                                   Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 COMMAND_FUNC(MoveCarretToEndOfBuffer) {
-    Ctx.Buffer->Point = GetEndOfBufferCursor(Ctx.Buffer, Ctx.Buffer->Point);
+    Ctx.Buffers[Ctx.CurrentBuffer]->Point =
+        GetEndOfBufferCursor(Ctx.Buffers[Ctx.CurrentBuffer],
+                             Ctx.Buffers[Ctx.CurrentBuffer]->Point);
 }
 
 
 COMMAND_FUNC(InsertNewLine) {
-    InsertChar(Ctx.Buffer, Ctx.Buffer->Point, '\n');
+    InsertChar(Ctx.Buffers[Ctx.CurrentBuffer],
+               Ctx.Buffers[Ctx.CurrentBuffer]->Point, '\n');
 }
 
 COMMAND_FUNC(NextBuffer) {
-    SaveBuffer(Ctx.Buffer);
-    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+    Ctx.CurrentBuffer = (Ctx.CurrentBuffer < Ctx.NoBuffers - 1)? Ctx.CurrentBuffer++ : 0;
 }
 
 COMMAND_FUNC(PrevBuffer) {
-    SaveBuffer(Ctx.Buffer);
-    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+    Ctx.CurrentBuffer = (Ctx.CurrentBuffer > 0)? Ctx.CurrentBuffer-- : Ctx.NoBuffers - 1;
 }
 
 COMMAND_FUNC(SaveBuffer) {
-    SaveBuffer(Ctx.Buffer);
+    SaveBuffer(Ctx.Buffers[Ctx.CurrentBuffer]);
     // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
 }
 
 COMMAND_FUNC(LoadBuffer) {
-    LoadBuffer(Ctx.Buffer);
+    LoadBuffer(Ctx.Buffers[Ctx.CurrentBuffer]);
     // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
 }
 
