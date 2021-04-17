@@ -3,11 +3,12 @@
 #include <windows.h>
 #include <gl/gl.h>
 
-#if BUILD_INTERNAL
-#include <stdio.h>
-#endif
+#define WINDOW_TITLE          "Application"
+#define PROGRAM_FILENAME      "app"
+#define DEFAULT_WINDOW_WIDTH   800
+#define DEFAULT_WINDOW_HEIGHT  900
+#define MOUSE_POSITION_WHEN_OUT_OF_WINDOW 1
 
-#include "options.h"
 #include "lingo.h"
 #include "platform.h"
 #include "memory.h"

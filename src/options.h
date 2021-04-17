@@ -1,5 +1,0 @@
-#define WINDOW_TITLE          "Application"
-#define PROGRAM_FILENAME      "app"
-#define DEFAULT_WINDOW_WIDTH   800
-#define DEFAULT_WINDOW_HEIGHT  900
-#define MOUSE_POSITION_WHEN_OUT_OF_WINDOW 1

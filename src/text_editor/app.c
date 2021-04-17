@@ -8,46 +8,8 @@
 
 platform_api GlobalPlatformApi;
 
-// #include "graphics.h"
 #include "renderer.h"
-#include "buffer.h"
-
-// #include "ui.h"
-
-void DrawRectPro(rv2 Pos, rv2 Size, color Color,
-                 r32 StrokeWidth, color StrokeColor)
-{
-    rv2 TopLeft     = rv2_(0, 0);
-    rv2 TopRight    = rv2_(0, 0);
-    rv2 BottomRight = rv2_(0, 0);
-    rv2 BottomLeft  = rv2_(0, 0);
-
-    TopLeft     = rv2_(Pos.x, Pos.y + Size.h);
-    TopRight    = rv2_(Pos.x + Size.w, Pos.y + Size.h);
-    BottomRight = rv2_(Pos.x + Size.w, Pos.y);
-    BottomLeft  = rv2_(Pos.x, Pos.y);
-
-    if (Color.a != (0/255.f)) {
-        glBegin(GL_POLYGON); {
-            glColor4f(Color.r, Color.g, Color.b, Color.a);
-            glVertex2f(TopLeft.x, TopLeft.y);
-            glVertex2f(TopRight.x, TopRight.y);
-            glVertex2f(BottomRight.x, BottomRight.y);
-            glVertex2f(BottomLeft.x, BottomLeft.y);
-        } glEnd();
-    }
-
-    if (StrokeWidth > 0) {
-        glLineWidth(StrokeWidth);
-        glBegin(GL_LINE_LOOP); {
-            glColor4f(StrokeColor.r, StrokeColor.g, StrokeColor.b, StrokeColor.a);
-            glVertex2f(TopLeft.x, TopLeft.y);
-            glVertex2f(TopRight.x, TopRight.y);
-            glVertex2f(BottomRight.x, BottomRight.y);
-            glVertex2f(BottomLeft.x, BottomLeft.y);
-        } glEnd();
-    }
-}
+#include "text_buffer.h"
 
 typedef struct _app_state {
     keymap *Keymap;  
@@ -77,8 +39,8 @@ external APP_INIT(Init) {
 
     GlobalPlatformApi = PlatformApi;
 
-    State->Keymap     = CreateMyKeymap();
-    State->Buffer     = CreateBuffer(2, "a.c");
+    State->Keymap = CreateMyKeymap();
+    State->Buffer = CreateBuffer(2, "a.c");
 
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
@@ -119,8 +81,25 @@ external APP_UPDATE(Update) {
     c.b = 225;
     c.a = 255;
 
-    rectf r1 = rectf_(100, 100, 30, 30);
-    rectf r2 = rectf_(p->mPos.x, p->mPos.y, 30, 30);
+    colorb d;
+
+    d.r = p->mPos.x / 5;
+    d.g = p->mPos.y / 5;
+    d.b = p->mPos.y / 5 + p->mPos.x / 5;
+    d.a = 255;
+
+    c8   *Text = "Lorem ipsum\nDolor sit amet";
+    font *Font = &State->Renderer.Fonts[State->Roboto];
+
+    rv2 TextDim = MeasureText(Font, Text, Font->Height, 0, 0);
+
+    rect r1 = rect_(100, 100, 30, 30);
+    rect r2 = rect_(p->mPos.x, p->mPos.y, 30, 30);
+    rect r3 = rect_(500, 500, GetVecComps(TextDim));
+
+    DrawRect(&State->Renderer, r3, (colorb){0xFF909090});
+    r3.y += Font->Height - Font->Ascender;
+    DrawText(&State->Renderer, State->Roboto, r3.Pos, Text, Font->Height, 0, 0, d);
     
     DrawRect(&State->Renderer, r1, c);
     DrawRect(&State->Renderer, r2, c);
@@ -128,8 +107,6 @@ external APP_UPDATE(Update) {
     DrawText(&State->Renderer, State->Roboto,   rv2_(600,600), "hello\nworld", State->Renderer.Fonts[State->Roboto].Height,     0, 0, c);
 
     DrawGlyph(&State->Renderer, State->Roboto, 'W', p->mPos, c);
-
-    State->Renderer.TargetClipRect = rectf_(0, 0, p->WindowDim.x, p->WindowDim.y);
 
     if (AreRectsClipping(r1, r2))
         DrawRect(&State->Renderer, State->Renderer.TargetClipRect, c);
@@ -139,6 +116,16 @@ external APP_UPDATE(Update) {
 
 external APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
+
+    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
+    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
+    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
+    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
+    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
+    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
+    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
+    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
     State->Keymap = CreateMyKeymap();
 }
