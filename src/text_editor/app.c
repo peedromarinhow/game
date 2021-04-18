@@ -85,11 +85,6 @@ external APP_UPDATE(Update) {
     State->CommandContext.NoBuffers = 2;
     State->CommandContext.LastChar = p->Char;
 
-    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                    State->CommandContext.Buffers[0], State->CommandContext.CurrentBuffer);
-    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1], State->CommandContext.CurrentBuffer);
-    
-    State->Keymap->Commands[Key].Func(&State->CommandContext);
-
     colorb c;
 
     c.r = 225;
@@ -97,35 +92,12 @@ external APP_UPDATE(Update) {
     c.b = 225;
     c.a = 255;
 
-    colorb d;
-
-    d.r = p->mPos.x / 5;
-    d.g = p->mPos.y / 5;
-    d.b = p->mPos.y / 5 + p->mPos.x / 5;
-    d.a = 255;
-
-    c8   *Text = "Lorem ipsum\nDolor sit amet";
-    font *Font = &State->Renderer.Fonts[State->Roboto];
-
-    rv2 TextDim = MeasureText(Font, Text, Font->Height, 0, 0);
-
-    rect r1 = rect_(100, 100, 30, 30);
-    rect r2 = rect_(p->mPos.x, p->mPos.y, 30, 30);
-    rect r3 = rect_(500, 500, GetVecComps(TextDim));
-
-    DrawRect(&State->Renderer, r3, (colorb){0xFF909090});
-    r3.y += Font->Height - Font->Ascender;
-    DrawText(&State->Renderer, State->Roboto, r3.Pos, Text, Font->Height, 0, 0, d);
-
-    DrawRect(&State->Renderer, r1, c);
-    DrawRect(&State->Renderer, r2, c);
-    DrawText(&State->Renderer, State->RobotoMono, rv2_(90,90), "hello\nworld", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
-    DrawText(&State->Renderer, State->Roboto,   rv2_(600,600), "hello\nworld", State->Renderer.Fonts[State->Roboto].Height,     0, 0, c);
-
-    DrawGlyph(&State->Renderer, State->Roboto, 'W', p->mPos, c);
-
-    if (AreRectsClipping(r1, r2))
-        DrawRect(&State->Renderer, State->Renderer.TargetClipRect, c);
+    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[0], State->RobotoMono,
+                rv2_(16, p->WindowDim.y - 32), State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
+    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[1], State->RobotoMono,
+                rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->Renderer.Fonts[State->Roboto].Height, 0, 0, c);
+    
+    State->Keymap->Commands[Key].Func(&State->CommandContext);
 
     Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }

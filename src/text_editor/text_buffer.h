@@ -240,8 +240,52 @@ internal u32 GetEndOfBufferCursor(buffer *Buffer, u32 CurrentCursor) {
     return GetBufferLen(Buffer);
 }
 
-internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id CurrentBuffer) {
-    //note: this is going to be absolutely horrible.
+internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
+                         r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color)
+{
+    font Font = Renderer->Fonts[FontId];
+
+    rect Rect;
+    rv2  Advance = rv2_(0, 0);
+    rv2  Offset  = rv2_(0, 0);
+    u32  BufferLen = GetBufferLen(Buffer);
+    u32  Index = 0;
+    rv2  GlyphPos = rv2_(0, 0);
+    for (u32 Cursor = 0; Cursor < BufferLen; Cursor++) {
+        c8 Char = GetBufferChar(Buffer, Cursor);
+        Index = Char - 32;
+        if (Char == '\n') {
+            Advance.y += Font.LineGap + LineSpacing;
+            Advance.x  = 0;
+        }
+        else
+        if (Char == '\r') {
+            Assert(1);
+        }
+        else
+        if (Char == ' ') {
+            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
+        }
+        else
+        if (Char == '\t') {
+            Advance.x += (Font.GlyphAdvances[Index] + CharSpacing) * 4;
+        }
+        else {
+            Offset = Font.GlyphOffsets[Index];
+            Rect   = Font.GlyphRects[Index];
+            GlyphPos.x = Pos.x + Offset.x + Advance.x;
+            GlyphPos.y = Pos.y - Offset.y - Advance.y - Rect.h;
+            DrawGlyph(Renderer, FontId, Char, rv2_(GlyphPos.x, GlyphPos.y), Color);
+            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
+        }
+
+        if (Cursor == Buffer->Point) {
+            DrawRect(Renderer, rect_(GlyphPos.x, GlyphPos.y + Font.Descender, 2, Font.Ascender), Color);
+        }
+    }
+
+    // if (Buffer->IsCurrent)
+    //todo: hilight the current buffer (somehow).
 }
 
 void OutputDebugBuffer(buffer *Buffer) {
@@ -373,8 +417,7 @@ COMMAND_FUNC(DeleteCharBackward) {
 
 COMMAND_FUNC(MoveCarretLeft) {
     buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
-    Buffer->Point =
-        GetPrevCharCursor(Buffer, Buffer->Point);
+    Buffer->Point = GetPrevCharCursor(Buffer, Buffer->Point);
 }
 
 COMMAND_FUNC(MoveCarretRight) {

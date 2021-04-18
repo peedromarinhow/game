@@ -313,10 +313,10 @@ internal void DrawText(renderer *Renderer, id FontId, rv2 Pos,
 {
     font Font = Renderer->Fonts[FontId];
 
-    rv2   Advance = rv2_(0, 0);
-    rv2   Offset  = rv2_(0, 0);
+    rv2  Advance = rv2_(0, 0);
+    rv2  Offset  = rv2_(0, 0);
     rect Rect;
-    u32   Index = 0;
+    u32  Index = 0;
     for (u32 i = 0; Text[i] != '\0'; i++) {
         Index    = Text[i] - 32;
         if (Text[i] == '\n') {
