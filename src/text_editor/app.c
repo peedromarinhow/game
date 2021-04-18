@@ -41,6 +41,10 @@ external APP_INIT(Init) {
 
     State->Keymap = CreateMyKeymap();
 
+    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
+    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
+
+
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
 
@@ -74,13 +78,13 @@ external APP_UPDATE(Update) {
     if (p->kChar)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
 
-    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
-    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
+    State->CommandContext.NoBuffers = 2;
+    State->CommandContext.LastChar = p->Char;
 
-    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                  State->CommandContext.Buffers[0]);
-    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1]);
+    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                    State->CommandContext.Buffers[0]);
+    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1]);
     
-    State->Keymap->Commands[Key].Func(State->CommandContext);
+    State->Keymap->Commands[Key].Func(&State->CommandContext);
 
     colorb c;
 
@@ -108,7 +112,7 @@ external APP_UPDATE(Update) {
     DrawRect(&State->Renderer, r3, (colorb){0xFF909090});
     r3.y += Font->Height - Font->Ascender;
     DrawText(&State->Renderer, State->Roboto, r3.Pos, Text, Font->Height, 0, 0, d);
-    
+
     DrawRect(&State->Renderer, r1, c);
     DrawRect(&State->Renderer, r2, c);
     DrawText(&State->Renderer, State->RobotoMono, rv2_(90,90), "hello\nworld", State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);

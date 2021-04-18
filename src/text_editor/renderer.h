@@ -408,9 +408,8 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
-            RasterTextureRect(Pos, Font.GlyphRects[Glyph.Char - 32],
-                              Renderer->Fonts[Glyph.FontId].Atlas,
-                              HexToColor(Piece.Color.rgba));
+            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Glyph.Char - 32],
+                              Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
 
         }
     }
