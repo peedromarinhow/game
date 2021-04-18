@@ -43,7 +43,7 @@ external APP_INIT(Init) {
 
     State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
     State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
-
+    State->CommandContext.GoalColumn = -1;
 
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
@@ -65,6 +65,10 @@ external APP_UPDATE(Update) {
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_LEFT);
     if (p->kRight)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_RIGHT);
+    if (p->kUp)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_UP);
+    if (p->kDown)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_DOWN);
     if (p->kHome)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_HOME);
     if (p->kPgUp)
@@ -81,8 +85,8 @@ external APP_UPDATE(Update) {
     State->CommandContext.NoBuffers = 2;
     State->CommandContext.LastChar = p->Char;
 
-    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                    State->CommandContext.Buffers[0]);
-    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1]);
+    DrawBuffer(&State->Renderer, rv2_(16, p->WindowDim.y - 32),                    State->CommandContext.Buffers[0], State->CommandContext.CurrentBuffer);
+    DrawBuffer(&State->Renderer, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->CommandContext.Buffers[1], State->CommandContext.CurrentBuffer);
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);
 

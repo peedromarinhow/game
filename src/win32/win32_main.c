@@ -195,8 +195,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 b32 AltKeyWasDown =  Message.lParam & (1 << 29);
                 b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
                 b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
-                if (Message.message == WM_SYSKEYDOWN ||
-                    Message.message == WM_SYSKEYUP   ||
+                if (//Message.message == WM_SYSKEYDOWN ||
+                    //Message.message == WM_SYSKEYUP   ||
                     Message.message == WM_KEYDOWN    ||
                     Message.message == WM_KEYUP)
                 {
@@ -263,12 +263,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         BYTE KeyboardState[256];
                         GetKeyboardState(KeyboardState);
                         WORD Chars;
-                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {     
+                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
                             Platform.Char = (u8)Chars;
                             Win32ProcessEventMessage(&Platform.kChar, 1);
-                        }else {
+                        }
+                        else {
                             Platform.Char = 0;
                         }
+
                         if (!IsPrintableChar(Platform.Char))
                             Platform.Char = Message.wParam;
                     }
