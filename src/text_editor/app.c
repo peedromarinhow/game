@@ -61,6 +61,8 @@ external APP_UPDATE(Update) {
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_DEL);
     if (p->kBack)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_BACK);
+    if (p->kTab)
+        Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_TAB);
     if (p->kLeft)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, KEY_LEFT);
     if (p->kRight)
@@ -92,9 +94,9 @@ external APP_UPDATE(Update) {
     c.b = 225;
     c.a = 255;
 
-    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[0], State->RobotoMono,
-                rv2_(16, p->WindowDim.y - 32), State->Renderer.Fonts[State->RobotoMono].Height, 0, 0, c);
-    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[1], State->RobotoMono,
+    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[0], State->Roboto,
+                rv2_(16, p->WindowDim.y - 32), State->Renderer.Fonts[State->Roboto].Height, 0, 0, c);
+    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[1], State->Roboto,
                 rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->Renderer.Fonts[State->Roboto].Height, 0, 0, c);
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);

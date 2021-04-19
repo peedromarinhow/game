@@ -77,7 +77,7 @@ typedef struct _platform {
             b32 kUp, kDown, kLeft, kRight;
             b32 kHome, kEnd;
             b32 kPgUp, kPgDown;
-            b32 kBack, kDelete, kReturn;
+            b32 kBack, kDelete, kTab, kReturn;
             b32 kCtrl, kShift,  kAlt;
             b32 kChar;
             c8  Char;

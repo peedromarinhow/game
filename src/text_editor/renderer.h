@@ -288,14 +288,14 @@ internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
         PushPiece(Renderer, Piece);
 }
 
-internal void DrawGlyph(renderer *Renderer, id FontId, c8 Char, rv2 Pos, colorb Color) {
+internal void DrawGlyph(renderer *Renderer, id FontId, u32 Index, rv2 Pos, colorb Color) {
     render_piece Piece;
 
     Piece.Type         = PIECE_GLYPH;
     Piece.Pos          = Pos;
     Piece.Color        = Color;
     Piece.Glyph.FontId = FontId;
-    Piece.Glyph.Char   = Char;
+    Piece.Glyph.Char   = Index + 32;
 
     // if (AreRectsClipping(Renderer->TargetClipRect,
     //     rect_(Piece.Pos.x, Piece.Pos.y,
@@ -408,7 +408,7 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
-            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Glyph.Char - 32],
+            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[(Glyph.Char - 32 > 0)? Glyph.Char - 32 : ' ' - 32],
                               Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
 
         }

@@ -243,6 +243,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         if (VKCode == VK_RETURN)
                             Win32ProcessButtonMessage(&Platform.kReturn, IsDown);
                         else
+                        if (VKCode == VK_TAB)
+                            Win32ProcessButtonMessage(&Platform.kTab, IsDown);
+                        else
                         if (VKCode == VK_CONTROL)
                             Win32ProcessButtonMessage(&Platform.kCtrl, IsDown);
                         else

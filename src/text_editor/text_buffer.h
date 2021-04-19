@@ -243,49 +243,41 @@ internal u32 GetEndOfBufferCursor(buffer *Buffer, u32 CurrentCursor) {
 internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
                          r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color)
 {
-    font Font = Renderer->Fonts[FontId];
+    u32 BufferLen = GetBufferLen(Buffer);
 
-    rect Rect;
-    rv2  Advance = rv2_(0, 0);
-    rv2  Offset  = rv2_(0, 0);
-    u32  BufferLen = GetBufferLen(Buffer);
-    u32  Index = 0;
-    rv2  GlyphPos = rv2_(0, 0);
+    font *Font = &Renderer->Fonts[FontId];
+    rv2 Advance  = rv2_(0, 0);
+    rv2 GlyphPos = rv2_(0, 0);
+
+    rect Caret = rect_(0, 0, 0, 0);
+
     for (u32 Cursor = 0; Cursor < BufferLen; Cursor++) {
-        c8 Char = GetBufferChar(Buffer, Cursor);
-        Index = Char - 32;
+        u32 Index = 0;
+        c8  Char  = GetBufferChar(Buffer, Cursor);
+
+        Index = (Char - 32 > 0)? Char - 32 : ' ' - 32;
+
+        GlyphPos.x = Pos.x +  Advance.x + Font->GlyphOffsets[Index].x;
+        GlyphPos.y = Pos.y - (Advance.y + Font->GlyphOffsets[Index].y + Font->GlyphRects[Index].h);
+
+        if (Cursor == Buffer->Point)
+            Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+
         if (Char == '\n') {
-            Advance.y += Font.LineGap + LineSpacing;
+            if (Cursor == Buffer->Point)
+                Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+            Advance.y += Font->LineGap + LineSpacing;
             Advance.x  = 0;
-        }
-        else
-        if (Char == '\r') {
-            Assert(1);
-        }
-        else
-        if (Char == ' ') {
-            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
-        }
-        else
-        if (Char == '\t') {
-            Advance.x += (Font.GlyphAdvances[Index] + CharSpacing) * 4;
+            continue;
         }
         else {
-            Offset = Font.GlyphOffsets[Index];
-            Rect   = Font.GlyphRects[Index];
-            GlyphPos.x = Pos.x + Offset.x + Advance.x;
-            GlyphPos.y = Pos.y - Offset.y - Advance.y - Rect.h;
-            DrawGlyph(Renderer, FontId, Char, rv2_(GlyphPos.x, GlyphPos.y), Color);
-            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
+            Advance.x += Font->GlyphAdvances[Index] + CharSpacing;
         }
 
-        if (Cursor == Buffer->Point) {
-            DrawRect(Renderer, rect_(GlyphPos.x, GlyphPos.y + Font.Descender, 2, Font.Ascender), Color);
-        }
+        DrawGlyph(Renderer, FontId, Index, GlyphPos, Color);
     }
 
-    // if (Buffer->IsCurrent)
-    //todo: hilight the current buffer (somehow).
+    DrawRect(Renderer, Caret, Color);
 }
 
 void OutputDebugBuffer(buffer *Buffer) {
@@ -346,6 +338,7 @@ typedef enum _key {
     KEY_NONE = 0,
     KEY_DEL,
     KEY_BACK,
+    KEY_TAB,
     KEY_LEFT,
     KEY_RIGHT,
     KEY_UP,
@@ -415,6 +408,11 @@ COMMAND_FUNC(DeleteCharBackward) {
     DeleteBackwardChar(Buffer, Buffer->Point);
 }
 
+COMMAND_FUNC(Indent) {
+    buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
+    InsertChar(Buffer, Buffer->Point, '\t');
+}
+
 COMMAND_FUNC(MoveCarretLeft) {
     buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
     Buffer->Point = GetPrevCharCursor(Buffer, Buffer->Point);
@@ -476,22 +474,22 @@ COMMAND_FUNC(InsertNewLine) {
 COMMAND_FUNC(NextBuffer) {
     if (Ctx->CurrentBuffer < Ctx->NoBuffers - 1) {
         Ctx->CurrentBuffer++;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
+        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
     }
     else {
         Ctx->CurrentBuffer = 0;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
+        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
     }
 }
 
 COMMAND_FUNC(PrevBuffer) {
     if (Ctx->CurrentBuffer > 0) {
         Ctx->CurrentBuffer--;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
+        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
     }
     else {
         Ctx->CurrentBuffer = Ctx->NoBuffers - 1;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
+        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
     }
 }
 
@@ -528,6 +526,7 @@ internal keymap *CreateMyKeymap() {
 
     Bind(Keymap, KEY_DEL,           CmdFunc_DeleteCharFoward,              "delete char foward");
     Bind(Keymap, KEY_BACK,          CmdFunc_DeleteCharBackward,            "delete char backward");
+    Bind(Keymap, KEY_TAB,           CmdFunc_Indent,                        "indent");
     Bind(Keymap, KEY_LEFT,          CmdFunc_MoveCarretLeft,                "move carret left");
     Bind(Keymap, KEY_RIGHT,         CmdFunc_MoveCarretRight,               "move carret right");
     Bind(Keymap, KEY_UP,            CmdFunc_MoveCarretUp,                  "move carret left");
