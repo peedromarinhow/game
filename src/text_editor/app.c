@@ -39,11 +39,11 @@ external APP_INIT(Init) {
 
     GlobalPlatformApi = PlatformApi;
 
-    State->Keymap = CreateMyKeymap();
+    // State->Keymap = CreateMyKeymap();
 
-    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
-    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
-    State->CommandContext.GoalColumn = -1;
+    // State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
+    // State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
+    // State->CommandContext.GoalColumn = -1;
 
     State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
@@ -55,6 +55,7 @@ external APP_INIT(Init) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
+#if 0
     key Key = KEY_NONE;
     
     if (p->kDelete)
@@ -102,6 +103,7 @@ external APP_UPDATE(Update) {
                 p->mPos, p->mLeft);
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);
+#endif
 
     Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }

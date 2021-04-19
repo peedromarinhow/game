@@ -262,11 +262,11 @@ internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
         GlyphPos.y = Pos.y - (Advance.y + Font->GlyphOffsets[Index].y + Font->GlyphRects[Index].h);
 
         if (MouseLeftButton)
-            if (IsInsideRect(MousePos, rect_(GlyphPos.x, GlyphPos.y + Font->GlyphRects[Index].h, Font->GlyphRects[Index].w, Font->GlyphRects[Index].h)))
+            if (IsInsideRect(MousePos, rect_(GlyphPos.x, Pos.y - Advance.y - Font->GlyphOffsets[Index].y, Font->GlyphRects[Index].w, Font->GlyphRects[Index].h)))
                 Buffer->Point = Cursor;
 
         if (Cursor == Buffer->Point && Buffer->IsCurrent)
-            Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+            Caret = rect_(Pos.x + Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
 
         if (Char == '\n') {
             if (Cursor == Buffer->Point && Buffer->IsCurrent)
@@ -429,7 +429,7 @@ COMMAND_FUNC(MoveCarretRight) {
     Buffer->Point = GetNextCharCursor(Buffer, Buffer->Point);
 }
 
-u32 GoalColumn = -1;
+global u32 GoalColumn = -1;
 
 COMMAND_FUNC(MoveCarretUp) {
     buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
@@ -446,7 +446,7 @@ COMMAND_FUNC(MoveCarretDown) {
         GoalColumn = GetBufferColumn(Buffer, Buffer->Point);
     u32 BeginningOfNextLine = GetBeginningOfNextLineCursor(Buffer, Buffer->Point);
     u32 NextLineLen         = GetLineLen(Buffer, BeginningOfNextLine);
-    Buffer->Point = BeginningOfNextLine + Min(NextLineLen, GoalColumn);
+    Buffer->Point = Min(BeginningOfNextLine + Min(NextLineLen, GoalColumn), GetBufferLen(Buffer) - 1);
 }
 
 COMMAND_FUNC(MoveCarretToBeginningOfLine) {

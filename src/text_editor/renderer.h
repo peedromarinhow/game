@@ -61,13 +61,7 @@ enum piece_type {
     //...
 };
 
-typedef struct _render_piece_head {
-    rv2 Origin;
-    u32 Type;
-} render_piece_header;
-
 typedef struct _render_piece_rect {
-    // rect  Rect;
     rect Rect;
 } render_piece_rect;
 
@@ -76,9 +70,14 @@ typedef struct _render_piece_glyph {
     c8 Char;
 } render_piece_glyph;
 
+typedef struct _render_piece_head {
+    u32 Type;
+    rv2 Pos;
+} render_piece_header;
+
 typedef struct _render_piece {
-    u32    Type;
-    rv2    Pos;
+    u32 Type;
+    rv2 Pos;
     colorb Color;
     union {
         render_piece_rect  Rect;
@@ -91,6 +90,7 @@ typedef struct _renderer {
     colorb ClearColor;
 
     render_piece Pieces[1024];
+    rect         ClipRects[1024];
     u32          UsedPieces;
 
     font Fonts[2];
@@ -99,7 +99,7 @@ typedef struct _renderer {
 
 ///////////////////////////////////////////////////////////
 
-void Clear(rv2 TargetDim, color Color) {
+internal void Clear(rv2 TargetDim, color Color) {
     glLoadIdentity();
     glViewport(0, 0, TargetDim.w, TargetDim.h);
     
@@ -115,6 +115,10 @@ void Clear(rv2 TargetDim, color Color) {
     glLoadMatrixf(Proj);
     glClearColor(Color.r, Color.g, Color.b, Color.a);
     glClear(GL_COLOR_BUFFER_BIT);
+}
+
+internal void Clip(rect ClipRect) {
+    glScissor(ClipRect.x, ClipRect.y, ClipRect.w, ClipRect.x);
 }
 
 internal void RasterRect(rect Rect, color Color) {
@@ -133,23 +137,65 @@ internal void RasterTextureRect(rv2 Pos, rect Rect, texture Texture, color Tint)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glEnable(GL_TEXTURE_2D);
     glBegin(GL_QUADS); {
-        rv2 TexttureDim  = rv2_(Texture.w, Texture.h);
+        rv2 TextureDim  = rv2_(Texture.w, Texture.h);
 
         glColor4f(Tint.r, Tint.g, Tint.b, Tint.a);
 
-        glTexCoord2f(Rect.x / TexttureDim.w, Rect.y / TexttureDim.h);
+        glTexCoord2f(Rect.x / TextureDim.w, Rect.y / TextureDim.h);
         glVertex2f(Pos.x, Pos.y + Rect.h);
 
-        glTexCoord2f((Rect.x + Rect.w) / TexttureDim.w, Rect.y /TexttureDim.h);
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, Rect.y /TextureDim.h);
         glVertex2f(Pos.x + Rect.w, Pos.y + Rect.h);
         
-        glTexCoord2f((Rect.x + Rect.w) / TexttureDim.w, (Rect.y + Rect.h) / TexttureDim.h);
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
         glVertex2f(Pos.x + Rect.w, Pos.y);
 
-        glTexCoord2f(Rect.x / TexttureDim.w, (Rect.y + Rect.h) / TexttureDim.h);
+        glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
         glVertex2f(Pos.x, Pos.y);
     } glEnd();
     glDisable(GL_TEXTURE_2D);
+}
+
+///////////////////////////////////////////////////////////
+
+internal void PushPiece(renderer *Renderer, render_piece Piece) {
+    Renderer->Pieces[Renderer->UsedPieces] = Piece;
+    Renderer->UsedPieces++;
+}
+
+internal void PushClip(renderer *Renderer, rect Clip) {
+    Renderer->ClipRects[Renderer->UsedPieces] = Clip;
+}
+
+internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
+    Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
+    Renderer->ClearColor         = ClearColor;
+
+    Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
+
+    for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
+        render_piece Piece = Renderer->Pieces[PieceIndex];
+        rect         Clip  = Renderer->ClipRects[PieceIndex];
+
+        rv2 Pos = Piece.Pos;
+
+        if (Piece.Type == PIECE_RECT) {
+            render_piece_rect Rect = Piece.Rect;
+            RasterRect(rect_(GetVecComps(Pos), GetVecComps(Rect.Rect.Dim)),
+                       HexToColor(Piece.Color.rgba));
+        }
+        else
+        if (Piece.Type == PIECE_GLYPH) {
+            render_piece_glyph Glyph = Piece.Glyph;
+            u32 Index = (Glyph.Char - 32 > 0)? Glyph.Char - 32 : ' ' - 32;
+            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Index],
+                              Renderer->Fonts[Glyph.FontId].Atlas,
+                              HexToColor(Piece.Color.rgba));
+
+        }
+    }
+
+    Renderer->UsedPieces = 0;
 }
 
 ///////////////////////////////////////////////////////////
@@ -270,11 +316,6 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 
 ///////////////////////////////////////////////////////////
 
-internal void PushPiece(renderer *Renderer, render_piece Piece) {
-    Renderer->Pieces[Renderer->UsedPieces] = Piece;
-    Renderer->UsedPieces++;
-}
-
 internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
     render_piece Piece;
 
@@ -338,7 +379,7 @@ internal void DrawText(renderer *Renderer, id FontId, rv2 Pos,
         else {
             Offset = Font.GlyphOffsets[Index];
             Rect   = Font.GlyphRects[Index];
-            DrawGlyph(Renderer, FontId, Text[i], rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
+            DrawGlyph(Renderer, FontId, Index, rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
             Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
         }
     }
@@ -387,34 +428,6 @@ internal rv2 MeasureText(font *Font, c8 *Text, r32 Height, r32 CharSpacing, r32 
     };
 
     return Result;
-}
-
-//todo: pass opengl functions through platform_api and get rid of windows.h
-internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
-    Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
-    Renderer->ClearColor         = ClearColor;
-
-    Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
-
-    for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
-        render_piece Piece = Renderer->Pieces[PieceIndex];
-        rv2 Pos = Piece.Pos;
-
-        if (Piece.Type == PIECE_RECT) {
-            render_piece_rect Rect = Piece.Rect;
-            RasterRect(rect_(GetVecComps(Pos), GetVecComps(Rect.Rect.Dim)),
-                       HexToColor(Piece.Color.rgba));
-        }
-        else
-        if (Piece.Type == PIECE_GLYPH) {
-            render_piece_glyph Glyph = Piece.Glyph;
-            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[(Glyph.Char - 32 > 0)? Glyph.Char - 32 : ' ' - 32],
-                              Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
-
-        }
-    }
-
-    Renderer->UsedPieces = 0;
 }
 
 #endif//RENDERER_H
