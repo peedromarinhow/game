@@ -220,10 +220,6 @@ internal u32 GetBeginningOfPrevLineCursor(buffer *Buffer, u32 CurrentCursor) {
     return GetBeginningOfLineCursor(Buffer, GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor)));
 }
 
-internal u32 GetEndOfPrevPrevCursor(buffer *Buffer, u32 CurrentCursor) {
-    return GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor));
-}
-
 internal u32 GetCursorColumn(buffer *Buffer, u32 Cursor) {
     return Cursor - GetBeginningOfLineCursor(Buffer, Cursor);
 }
@@ -240,8 +236,13 @@ internal u32 GetEndOfBufferCursor(buffer *Buffer, u32 CurrentCursor) {
     return GetBufferLen(Buffer);
 }
 
+internal u32 GetBufferColumn(buffer *Buffer, u32 CurrentCursor) {
+    return CurrentCursor - GetBeginningOfLineCursor(Buffer, CurrentCursor);
+}
+
 internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
-                         r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color)
+                         r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color,
+                         rv2 MousePos, b32 MouseLeftButton)
 {
     u32 BufferLen = GetBufferLen(Buffer);
 
@@ -260,11 +261,15 @@ internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
         GlyphPos.x = Pos.x +  Advance.x + Font->GlyphOffsets[Index].x;
         GlyphPos.y = Pos.y - (Advance.y + Font->GlyphOffsets[Index].y + Font->GlyphRects[Index].h);
 
-        if (Cursor == Buffer->Point)
+        if (MouseLeftButton)
+            if (IsInsideRect(MousePos, rect_(GlyphPos.x, GlyphPos.y + Font->GlyphRects[Index].h, Font->GlyphRects[Index].w, Font->GlyphRects[Index].h)))
+                Buffer->Point = Cursor;
+
+        if (Cursor == Buffer->Point && Buffer->IsCurrent)
             Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
 
         if (Char == '\n') {
-            if (Cursor == Buffer->Point)
+            if (Cursor == Buffer->Point && Buffer->IsCurrent)
                 Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
             Advance.y += Font->LineGap + LineSpacing;
             Advance.x  = 0;
@@ -296,6 +301,7 @@ internal void SaveBuffer(buffer *Buffer) {
 }
 
 internal void LoadBuffer(buffer *Buffer) {
+    Buffer->IsCurrent = 1;
     if (Buffer->Filename) {
         file File = GlobalPlatformApi.LoadFile(Buffer->Filename);
         DeleteBuffer(Buffer);
@@ -423,26 +429,24 @@ COMMAND_FUNC(MoveCarretRight) {
     Buffer->Point = GetNextCharCursor(Buffer, Buffer->Point);
 }
 
+u32 GoalColumn = -1;
+
 COMMAND_FUNC(MoveCarretUp) {
     buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
-    if (Ctx->GoalColumn == -1)
-        Ctx->GoalColumn = GetCursorColumn(Buffer, Buffer->Point);
-
+    if (GoalColumn == -1)
+        GoalColumn = GetBufferColumn(Buffer, Buffer->Point);
     u32 BeginningOfPrevLine = GetBeginningOfPrevLineCursor(Buffer, Buffer->Point);
     u32 PrevLineLen         = GetLineLen(Buffer, BeginningOfPrevLine);
-    
-    Buffer->Point = BeginningOfPrevLine + Min(PrevLineLen, Ctx->GoalColumn);
+    Buffer->Point = BeginningOfPrevLine + Min(PrevLineLen, GoalColumn);
 }
 
 COMMAND_FUNC(MoveCarretDown) {
     buffer *Buffer = Ctx->Buffers[Ctx->CurrentBuffer];
-    if (Ctx->GoalColumn == -1)
-        Ctx->GoalColumn = GetCursorColumn(Buffer, Buffer->Point);
-
+    if (GoalColumn == -1)
+        GoalColumn = GetBufferColumn(Buffer, Buffer->Point);
     u32 BeginningOfNextLine = GetBeginningOfNextLineCursor(Buffer, Buffer->Point);
     u32 NextLineLen         = GetLineLen(Buffer, BeginningOfNextLine);
-    
-    Buffer->Point = BeginningOfNextLine + Min(NextLineLen, Ctx->GoalColumn);
+    Buffer->Point = BeginningOfNextLine + Min(NextLineLen, GoalColumn);
 }
 
 COMMAND_FUNC(MoveCarretToBeginningOfLine) {
@@ -472,25 +476,17 @@ COMMAND_FUNC(InsertNewLine) {
 }
 
 COMMAND_FUNC(NextBuffer) {
-    if (Ctx->CurrentBuffer < Ctx->NoBuffers - 1) {
+    Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
+    if (Ctx->CurrentBuffer < Ctx->NoBuffers - 1)
         Ctx->CurrentBuffer++;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
-    }
-    else {
-        Ctx->CurrentBuffer = 0;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
-    }
+    Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
 }
 
 COMMAND_FUNC(PrevBuffer) {
-    if (Ctx->CurrentBuffer > 0) {
+    Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
+    if (Ctx->CurrentBuffer > 0)
         Ctx->CurrentBuffer--;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 0;
-    }
-    else {
-        Ctx->CurrentBuffer = Ctx->NoBuffers - 1;
-        Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
-    }
+    Ctx->Buffers[Ctx->CurrentBuffer]->IsCurrent = 1;
 }
 
 COMMAND_FUNC(SaveBuffer) {
