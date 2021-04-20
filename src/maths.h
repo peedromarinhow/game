@@ -44,6 +44,14 @@ finginline rv2 rv2_(r32 x, r32 y) {
 }
 #define GetVecComps(Vec) (Vec).x, (Vec).y
 
+finginline r32 rv2_Inner(rv2 a, rv2 b) {
+    return a.x*b.x + a.y*b.y;
+}
+
+finginline r32 rv2_LenSq(rv2 a) {
+    return rv2_Inner(a, a);
+}
+
 typedef struct _color {
     r32 r, g, b, a;
 } color;
@@ -123,19 +131,43 @@ typedef struct _rect {
         };
     };
 } rect;
+
+finginline rect rect_Union(rect a, rect b) {
+    rect Result;
+
+    r32 xMin = Min(a.x,       b.x);
+    r32 yMin = Min(a.y,       b.y);
+    r32 xMax = Max(a.x + a.w, b.x + b.w);
+    r32 yMax = Max(a.y + a.h, b.y + b.h);
+
+    Result.x = xMin;
+    Result.y = yMin;
+    Result.w = xMax - xMin;
+    Result.h = yMax - yMin;
+
+    return Result;
+}
+
 finginline rect rect_(r32 x, r32 y, r32 w, r32 h) {
     return (rect){x, y, w, h};
 }
 
-internal finginline b32 IsInsideRect(rv2 Pos, rect Rect) {
-    return (Pos.x > Rect.x && Pos.x < Rect.x + Rect.w) && (Pos.y < Rect.y && Pos.y > Rect.y - Rect.h);
+internal finginline b32 IsInsideRect(rv2 Pos, rect c) {
+    if (Pos.x > c.x + c.w || Pos.x < c.x ||
+        Pos.y > c.y + c.h || Pos.y < c.y)
+    {
+        return 0;
+    }
+    return 1;
 }
 
-internal finginline b32 AreRectsClipping(rect cr, rect r) {
-    return IsInsideRect(rv2_(cr.x,  cr.y),               r) ||
-           IsInsideRect(rv2_(cr.x + cr.w,  cr.y),        r) ||
-           IsInsideRect(rv2_(cr.x + cr.w,  cr.y - cr.h), r) ||
-           IsInsideRect(rv2_(cr.x,  cr.y - cr.h),        r);
+internal finginline b32 AreRectsClipping(rect c, rect r) {
+    if (r.x > c.x + c.w || r.x + r.w < c.x ||
+        r.y > c.y + c.h || r.y + r.h < c.y)
+    {
+        return 0;
+    }
+    return 1;
 }
 
 #endif

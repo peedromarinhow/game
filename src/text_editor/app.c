@@ -18,7 +18,7 @@ typedef struct _app_state {
     id Roboto;
     id RobotoMono;
 
-    renderer Renderer;
+    renderer *Renderer;
 } app_state;
 
 external APP_INIT(Init) {
@@ -45,8 +45,10 @@ external APP_INIT(Init) {
     // State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
     // State->CommandContext.GoalColumn = -1;
 
-    State->RobotoMono = LoadFont(&State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
-    State->Roboto     = LoadFont(&State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
+    State->Renderer = PlatformApi.AllocateMemory(sizeof(renderer));
+
+    State->RobotoMono = LoadFont(State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
+    State->Roboto     = LoadFont(State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -105,7 +107,20 @@ external APP_UPDATE(Update) {
     State->Keymap->Commands[Key].Func(&State->CommandContext);
 #endif
 
-    Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
+    colorb Color = (colorb){0xFFFFFFFF};
+
+    u32 Clicked = DrawMenu(State->Renderer, State->RobotoMono, rv2_(80, p->WindowDim.y-80), p->mPos, p->mLeft);
+
+    if (Clicked == 0)
+        DrawRect(State->Renderer, rect_(100, 10, 20, 20), Color);
+    if (Clicked == 1)
+        DrawRect(State->Renderer, rect_(200, 10, 20, 20), Color);
+    if (Clicked == 2)
+        DrawRect(State->Renderer, rect_(300, 10, 20, 20), Color);
+    if (Clicked == 3)
+        DrawRect(State->Renderer, rect_(400, 10, 20, 20), Color);
+
+    Render(State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }
 
 external APP_RELOAD(Reload) {

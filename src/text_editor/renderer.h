@@ -61,26 +61,16 @@ enum piece_type {
     //...
 };
 
-typedef struct _render_piece_rect {
-    rect Rect;
-} render_piece_rect;
-
 typedef struct _render_piece_glyph {
     id FontId;
-    c8 Char;
+    id Index;
 } render_piece_glyph;
 
-typedef struct _render_piece_head {
-    u32 Type;
-    rv2 Pos;
-} render_piece_header;
-
 typedef struct _render_piece {
-    u32 Type;
-    rv2 Pos;
+    u32    Type;
+    rect   Rect;
     colorb Color;
     union {
-        render_piece_rect  Rect;
         render_piece_glyph Glyph;
     };
 } render_piece;
@@ -90,7 +80,6 @@ typedef struct _renderer {
     colorb ClearColor;
 
     render_piece Pieces[1024];
-    rect         ClipRects[1024];
     u32          UsedPieces;
 
     font Fonts[2];
@@ -160,11 +149,8 @@ internal void RasterTextureRect(rv2 Pos, rect Rect, texture Texture, color Tint)
 
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
     Renderer->Pieces[Renderer->UsedPieces] = Piece;
-    Renderer->UsedPieces++;
-}
-
-internal void PushClip(renderer *Renderer, rect Clip) {
-    Renderer->ClipRects[Renderer->UsedPieces] = Clip;
+    if (Renderer->UsedPieces < 1024)
+        Renderer->UsedPieces++;
 }
 
 internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
@@ -175,23 +161,17 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
         render_piece Piece = Renderer->Pieces[PieceIndex];
-        rect         Clip  = Renderer->ClipRects[PieceIndex];
-
-        rv2 Pos = Piece.Pos;
+        rv2 Pos = Piece.Rect.Pos;
+        rv2 Dim = Piece.Rect.Dim;
 
         if (Piece.Type == PIECE_RECT) {
-            render_piece_rect Rect = Piece.Rect;
-            RasterRect(rect_(GetVecComps(Pos), GetVecComps(Rect.Rect.Dim)),
-                       HexToColor(Piece.Color.rgba));
+            RasterRect(rect_(GetVecComps(Pos), GetVecComps(Dim)), HexToColor(Piece.Color.rgba));
         }
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
-            u32 Index = (Glyph.Char - 32 > 0)? Glyph.Char - 32 : ' ' - 32;
-            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Index],
-                              Renderer->Fonts[Glyph.FontId].Atlas,
-                              HexToColor(Piece.Color.rgba));
-
+            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Glyph.Index],
+                              Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
         }
     }
 
@@ -246,7 +226,7 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
         GlyphImages[i].h    = h;
         stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Advance, NULL);
         Font.GlyphAdvances[i] = Advance * ScaleFactor;
-        Font.GlyphOffsets[i]  = rv2_(OffX, OffY);
+        Font.GlyphOffsets[i]  = rv2_(OffX, OffY + h);
         RequiredAreaForAtlas += (GlyphImages[i].w + 2 * Padding) *
                                 (GlyphImages[i].h + 2 * Padding);
     }
@@ -319,13 +299,12 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
     render_piece Piece;
 
-    Piece.Type      = PIECE_RECT;
-    Piece.Pos       = Rect.Pos;
-    Piece.Rect.Rect.Pos = Rect.Pos;
-    Piece.Rect.Rect.Dim = Rect.Dim;
-    Piece.Color     = Color;
+    Piece.Type     = PIECE_RECT;
+    Piece.Rect.Pos = Rect.Pos;
+    Piece.Rect.Dim = Rect.Dim;
+    Piece.Color    = Color;
 
-    // if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect.Rect))
+    if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect))
         PushPiece(Renderer, Piece);
 }
 
@@ -333,101 +312,106 @@ internal void DrawGlyph(renderer *Renderer, id FontId, u32 Index, rv2 Pos, color
     render_piece Piece;
 
     Piece.Type         = PIECE_GLYPH;
-    Piece.Pos          = Pos;
+    Piece.Rect.Pos     = Pos;
+    Piece.Rect.Dim     = Renderer->Fonts[FontId].GlyphRects[Index].Dim;
     Piece.Color        = Color;
     Piece.Glyph.FontId = FontId;
-    Piece.Glyph.Char   = Index + 32;
+    Piece.Glyph.Index  = Index;
 
-    // if (AreRectsClipping(Renderer->TargetClipRect,
-    //     rect_(Piece.Pos.x, Piece.Pos.y,
-    //            Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32].w,
-    //            Renderer->Fonts[Piece.Glyph.FontId].GlyphRects[Char - 32].h)))
-    // {
+    if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect)) {
         PushPiece(Renderer, Piece);
-    // }
-}
-
-internal void DrawText(renderer *Renderer, id FontId, rv2 Pos,
-                       c8 *Text, r32 Size,
-                       r32 LineSpacing, r32 CharSpacing,
-                       colorb Color)
-{
-    font Font = Renderer->Fonts[FontId];
-
-    rv2  Advance = rv2_(0, 0);
-    rv2  Offset  = rv2_(0, 0);
-    rect Rect;
-    u32  Index = 0;
-    for (u32 i = 0; Text[i] != '\0'; i++) {
-        Index    = Text[i] - 32;
-        if (Text[i] == '\n') {
-            Advance.y += Font.LineGap + LineSpacing;
-            Advance.x  = 0;
-        }
-        else
-        if (Text[i] == '\r') {
-            Assert(1);
-        }
-        else
-        if (Text[i] == ' ') {
-            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
-        }
-        else
-        if (Text[i] == '\t') {
-            Advance.x += (Font.GlyphAdvances[Index] + CharSpacing) * 4;
-        }
-        else {
-            Offset = Font.GlyphOffsets[Index];
-            Rect   = Font.GlyphRects[Index];
-            DrawGlyph(Renderer, FontId, Index, rv2_(Pos.x + Offset.x + Advance.x, Pos.y - Offset.y - Advance.y - Rect.h), Color);
-            Advance.x += Font.GlyphAdvances[Index] + CharSpacing;
-        }
     }
 }
 
-internal rv2 MeasureText(font *Font, c8 *Text, r32 Height, r32 CharSpacing, r32 LineSpacing) {
-    f32 ScaleFactor = Height/Font->Height;
-    i32 Index       = 0;
+typedef struct _render_text {
+    c8 *Text;
+    id  Font;
+    rv2 Pos;
+} render_text;
 
-    f32 w     = 0;
-    f32 h     = Font->Ascender;
-    f32 TempW = 0;
+typedef enum _text_op {
+    TEXT_OP_MEASURE,
+    TEXT_OP_DRAW
+} text_op;
 
-    for (u32 i = 0; Text[i] != '\0'; i++) {
-        if (Text[i] == '\r') {
-            continue;
+//todo: clean this up
+internal rect DoTextOp(text_op Op, renderer *Renderer, render_text *Text, colorb Color) {
+    font *Font = &Renderer->Fonts[Text->Font];
+
+    u32 Index;
+    rv2 Offset;
+    rv2 Pos = Text->Pos;
+
+    rect Result = {0};
+    Result.Pos = Pos;
+    rect GlyphRect = {0};
+
+    for (c8 *Char = Text->Text; *Char; Char++) {
+        Index  = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        Offset = Font->GlyphOffsets[Index];
+        GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
+        if (Op == TEXT_OP_MEASURE) {
+            Result = rect_Union(GlyphRect, Result);
         }
-        else {
-            Index = Text[i] - 32;
-
-            if (Text[i] == '\n') {
-                if (TempW < w)
-                    TempW = w;
-                w   = 0;
-                h  += Font->LineGap + LineSpacing;
-                continue;
-            }
-
-            i32 Advance = Font->GlyphAdvances[Index];
-            rv2 Offset  = Font->GlyphOffsets[Index];
-            rv2 Dim     = Font->GlyphRects[Index].Dim;
-
-            if (Advance != 0)
-                w += Advance + CharSpacing;
-            else
-                w += Dim.w + Offset.x;
+        else
+        if (Op == TEXT_OP_DRAW) {
+            DrawGlyph(Renderer, 0, Index, GlyphRect.Pos, Color);
         }
+        Pos.x += Font->GlyphAdvances[Index];
     }
 
-    if (TempW < w)
-        TempW = w;
-
-    rv2 Result = {
-        .w = TempW * ScaleFactor + CharSpacing,
-        .h = h * ScaleFactor
-    };
+    
+    Result.Pos = Text->Pos;
+    Result.h  += Font->Descender; //times number of lines
 
     return Result;
+}
+
+internal rect MeasureText(renderer *Renderer, render_text *Text) {
+    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, (colorb){0});
+}
+
+internal void DrawText(renderer *Renderer, render_text *Text, colorb Color) {
+    DoTextOp(TEXT_OP_DRAW, Renderer, Text, Color);
+}
+
+internal u32 DrawMenu(renderer *Renderer, id Font, rv2 Pos, rv2 mPos, b32 Clicked) {
+    c8 *MenuItems[] = {
+        "item 1",
+        "item 2",
+        "item 3",
+        "item 4"
+    };
+
+    u32 ClickedIndex = -1;
+
+    for (u32 MenuItemIndex = 0; 
+             MenuItemIndex < ArrayCount(MenuItems);
+             MenuItemIndex++)
+    {
+        render_text Text = {
+            .Text = MenuItems[MenuItemIndex],
+            .Font = Font,
+            .Pos  = Pos
+        };
+
+        colorb Color = (colorb){0xFFFFFFFF};
+        rect MenuItemTextBounds = MeasureText(Renderer, &Text);
+        if (IsInsideRect(mPos, MenuItemTextBounds)) {
+            Color = (colorb){0xFFFF00FF};
+            if (Clicked) {
+                Color = (colorb){0xFF0000FF};
+                ClickedIndex = MenuItemIndex;
+            }
+        }
+
+        // DrawRect(Renderer, MenuItemTextBounds, (colorb){0x80808080});
+        DrawText(Renderer, &Text, Color);
+
+        Pos.y -= Renderer->Fonts[Font].LineGap;
+    }
+
+    return ClickedIndex;
 }
 
 #endif//RENDERER_H
