@@ -19,6 +19,12 @@ typedef struct _app_state {
     id RobotoMono;
 
     renderer *Renderer;
+
+    ui_style UiStyle;
+    ui_ctx   UiContext;
+
+    r32 Slider1;
+    r32 Slider2;
 } app_state;
 
 external APP_INIT(Init) {
@@ -49,6 +55,20 @@ external APP_INIT(Init) {
 
     State->RobotoMono = LoadFont(State->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
     State->Roboto     = LoadFont(State->Renderer, &PlatformApi, "roboto.ttf",      400, 32);
+
+    State->UiContext.mPos = p->mPos;
+    State->UiContext.mLeftButtonIsDown = p->mLeft;
+    State->UiContext.Hot     = -1;
+    State->UiContext.Clicked = -1;
+
+    State->UiStyle.Font = State->RobotoMono;
+    State->UiStyle.Padding = rv2_(20, 20);
+ // State->UiStyle.HotTextColor     = (colorb){0xFF00AAFF};
+ // State->UiStyle.ClickedTextColor = (colorb){0xFFAA00FF};
+    State->UiStyle.DefaultTextColor = (colorb){0xFAFAFAFF};
+    State->UiStyle.HotButtonColor     = (colorb){0x606060FF};
+    State->UiStyle.ClickedButtonColor = (colorb){0x808080FF};
+    State->UiStyle.DefaultButtonColor = (colorb){0x404040FF};
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -107,18 +127,18 @@ external APP_UPDATE(Update) {
     State->Keymap->Commands[Key].Func(&State->CommandContext);
 #endif
 
-    colorb Color = (colorb){0xFFFFFFFF};
+    State->UiContext.mPos = p->mPos;
+    State->UiContext.mLeftButtonIsDown = p->mLeft;
+    State->UiContext.NoIds = -1;
 
-    u32 Clicked = DrawMenu(State->Renderer, State->RobotoMono, rv2_(80, p->WindowDim.y-80), p->mPos, p->mLeft);
+    if (UiAddButton(State->Renderer, &State->UiContext, State->UiStyle, rv2_(200, 600), "Click me!!"))
+        DrawRect(State->Renderer, rect_(10, 10, 20, 20), (colorb){0xFFFFFFFF});
+    
+    State->Slider1 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider1, rv2_(100, 100), 100);
+    State->Slider2 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider2, rv2_(100, 140), 500);
 
-    if (Clicked == 0)
-        DrawRect(State->Renderer, rect_(100, 10, 20, 20), Color);
-    if (Clicked == 1)
-        DrawRect(State->Renderer, rect_(200, 10, 20, 20), Color);
-    if (Clicked == 2)
-        DrawRect(State->Renderer, rect_(300, 10, 20, 20), Color);
-    if (Clicked == 3)
-        DrawRect(State->Renderer, rect_(400, 10, 20, 20), Color);
+    DrawRect(State->Renderer, rect_(20, 10, State->Slider1*500, 20), (colorb){0xFFFFFFFF});
+    DrawRect(State->Renderer, rect_(20, 20, State->Slider2*500, 20), (colorb){0xFFFFFFFF});
 
     Render(State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }

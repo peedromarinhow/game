@@ -375,43 +375,177 @@ internal void DrawText(renderer *Renderer, render_text *Text, colorb Color) {
     DoTextOp(TEXT_OP_DRAW, Renderer, Text, Color);
 }
 
-internal u32 DrawMenu(renderer *Renderer, id Font, rv2 Pos, rv2 mPos, b32 Clicked) {
-    c8 *MenuItems[] = {
-        "item 1",
-        "item 2",
-        "item 3",
-        "item 4"
+//todo: pull some of these thing out to some "ui_context" struct or something
+// internal u32 DrawMenu(renderer *Renderer, id Font, rv2 Pos, rv2 mPos, b32 Clicked) {
+//     c8 *MenuItems[] = {
+//         "item 1",
+//         "item 2",
+//         "item 3",
+//         "item 4"
+//     };
+
+//     u32 ClickedIndex = -1;
+
+//     for (u32 MenuItemIndex = 0; 
+//              MenuItemIndex < ArrayCount(MenuItems);
+//              MenuItemIndex++)
+//     {
+//         render_text Text = {
+//             .Text = MenuItems[MenuItemIndex],
+//             .Font = Font,
+//             .Pos  = Pos
+//         };
+
+//         colorb Color = (colorb){0xFFFFFFFF};
+//         rect MenuItemTextBounds = MeasureText(Renderer, &Text);
+//         if (IsInsideRect(mPos, MenuItemTextBounds)) {
+//             Color = (colorb){0xFFFF00FF};
+//             if (Clicked) {
+//                 Color = (colorb){0xFF0000FF};
+//                 ClickedIndex = MenuItemIndex;
+//             }
+//         }
+
+//         // DrawRect(Renderer, MenuItemTextBounds, (colorb){0x80808080});
+//         DrawText(Renderer, &Text, Color);
+
+//         Pos.y -= Renderer->Fonts[Font].LineGap;
+//     }
+
+//     return ClickedIndex;
+// }
+    
+typedef struct _ui_ctx {
+    rv2 mPos;
+    b32 mLeftButtonIsDown;
+
+    id Hot;
+    id Clicked;
+    id Last;
+
+    u16 NoIds;
+
+    r32 Point;
+} ui_ctx;
+
+typedef struct _ui_style {
+    id     Font;
+
+    rv2 Padding;
+
+    // colorb HotTextColor;
+    // colorb ClickedTextColor;
+    colorb DefaultTextColor;
+
+    colorb HotButtonColor;
+    colorb ClickedButtonColor;
+    colorb DefaultButtonColor;
+} ui_style;
+
+internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Pos, c8 *Str) {
+    b32 WasClicked = 0;
+
+    render_text Text = {
+        .Text = Str,
+        .Font = Style.Font,
+        .Pos  = Pos
     };
 
-    u32 ClickedIndex = -1;
+    colorb ButtonColor = Style.DefaultButtonColor;
 
-    for (u32 MenuItemIndex = 0; 
-             MenuItemIndex < ArrayCount(MenuItems);
-             MenuItemIndex++)
-    {
-        render_text Text = {
-            .Text = MenuItems[MenuItemIndex],
-            .Font = Font,
-            .Pos  = Pos
-        };
+    rect MenuItemTextBounds = MeasureText(Renderer, &Text);
 
-        colorb Color = (colorb){0xFFFFFFFF};
-        rect MenuItemTextBounds = MeasureText(Renderer, &Text);
-        if (IsInsideRect(mPos, MenuItemTextBounds)) {
-            Color = (colorb){0xFFFF00FF};
-            if (Clicked) {
-                Color = (colorb){0xFF0000FF};
-                ClickedIndex = MenuItemIndex;
-            }
+    MenuItemTextBounds.x -= Style.Padding.x/2;
+    MenuItemTextBounds.y -= Style.Padding.y/2;
+    MenuItemTextBounds.w += Style.Padding.x;
+    MenuItemTextBounds.h += Style.Padding.y;
+
+    if (IsInsideRect(Ctx->mPos, MenuItemTextBounds)) {
+        Ctx->Hot    = Ctx->NoIds;
+        ButtonColor = Style.HotButtonColor;
+        if (Ctx->mLeftButtonIsDown) {
+            Ctx->Clicked = Ctx->NoIds;
+            WasClicked   = 1;
+            ButtonColor  = Style.ClickedButtonColor;
         }
-
-        // DrawRect(Renderer, MenuItemTextBounds, (colorb){0x80808080});
-        DrawText(Renderer, &Text, Color);
-
-        Pos.y -= Renderer->Fonts[Font].LineGap;
     }
 
-    return ClickedIndex;
+    DrawRect(Renderer, MenuItemTextBounds, ButtonColor);
+    DrawText(Renderer, &Text, Style.DefaultTextColor);
+
+    Ctx->Last = Ctx->NoIds;
+    Ctx->NoIds++; //todo: check for overflow.
+
+    return WasClicked;
 }
+
+internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style Style, r32 LastValue, rv2 Pos, r32 Width) {
+    r32 Value = LastValue*Width;
+
+    rect SliderGroove = rect_(Pos.x, Pos.y, Width, 10);
+    rect SliderHandle = rect_(Pos.x + Value, Pos.y - 10 + 5, 10, 20);
+
+    colorb HandleColor = Style.DefaultButtonColor;
+
+    if (IsInsideRect(Ctx->mPos, rect_(Pos.x, Pos.y - 10 + 5, Width, 20))) {
+        Ctx->Hot    = Ctx->NoIds;
+        HandleColor = Style.HotButtonColor;
+    }
+
+    if (Ctx->mLeftButtonIsDown && Ctx->Hot == Ctx->NoIds) {
+        Ctx->Hot     = Ctx->NoIds;
+        Ctx->Clicked = Ctx->NoIds;
+        HandleColor  = Style.ClickedButtonColor;
+        Value = Min(Ctx->mPos.x - Pos.x, Width);
+        if (Value < 0)
+            Value = 0;
+    }
+
+    DrawRect(Renderer, SliderGroove, (colorb){0x2A2A2AFF});
+    DrawRect(Renderer, SliderHandle, HandleColor);
+
+    Ctx->Last = Ctx->NoIds;
+    Ctx->NoIds++; //todo: check for overflow.
+
+    return Value/Width;
+}
+
+// internal void DrawMenu(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 Pos) {
+//     c8 *MenuItems[] = {
+//         "item 1",
+//         "item 2",
+//         "item 3",
+//         "item 4"
+//     };
+
+//     u32 ClickedIndex = -1;
+
+//     for (u32 MenuItemIndex = 0; 
+//              MenuItemIndex < ArrayCount(MenuItems);
+//              MenuItemIndex++)
+//     {
+//         render_text Text = {
+//             .Text = MenuItems[MenuItemIndex],
+//             .Font = Style->Font,
+//             .Pos  = Pos
+//         };
+
+//         colorb Color = Style->DefaultTextColor;
+//         rect   MenuItemTextBounds = MeasureText(Renderer, &Text);
+//         if (IsInsideRect(Ctx->mPos, MenuItemTextBounds)) {
+//             Ctx->Hot = MenuItemIndex;
+//             Color    = Style->HotTextColor;
+//             if (Ctx->mLeftButtonIsDown) {
+//                 Ctx->Clicked = MenuItemIndex;
+//                 Color        = Style->ClickedTextColor;
+//             }
+//         }
+
+//         // DrawRect(Renderer, MenuItemTextBounds, (colorb){0x80808080});
+//         DrawText(Renderer, &Text, Color);
+
+//         Pos.y -= Renderer->Fonts[Style->Font].LineGap;
+//     }
+// }
 
 #endif//RENDERER_H
