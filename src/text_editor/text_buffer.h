@@ -240,50 +240,91 @@ internal u32 GetBufferColumn(buffer *Buffer, u32 CurrentCursor) {
     return CurrentCursor - GetBeginningOfLineCursor(Buffer, CurrentCursor);
 }
 
-internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
-                         r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color,
-                         rv2 MousePos, b32 MouseLeftButton)
-{
+internal void DrawBuffer(renderer *Renderer, buffer *Buffer,
+                         ui_ctx *Ctx, ui_style Style,rv2 Pos) {
     u32 BufferLen = GetBufferLen(Buffer);
+    font *Font = &Renderer->Fonts[Style.Font];
 
-    font *Font = &Renderer->Fonts[FontId];
-    rv2 Advance  = rv2_(0, 0);
-    rv2 GlyphPos = rv2_(0, 0);
+    c8   Char;
+    u32  Index;
+    rv2  Offset;
+    rect GlyphRect;
 
     rect Caret = rect_(0, 0, 0, 0);
 
     for (u32 Cursor = 0; Cursor < BufferLen; Cursor++) {
-        u32 Index = 0;
-        c8  Char  = GetBufferChar(Buffer, Cursor);
-
-        Index = (Char - 32 > 0)? Char - 32 : ' ' - 32;
-
-        GlyphPos.x = Pos.x +  Advance.x + Font->GlyphOffsets[Index].x;
-        GlyphPos.y = Pos.y - (Advance.y + Font->GlyphOffsets[Index].y + Font->GlyphRects[Index].h);
-
-        if (MouseLeftButton)
-            if (IsInsideRect(MousePos, rect_(GlyphPos.x, Pos.y - Advance.y - Font->GlyphOffsets[Index].y, Font->GlyphRects[Index].w, Font->GlyphRects[Index].h)))
+        Char   = GetBufferChar(Buffer, Cursor);
+        Index  = (Char - 32 >= 0)? Char - 32 : '?' - 32;
+        Offset = Font->GlyphOffsets[Index];
+        GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
+        
+        if (Ctx->mLeftButtonIsDown)
+            if (IsInsideRect(Ctx->mPos, GlyphRect))
                 Buffer->Point = Cursor;
 
         if (Cursor == Buffer->Point && Buffer->IsCurrent)
-            Caret = rect_(Pos.x + Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+            Caret = rect_(Pos.x + Offset.x, Pos.y - Offset.y + Font->Descender, 2, Font->Ascender);
 
-        if (Char == '\n') {
-            if (Cursor == Buffer->Point && Buffer->IsCurrent)
-                Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
-            Advance.y += Font->LineGap + LineSpacing;
-            Advance.x  = 0;
-            continue;
-        }
-        else {
-            Advance.x += Font->GlyphAdvances[Index] + CharSpacing;
-        }
+        // if (Char == '\n') {
+        //     if (Cursor == Buffer->Point && Buffer->IsCurrent)
+        //         Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+        //     Advance.y += Font->LineGap + Style.LineSpacing;
+        //     Advance.x  = 0;
+        //     continue;
+        // }
+    
+        Pos.x += Font->GlyphAdvances[Index] + Style.CharSpacing;
 
-        DrawGlyph(Renderer, FontId, Index, GlyphPos, Color);
+        DrawGlyph(Renderer, Style.Font, Index, GlyphRect.Pos, Style.DefaultTextColor);
     }
 
-    DrawRect(Renderer, Caret, Color);
+    DrawRect(Renderer, Caret, Style.DefaultTextColor);
 }
+
+// internal void DrawBuffer(renderer *Renderer, buffer *Buffer, id FontId, rv2 Pos,
+//                          r32 Size, r32 LineSpacing, r32 CharSpacing, colorb Color,
+//                          rv2 MousePos, b32 MouseLeftButton)
+// {
+//     u32 BufferLen = GetBufferLen(Buffer);
+
+//     font *Font = &Renderer->Fonts[FontId];
+//     rv2 Advance  = rv2_(0, 0);
+//     rv2 GlyphPos = rv2_(0, 0);
+
+//     rect Caret = rect_(0, 0, 0, 0);
+
+//     for (u32 Cursor = 0; Cursor < BufferLen; Cursor++) {
+//         u32 Index = 0;
+//         c8  Char  = GetBufferChar(Buffer, Cursor);
+
+//         Index = (Char - 32 > 0)? Char - 32 : ' ' - 32;
+
+//         GlyphPos.x = Pos.x +  Advance.x + Font->GlyphOffsets[Index].x;
+//         GlyphPos.y = Pos.y - (Advance.y + Font->GlyphOffsets[Index].y + Font->GlyphRects[Index].h);
+
+//         if (MouseLeftButton)
+//             if (IsInsideRect(MousePos, rect_(GlyphPos.x, Pos.y - Advance.y - Font->GlyphOffsets[Index].y, Font->GlyphRects[Index].w, Font->GlyphRects[Index].h)))
+//                 Buffer->Point = Cursor;
+
+//         if (Cursor == Buffer->Point && Buffer->IsCurrent)
+//             Caret = rect_(Pos.x + Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+
+//         if (Char == '\n') {
+//             if (Cursor == Buffer->Point && Buffer->IsCurrent)
+//                 Caret = rect_(Pos.x +  Advance.x, Pos.y - Advance.y + Font->Descender, 2, Font->Ascender);
+//             Advance.y += Font->LineGap + LineSpacing;
+//             Advance.x  = 0;
+//             continue;
+//         }
+//         else {
+//             Advance.x += Font->GlyphAdvances[Index] + CharSpacing;
+//         }
+
+//         DrawGlyph(Renderer, FontId, Index, GlyphPos, Color);
+//     }
+
+//     DrawRect(Renderer, Caret, Color);
+// }
 
 void OutputDebugBuffer(buffer *Buffer) {
     char temp[1024];

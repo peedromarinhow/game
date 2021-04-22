@@ -422,14 +422,15 @@ typedef struct _ui_ctx {
     id Hot;
     id Clicked;
     id Last;
-
-    u16 NoIds;
+    id Current;
 
     r32 Point;
 } ui_ctx;
 
 typedef struct _ui_style {
-    id     Font;
+    id  Font;
+    r32 CharSpacing;
+    r32 LineSpacing;
 
     rv2 Padding;
 
@@ -444,6 +445,7 @@ typedef struct _ui_style {
 
 internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Pos, c8 *Str) {
     b32 WasClicked = 0;
+    id  Me = Ctx->Current;
 
     render_text Text = {
         .Text = Str,
@@ -461,10 +463,10 @@ internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Po
     MenuItemTextBounds.h += Style.Padding.y;
 
     if (IsInsideRect(Ctx->mPos, MenuItemTextBounds)) {
-        Ctx->Hot    = Ctx->NoIds;
+        Ctx->Hot    = Me;
         ButtonColor = Style.HotButtonColor;
         if (Ctx->mLeftButtonIsDown) {
-            Ctx->Clicked = Ctx->NoIds;
+            Ctx->Clicked = Me;
             WasClicked   = 1;
             ButtonColor  = Style.ClickedButtonColor;
         }
@@ -473,39 +475,42 @@ internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Po
     DrawRect(Renderer, MenuItemTextBounds, ButtonColor);
     DrawText(Renderer, &Text, Style.DefaultTextColor);
 
-    Ctx->Last = Ctx->NoIds;
-    Ctx->NoIds++; //todo: check for overflow.
+    Ctx->Last = Me;
+    Ctx->Current++; //todo: check for overflow.
 
     return WasClicked;
 }
 
-internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style Style, r32 LastValue, rv2 Pos, r32 Width) {
+internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style Style, r32 LastValue, rv2 Pos, r32 Width, r32 HandleWidth) {
     r32 Value = LastValue*Width;
+    id  Me    = Ctx->Current;
 
-    rect SliderGroove = rect_(Pos.x, Pos.y, Width, 10);
-    rect SliderHandle = rect_(Pos.x + Value, Pos.y - 10 + 5, 10, 20);
+    // r32 HandleWidth  = 10;
+    r32 HandleHeight = HandleWidth*2;
+
+    rect SliderGroove = rect_(Pos.x, Pos.y, Width + HandleWidth, HandleWidth);
+    rect SliderHandle = rect_(Pos.x + Value, Pos.y - HandleHeight/2 + HandleWidth/2, HandleWidth, HandleHeight);
 
     colorb HandleColor = Style.DefaultButtonColor;
 
-    if (IsInsideRect(Ctx->mPos, rect_(Pos.x, Pos.y - 10 + 5, Width, 20))) {
-        Ctx->Hot    = Ctx->NoIds;
+    if (IsInsideRect(Ctx->mPos, rect_Union(SliderGroove, SliderHandle))) {
+        Ctx->Hot    = Me;
         HandleColor = Style.HotButtonColor;
-    }
 
-    if (Ctx->mLeftButtonIsDown && Ctx->Hot == Ctx->NoIds) {
-        Ctx->Hot     = Ctx->NoIds;
-        Ctx->Clicked = Ctx->NoIds;
-        HandleColor  = Style.ClickedButtonColor;
-        Value = Min(Ctx->mPos.x - Pos.x, Width);
-        if (Value < 0)
-            Value = 0;
+        if (Ctx->mLeftButtonIsDown) {
+            Ctx->Clicked = Me;
+            HandleColor  = Style.ClickedButtonColor;
+            Value = Min(Ctx->mPos.x - Pos.x, Width);
+            if (Value < 0)
+                Value = 0;
+        }
     }
 
     DrawRect(Renderer, SliderGroove, (colorb){0x2A2A2AFF});
     DrawRect(Renderer, SliderHandle, HandleColor);
 
-    Ctx->Last = Ctx->NoIds;
-    Ctx->NoIds++; //todo: check for overflow.
+    Ctx->Last = Me;
+    Ctx->Current++; //todo: check for overflow.
 
     return Value/Width;
 }

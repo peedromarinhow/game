@@ -45,11 +45,11 @@ external APP_INIT(Init) {
 
     GlobalPlatformApi = PlatformApi;
 
-    // State->Keymap = CreateMyKeymap();
+    State->Keymap = CreateMyKeymap();
 
-    // State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
-    // State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
-    // State->CommandContext.GoalColumn = -1;
+    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
+    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
+    State->CommandContext.GoalColumn = -1;
 
     State->Renderer = PlatformApi.AllocateMemory(sizeof(renderer));
 
@@ -69,6 +69,10 @@ external APP_INIT(Init) {
     State->UiStyle.HotButtonColor     = (colorb){0x606060FF};
     State->UiStyle.ClickedButtonColor = (colorb){0x808080FF};
     State->UiStyle.DefaultButtonColor = (colorb){0x404040FF};
+    State->UiStyle.CharSpacing = 0;
+    State->UiStyle.LineSpacing = 0;
+
+    State->Slider1 = .5f;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -77,7 +81,6 @@ external APP_INIT(Init) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-#if 0
     key Key = KEY_NONE;
     
     if (p->kDelete)
@@ -110,32 +113,24 @@ external APP_UPDATE(Update) {
     State->CommandContext.NoBuffers = 2;
     State->CommandContext.LastChar = p->Char;
 
-    colorb c;
-
-    c.r = 225;
-    c.g = 225;
-    c.b = 225;
-    c.a = 255;
-
-    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[0], State->Roboto,
-                rv2_(16, p->WindowDim.y - 32), State->Renderer.Fonts[State->Roboto].Height, 0, 0, c,
-                p->mPos, p->mLeft);
-    DrawBuffer(&State->Renderer, State->CommandContext.Buffers[1], State->Roboto,
-                rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32), State->Renderer.Fonts[State->Roboto].Height, 0, 0, c,
-                p->mPos, p->mLeft);
+    DrawBuffer(State->Renderer, State->CommandContext.Buffers[0], &State->UiContext, State->UiStyle, rv2_(16, p->WindowDim.y - 32));
+    DrawBuffer(State->Renderer, State->CommandContext.Buffers[1], &State->UiContext, State->UiStyle, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32));
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);
-#endif
 
-    State->UiContext.mPos = p->mPos;
+
+    State->UiContext.mPos              = p->mPos;
     State->UiContext.mLeftButtonIsDown = p->mLeft;
-    State->UiContext.NoIds = -1;
+    State->UiContext.Current           = -1;
 
     if (UiAddButton(State->Renderer, &State->UiContext, State->UiStyle, rv2_(200, 600), "Click me!!"))
         DrawRect(State->Renderer, rect_(10, 10, 20, 20), (colorb){0xFFFFFFFF});
     
-    State->Slider1 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider1, rv2_(100, 100), 100);
-    State->Slider2 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider2, rv2_(100, 140), 500);
+    State->Slider1 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider1, rv2_(100, 100), 100, 10);
+    State->Slider2 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider2, rv2_(100, 140), 500, State->Slider1*40);
+
+    State->UiStyle.Padding.x = State->Slider2*100;
+    State->UiStyle.Padding.y = State->Slider2*100;
 
     DrawRect(State->Renderer, rect_(20, 10, State->Slider1*500, 20), (colorb){0xFFFFFFFF});
     DrawRect(State->Renderer, rect_(20, 20, State->Slider2*500, 20), (colorb){0xFFFFFFFF});
