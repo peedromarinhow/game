@@ -265,14 +265,22 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
                 break;
         }
 
-        if (Codepoint == ' ')
+        if (Codepoint == ' ') {
             Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-        if (Codepoint == '\t')
+            Font.GlyphRects[i].h = Font.Ascender;
+        }
+        if (Codepoint == '\t') {
             Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-        if (Codepoint == '\r')
+            Font.GlyphRects[i].h = Font.Ascender;
+        }
+        if (Codepoint == '\r') {
             Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-        if (Codepoint == '\n')
+            Font.GlyphRects[i].h = Font.Ascender;
+        }
+        if (Codepoint == '\n') {
             Font.GlyphRects[i].w = Font.GlyphAdvances[i];
+            Font.GlyphRects[i].h = Font.Ascender;
+        }
         
         p->FreeMemory(GlyphImages[i].Data);
     }
@@ -350,6 +358,10 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, render_text *Text, colorb
         Index  = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
         Offset = Font->GlyphOffsets[Index];
         GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
+        if (*Char == ' ') {
+            Pos.x += Font->GlyphAdvances[Index];// + Style->CharSpacing;
+            continue;
+        }
         if (Op == TEXT_OP_MEASURE) {
             Result = rect_Union(GlyphRect, Result);
         }
@@ -418,6 +430,7 @@ internal void DrawText(renderer *Renderer, render_text *Text, colorb Color) {
 typedef struct _ui_ctx {
     rv2 mPos;
     b32 mLeftButtonIsDown;
+    i16 dmWheel;
 
     id Hot;
     id Clicked;
@@ -441,39 +454,46 @@ typedef struct _ui_style {
     colorb HotButtonColor;
     colorb ClickedButtonColor;
     colorb DefaultButtonColor;
+
+    r32 SliderHandleWidth;
+    r32 SliderHandleHeight;
 } ui_style;
 
-internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Pos, c8 *Str) {
+internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 Pos, c8 *Str) {
     b32 WasClicked = 0;
     id  Me = Ctx->Current;
 
     render_text Text = {
         .Text = Str,
-        .Font = Style.Font,
+        .Font = Style->Font,
         .Pos  = Pos
     };
 
-    colorb ButtonColor = Style.DefaultButtonColor;
+    Pos.x += Style->Padding.x;
+    Pos.y += Style->Padding.y;
+
+    colorb ButtonColor = Style->DefaultButtonColor;
 
     rect MenuItemTextBounds = MeasureText(Renderer, &Text);
 
-    MenuItemTextBounds.x -= Style.Padding.x/2;
-    MenuItemTextBounds.y -= Style.Padding.y/2;
-    MenuItemTextBounds.w += Style.Padding.x;
-    MenuItemTextBounds.h += Style.Padding.y;
+    Text.Pos.x += Style->Padding.x/2;
+    Text.Pos.y += Style->Padding.y/2;
+
+    MenuItemTextBounds.w += Style->Padding.x;
+    MenuItemTextBounds.h += Style->Padding.y;
 
     if (IsInsideRect(Ctx->mPos, MenuItemTextBounds)) {
         Ctx->Hot    = Me;
-        ButtonColor = Style.HotButtonColor;
+        ButtonColor = Style->HotButtonColor;
         if (Ctx->mLeftButtonIsDown) {
             Ctx->Clicked = Me;
             WasClicked   = 1;
-            ButtonColor  = Style.ClickedButtonColor;
+            ButtonColor  = Style->ClickedButtonColor;
         }
     }
 
     DrawRect(Renderer, MenuItemTextBounds, ButtonColor);
-    DrawText(Renderer, &Text, Style.DefaultTextColor);
+    DrawText(Renderer, &Text, Style->DefaultTextColor);
 
     Ctx->Last = Me;
     Ctx->Current++; //todo: check for overflow.
@@ -481,30 +501,33 @@ internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style Style, rv2 Po
     return WasClicked;
 }
 
-internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style Style, r32 LastValue, rv2 Pos, r32 Width, r32 HandleWidth) {
-    r32 Value = LastValue*Width;
+internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, r32 LastValue, rv2 Pos, r32 Range) {
+    r32 Value = LastValue*Range;
     id  Me    = Ctx->Current;
 
-    // r32 HandleWidth  = 10;
-    r32 HandleHeight = HandleWidth*2;
+    rect SliderGroove = rect_(Pos.x, Pos.y, Range + Style->SliderHandleWidth, Style->SliderHandleWidth);
+    rect SliderHandle = rect_(Pos.x + Value, Pos.y - Style->SliderHandleHeight/2 + Style->SliderHandleWidth/2,
+                              Style->SliderHandleWidth, Style->SliderHandleHeight);
 
-    rect SliderGroove = rect_(Pos.x, Pos.y, Width + HandleWidth, HandleWidth);
-    rect SliderHandle = rect_(Pos.x + Value, Pos.y - HandleHeight/2 + HandleWidth/2, HandleWidth, HandleHeight);
-
-    colorb HandleColor = Style.DefaultButtonColor;
+    colorb HandleColor = Style->DefaultButtonColor;
 
     if (IsInsideRect(Ctx->mPos, rect_Union(SliderGroove, SliderHandle))) {
         Ctx->Hot    = Me;
-        HandleColor = Style.HotButtonColor;
+        HandleColor = Style->HotButtonColor;
+
+        if (Ctx->dmWheel) {
+            Value = Min(Value + ((f32)Ctx->dmWheel/Range), Range);
+        }
 
         if (Ctx->mLeftButtonIsDown) {
             Ctx->Clicked = Me;
-            HandleColor  = Style.ClickedButtonColor;
-            Value = Min(Ctx->mPos.x - Pos.x, Width);
-            if (Value < 0)
-                Value = 0;
+            HandleColor  = Style->ClickedButtonColor;
+            Value = Min(Ctx->mPos.x - Pos.x, Range);
         }
     }
+
+    if (Value < 0)
+        Value = 0;
 
     DrawRect(Renderer, SliderGroove, (colorb){0x2A2A2AFF});
     DrawRect(Renderer, SliderHandle, HandleColor);
@@ -512,7 +535,7 @@ internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style Style, r32 La
     Ctx->Last = Me;
     Ctx->Current++; //todo: check for overflow.
 
-    return Value/Width;
+    return Value/Range;
 }
 
 // internal void DrawMenu(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 Pos) {

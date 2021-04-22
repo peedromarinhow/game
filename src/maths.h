@@ -65,7 +65,8 @@ finginline color HexToColor(u32 Hex) {
 typedef union _colorb {
     u32 rgba;
     struct {
-        u8 r, g, b, a;
+        u8 a, b, g, r;
+        //note: the order matters!!
     };
 } colorb;
 

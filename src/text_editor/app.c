@@ -25,6 +25,7 @@ typedef struct _app_state {
 
     r32 Slider1;
     r32 Slider2;
+    r32 Slider3;
 } app_state;
 
 external APP_INIT(Init) {
@@ -71,6 +72,8 @@ external APP_INIT(Init) {
     State->UiStyle.DefaultButtonColor = (colorb){0x404040FF};
     State->UiStyle.CharSpacing = 0;
     State->UiStyle.LineSpacing = 0;
+    State->UiStyle.SliderHandleHeight = 20;
+    State->UiStyle.SliderHandleWidth  = 10;
 
     State->Slider1 = .5f;
 
@@ -110,30 +113,29 @@ external APP_UPDATE(Update) {
     if (p->kChar)
         Key = GetKeyComb(p->kCtrl, p->kAlt, p->kShift, p->Char);
 
+    State->UiContext.mPos              = p->mPos;
+    State->UiContext.mLeftButtonIsDown = p->mLeft;
+    State->UiContext.dmWheel           = p->dmWheel;
+    State->UiContext.Current           = -1;
+
+    if (UiAddButton(State->Renderer, &State->UiContext, &State->UiStyle, rv2_(0, 0), "Click me!!"))
+        LoadBuffer(State->CommandContext.Buffers[State->CommandContext.CurrentBuffer]);
+
     State->CommandContext.NoBuffers = 2;
     State->CommandContext.LastChar = p->Char;
 
-    DrawBuffer(State->Renderer, State->CommandContext.Buffers[0], &State->UiContext, State->UiStyle, rv2_(16, p->WindowDim.y - 32));
-    DrawBuffer(State->Renderer, State->CommandContext.Buffers[1], &State->UiContext, State->UiStyle, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32));
+    DrawBuffer(State->Renderer, State->CommandContext.Buffers[0], &State->UiContext, &State->UiStyle, rv2_(16, p->WindowDim.y - 32));
+    DrawBuffer(State->Renderer, State->CommandContext.Buffers[1], &State->UiContext, &State->UiStyle, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32));
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);
-
-
-    State->UiContext.mPos              = p->mPos;
-    State->UiContext.mLeftButtonIsDown = p->mLeft;
-    State->UiContext.Current           = -1;
-
-    if (UiAddButton(State->Renderer, &State->UiContext, State->UiStyle, rv2_(200, 600), "Click me!!"))
-        DrawRect(State->Renderer, rect_(10, 10, 20, 20), (colorb){0xFFFFFFFF});
     
-    State->Slider1 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider1, rv2_(100, 100), 100, 10);
-    State->Slider2 = UiAddSlider(State->Renderer, &State->UiContext, State->UiStyle, State->Slider2, rv2_(100, 140), 500, State->Slider1*40);
+    State->Slider1 = UiAddSlider(State->Renderer, &State->UiContext, &State->UiStyle, State->Slider1, rv2_(100, 100), 100);
+    State->Slider2 = UiAddSlider(State->Renderer, &State->UiContext, &State->UiStyle, State->Slider2, rv2_(100, 140), 100);
+    State->Slider3 = UiAddSlider(State->Renderer, &State->UiContext, &State->UiStyle, State->Slider3, rv2_(100, 180), 100);
 
-    State->UiStyle.Padding.x = State->Slider2*100;
-    State->UiStyle.Padding.y = State->Slider2*100;
-
-    DrawRect(State->Renderer, rect_(20, 10, State->Slider1*500, 20), (colorb){0xFFFFFFFF});
-    DrawRect(State->Renderer, rect_(20, 20, State->Slider2*500, 20), (colorb){0xFFFFFFFF});
+    State->UiStyle.DefaultTextColor.r = State->Slider1*255;
+    State->UiStyle.DefaultTextColor.g = State->Slider2*255;
+    State->UiStyle.DefaultTextColor.b = State->Slider3*255;
 
     Render(State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }
