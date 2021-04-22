@@ -135,6 +135,16 @@ PLATFORM_WRITE_FILE(Win32WriteFile) {
     }
 }
 
+PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Win32GetAllFilenamesFromDir) {
+    c8 **Result = NULL;
+    Result = Win32AllocateMemory(NoFilenames);
+    for (u32 FilenameIndex = 0; FilenameIndex < NoFilenames; FilenameIndex++) {
+        Result[FilenameIndex] = CurrentFilaneme;
+    }
+
+    return Result;
+}
+
 internal void Win32ToggleFullScreen(HWND Window) {
     persist WINDOWPLACEMENT WindowPosition = {sizeof(WindowPosition)};
     //note:
@@ -221,7 +231,7 @@ inline u64 Win32GetCounterFrequency() {
     return Result.QuadPart;
 }
 
-inline r32 Win32GetFrameTime(win32_timer *t, f32 TargetSecondsPerFrame) {
+finginline r32 Win32GetFrameTime(win32_timer *t, f32 TargetSecondsPerFrame) {
     t->FrameEnd      = Win32GetTime();
     t->FrameDuration = (t->FrameEnd - t->FrameBegin);
     t->FrameBegin    = Win32GetTime();

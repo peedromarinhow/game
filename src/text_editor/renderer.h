@@ -480,7 +480,9 @@ internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 P
     Text.Pos.y += Style->Padding.y/2;
 
     MenuItemTextBounds.w += Style->Padding.x;
-    MenuItemTextBounds.h += Style->Padding.y;
+    MenuItemTextBounds.h  = Style->Padding.y                      +
+                            Renderer->Fonts[Style->Font].Ascender +
+                            Renderer->Fonts[Style->Font].Descender;
 
     if (IsInsideRect(Ctx->mPos, MenuItemTextBounds)) {
         Ctx->Hot    = Me;
@@ -516,7 +518,7 @@ internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, r32 L
         HandleColor = Style->HotButtonColor;
 
         if (Ctx->dmWheel) {
-            Value = Min(Value + ((f32)Ctx->dmWheel/Range), Range);
+            Value = Min(Value + Ctx->dmWheel/10, Range);
         }
 
         if (Ctx->mLeftButtonIsDown) {

@@ -17,6 +17,7 @@ typedef struct _buffer {
     c8 *Filename;
     u32 Point;
     b32 IsCurrent;
+    b32 Loaded;
 } buffer;
 
 internal finginline u32 GetBufferGapSize(buffer *Buffer) {
@@ -332,7 +333,7 @@ internal void LoadBuffer(buffer *Buffer) {
 
 typedef struct _command_context {
     /* DO NOT REMOVE */
-        buffer *Buffers[2];
+        buffer *Buffers[8];
         c8      LastChar;
         id      CurrentBuffer;
         u16     NoBuffers;

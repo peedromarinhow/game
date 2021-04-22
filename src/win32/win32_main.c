@@ -102,6 +102,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.LoadFileToArenaCallback   = Win32LoadFileToArena;
         Platform.FreeFileFromArenaCallback = Win32FreeFileFromArena;
         Platform.WriteFileCallback         = Win32WriteFile;
+        Platform.FileExists                = WIn32FileExists;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
 

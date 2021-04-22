@@ -12,6 +12,7 @@ typedef struct _platform_api {
     platform_load_file_to_arena_callback   *LoadFileToArena;
     platform_free_file_from_arena_callback *FreeFileFromArena;
     platform_write_file_callback           *WriteFile;
+    platform_file_exists_callback          *FileExists;
     platform_report_error_callback         *ReportError;
     platform_report_error_and_die_callback *ReportErrorAndDie;
 } platform_api;

@@ -3,14 +3,23 @@
 
 #include "lingo.h"
 #include "maths.h"
-#include "memory.h"
 
 //note: these functions are to be implemented in each platform and passed by the app via "platform"
+
+typedef struct _app_memory {
+    void *Contents;
+    u32   Size;
+} app_memory;
 
 typedef struct _file {
     void *Data;
     u64   Size;
 } file;
+
+typedef struct _file_group {
+    u32  NoFiles;
+    c8 **Filenames;
+} file_group;
 
 #define PLATFORM_ALLOCATE_MEMORY(Name) void *Name(u32 Size)
 typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory_callback);
@@ -33,6 +42,9 @@ typedef PLATFORM_FREE_FILE_FROM_ARENA(platform_free_file_from_arena_callback);
 #define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u32 Size, c8 *Filename, b32 Append)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
+#define PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Name) c8 **Name(c8 *Path)
+typedef PLATFORM_GET_ALL_FILENAMES_FROM_DIR(platform_get_all_filenames_from_dir_callback);
+
 #define PLATFORM_REPORT_ERROR(Name) void Name(c8 *Title, c8 *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
 
@@ -50,7 +62,7 @@ typedef struct _event_state {
 } event_state;
 
 //note: this is how the platform and the app communicate with each other.
-#define KEYBOARD_MAX_KEYS 14
+#define KEYBOARD_MAX_KEYS 17
 #define MOUSE_MAX_BUTTONS  3
 typedef struct _platform {
     /* metadata */
@@ -96,15 +108,16 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
-    platform_allocate_memory_callback      *AllocateMemoryCallback;
-    platform_free_memory_callback          *FreeMemoryCallback;
-    platform_load_file_callback            *LoadFileCallback;
-    platform_free_file_callback            *FreeFileCallback;
-    platform_load_file_to_arena_callback   *LoadFileToArenaCallback;
-    platform_free_file_from_arena_callback *FreeFileFromArenaCallback;
-    platform_write_file_callback           *WriteFileCallback;
-    platform_report_error_callback         *ReportErrorCallback;
-    platform_report_error_and_die_callback *ReportErrorAndDieCallback;
+    platform_allocate_memory_callback            *AllocateMemoryCallback;
+    platform_free_memory_callback                *FreeMemoryCallback;
+    platform_load_file_callback                  *LoadFileCallback;
+    platform_free_file_callback                  *FreeFileCallback;
+    platform_load_file_to_arena_callback         *LoadFileToArenaCallback;
+    platform_free_file_from_arena_callback       *FreeFileFromArenaCallback;
+    platform_write_file_callback                 *WriteFileCallback;
+    platform_get_all_filenames_from_dir_callback *GetAllFilenamesFromDir;
+    platform_report_error_callback               *ReportErrorCallback;
+    platform_report_error_and_die_callback       *ReportErrorAndDieCallback;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *p)

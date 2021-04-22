@@ -2,12 +2,7 @@
 #define MEMORY_H
 
 #include "lingo.h"
-#include "platform.h"
-
-typedef struct _app_memory {
-    void *Contents;
-    u32   Size;
-} app_memory;
+// #include "platform.h"
 
 typedef struct _memory_arena {
     u64 MaxSize;

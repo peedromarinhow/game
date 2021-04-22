@@ -26,6 +26,8 @@ typedef struct _app_state {
     r32 Slider1;
     r32 Slider2;
     r32 Slider3;
+
+    i16 dLastMouseWheel;
 } app_state;
 
 external APP_INIT(Init) {
@@ -34,22 +36,20 @@ external APP_INIT(Init) {
 
     platform_api PlatformApi;
 
-    PlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
-    PlatformApi.FreeMemory        = p->FreeMemoryCallback;
-    PlatformApi.LoadFile          = p->LoadFileCallback;
-    PlatformApi.FreeFile          = p->FreeFileCallback;
-    PlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
-    PlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
-    PlatformApi.WriteFile         = p->WriteFileCallback;
-    PlatformApi.ReportError       = p->ReportErrorCallback;
-    PlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    PlatformApi.AllocateMemory         = p->AllocateMemoryCallback;
+    PlatformApi.FreeMemory             = p->FreeMemoryCallback;
+    PlatformApi.LoadFile               = p->LoadFileCallback;
+    PlatformApi.FreeFile               = p->FreeFileCallback;
+    PlatformApi.LoadFileToArena        = p->LoadFileToArenaCallback;
+    PlatformApi.FreeFileFromArena      = p->FreeFileFromArenaCallback;
+    PlatformApi.WriteFile              = p->WriteFileCallback;
+    PlatformApi.GetAllFilenamesFromDir = p->GetAllFilenamesFromDir;
+    PlatformApi.ReportError            = p->ReportErrorCallback;
+    PlatformApi.ReportErrorAndDie      = p->ReportErrorAndDieCallback;
 
     GlobalPlatformApi = PlatformApi;
 
     State->Keymap = CreateMyKeymap();
-
-    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
-    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
     State->CommandContext.GoalColumn = -1;
 
     State->Renderer = PlatformApi.AllocateMemory(sizeof(renderer));
@@ -75,7 +75,22 @@ external APP_INIT(Init) {
     State->UiStyle.SliderHandleHeight = 20;
     State->UiStyle.SliderHandleWidth  = 10;
 
-    State->Slider1 = .5f;
+    State->Slider1 = 1.f;
+    State->Slider2 = 1.f;
+    State->Slider3 = 1.f;
+
+    file_group FileGroup;
+    FileGroup.Filenames = GlobalPlatformApi.GetAllFileNamesFromDir("./data");
+    FileGroup.NoFiles   = ArrayCount(FileGroup.Filenames);
+    r32 x = 0;
+    for (u32 FileIndex = 0; FileIndex < FileGroup.NoFiles; FileIndex++) {
+        if (UiAddButton(State->Renderer, &State->UiContext, &State->UiStyle, rv2_(x, 0), FileGroup.Filenames[FileIndex])) {
+            State->CommandContext.CurrentBuffer = FileIndex;
+            State->CommandContext.Buffers[State->CommandContext.CurrentBuffer]=
+                CreateBuffer(8, FileGroup.Filenames[FileIndex]));
+        }
+        x += 150;
+    }
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -83,6 +98,9 @@ external APP_INIT(Init) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
+
+    i16 dMouseWheel = (State->dLastMouseWheel != p->dmWheel)? p->dmWheel : 0;
+    State->dLastMouseWheel = p->dmWheel;
 
     key Key = KEY_NONE;
     
@@ -115,17 +133,25 @@ external APP_UPDATE(Update) {
 
     State->UiContext.mPos              = p->mPos;
     State->UiContext.mLeftButtonIsDown = p->mLeft;
-    State->UiContext.dmWheel           = p->dmWheel;
+    State->UiContext.dmWheel           = dMouseWheel;
     State->UiContext.Current           = -1;
 
-    if (UiAddButton(State->Renderer, &State->UiContext, &State->UiStyle, rv2_(0, 0), "Click me!!"))
-        LoadBuffer(State->CommandContext.Buffers[State->CommandContext.CurrentBuffer]);
+    if (UiAddButton(State->Renderer, &State->UiContext, &State->UiStyle, rv2_(0, 0), "buffer 1")) {
+        LoadBuffer(State->CommandContext.Buffers[0]);
+        State->CommandContext.CurrentBuffer = 0;
+    }
 
-    State->CommandContext.NoBuffers = 2;
-    State->CommandContext.LastChar = p->Char;
+    if (UiAddButton(State->Renderer, &State->UiContext, &State->UiStyle, rv2_(300, 0), "buffer 2")) {
+        LoadBuffer(State->CommandContext.Buffers[1]);
+        State->CommandContext.CurrentBuffer = 1;
+    }
 
-    DrawBuffer(State->Renderer, State->CommandContext.Buffers[0], &State->UiContext, &State->UiStyle, rv2_(16, p->WindowDim.y - 32));
-    DrawBuffer(State->Renderer, State->CommandContext.Buffers[1], &State->UiContext, &State->UiStyle, rv2_(p->WindowDim.x/2 + 16, p->WindowDim.y - 32));
+    DrawBuffer(State->Renderer,
+               State->CommandContext.Buffers[State->CommandContext.CurrentBuffer],
+              &State->UiContext,
+              &State->UiStyle,
+              rv2_(State->UiStyle.Padding.x,
+                   p->WindowDim.y - State->UiStyle.Padding.y - State->Renderer->Fonts[State->UiStyle.Font].Ascender));
     
     State->Keymap->Commands[Key].Func(&State->CommandContext);
     
@@ -152,6 +178,9 @@ external APP_RELOAD(Reload) {
     GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
     GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
     GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    State->CommandContext.Buffers[0] = CreateBuffer(8, "a.c");
+    State->CommandContext.Buffers[1] = CreateBuffer(8, "b.c");
 
     State->Keymap = CreateMyKeymap();
 }
