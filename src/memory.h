@@ -4,11 +4,11 @@
 #include "lingo.h"
 // #include "platform.h"
 
-typedef struct _memory_arena {
-    u64 MaxSize;
-    u8 *Base;
-    u64 Used;
-} memory_arena;
+// typedef struct _memory_arena {
+//     u64 MaxSize;
+//     u8 *Base;
+//     u64 Used;
+// } memory_arena;
 
 internal memory_arena InitializeArena(u64 MaxSize, void *Base) {
     memory_arena Arena = {

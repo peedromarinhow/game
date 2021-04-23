@@ -16,10 +16,11 @@ typedef struct _file {
     u64   Size;
 } file;
 
-typedef struct _file_group {
-    u32  NoFiles;
-    c8 **Filenames;
-} file_group;
+typedef struct _memory_arena {
+    u64 MaxSize;
+    u8 *Base;
+    u64 Used;
+} memory_arena;
 
 #define PLATFORM_ALLOCATE_MEMORY(Name) void *Name(u32 Size)
 typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory_callback);
@@ -42,7 +43,7 @@ typedef PLATFORM_FREE_FILE_FROM_ARENA(platform_free_file_from_arena_callback);
 #define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u32 Size, c8 *Filename, b32 Append)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
-#define PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Name) c8 **Name(c8 *Path)
+#define PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Name) c8 **Name(c8 *DirPath)
 typedef PLATFORM_GET_ALL_FILENAMES_FROM_DIR(platform_get_all_filenames_from_dir_callback);
 
 #define PLATFORM_REPORT_ERROR(Name) void Name(c8 *Title, c8 *ErrorMessage)
@@ -115,7 +116,7 @@ typedef struct _platform {
     platform_load_file_to_arena_callback         *LoadFileToArenaCallback;
     platform_free_file_from_arena_callback       *FreeFileFromArenaCallback;
     platform_write_file_callback                 *WriteFileCallback;
-    platform_get_all_filenames_from_dir_callback *GetAllFilenamesFromDir;
+    // platform_get_all_filenames_from_dir_callback *GetAllFilenamesFromDir;
     platform_report_error_callback               *ReportErrorCallback;
     platform_report_error_and_die_callback       *ReportErrorAndDieCallback;
 } platform;
