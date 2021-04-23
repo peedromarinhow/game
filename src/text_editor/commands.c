@@ -1,3 +1,4 @@
+#if 0
 #ifndef COMMAND_H
 #define COMMAND_H
 
@@ -221,3 +222,4 @@ internal keymap *CreateMyKeymap() {
 }
 
 #endif//COMMAND_H
+#endif

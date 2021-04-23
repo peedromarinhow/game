@@ -89,7 +89,7 @@ internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, r32 L
         HandleColor = Style->HotButtonColor;
 
         if (Ctx->dmWheel) {
-            Value = Min(Value + Ctx->dmWheel/10, Range);
+            Value = Min(Value + (Ctx->dmWheel/120) * 10, Range);
         }
 
         if (Ctx->mLeftButtonIsDown) {

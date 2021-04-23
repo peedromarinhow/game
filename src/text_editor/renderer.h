@@ -13,7 +13,8 @@
 
 #include <windows.h>
 #include <gl/gl.h>
-#undef    DrawText //damn you, windows.h
+#undef DrawText //damn you, windows.h
+#undef OpenFile
 
 #include "lingo.h"
 #include "maths.h"
