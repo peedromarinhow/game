@@ -13,14 +13,19 @@ platform_api GlobalPlatformApi;
 typedef struct _editor_context {
     renderer *Renderer;
     rv2 mPos;
+    c8  LastChar;
     //todo: add buffer stuff, etc
 } editor_context;
 
 #define CMD_PROC(Name) void cmd_proc_##Name(editor_context *c)
 typedef CMD_PROC(callback);
 
-CMD_PROC(InsertChar) {
+CMD_PROC(DoNothing) {
 
+}
+
+CMD_PROC(InsertChar) {
+    DrawRect(c->Renderer, rect_(10, 20, 10, 10), (colorb){0xFFFFFFFF});
 }
 
 CMD_PROC(DeleteCharFoward) {
@@ -68,7 +73,7 @@ CMD_PROC(SaveFile) {
 }
 
 CMD_PROC(OpenFile) {
-
+    DrawRect(c->Renderer, rect_(10, 10, 10, 10), (colorb){0xFFFFFFFF});
 }
 
 typedef struct _command {
@@ -78,7 +83,8 @@ typedef struct _command {
 #define command_(Proc, Desc) (command){(Proc), (Desc)}
 
 typedef enum _key {
-    KEY_NONE = 0,
+    KEY_NONE = 0, //note:
+    KEY_CHAR = 1, //note:
     KEY_DEL,
     KEY_BACK,
     KEY_TAB,
@@ -91,24 +97,47 @@ typedef enum _key {
     KEY_HOME,
     KEY_END,
     KEY_RETURN,
-    KEY_CHAR,
 } key;
 
-internal finginline u16 GetKeyComb(/*note: how should i do this?*/) {
-    // return (u16)Key | ((u16)Ctrl << 8) | ((u16)Alt << 9) | ((u16)Shift << 10);
+
+#define KeyComb(BaseKey, Ctrl, Alt, Shift) (u16)(BaseKey) | ((u16)(Ctrl) << 8) | ((u16)(Alt)  << 9) | ((u16)(Shift) << 10)
+#define Ctrl(Key)  KeyComb(Key, 1, 0, 0)
+#define Alt(Key)   KeyComb(Key, 0, 1, 0)
+#define Shift(Key) KeyComb(Key, 0, 0, 1)
+
+internal u16 GetPlatformKeyboardKeyComb(platform *p, editor_context *c) {
+    u16 Key = KEY_NONE;
+    if (p->kDelete)
+        Key = KeyComb(KEY_DEL, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kBack)
+        Key = KeyComb(KEY_BACK, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kTab)
+        Key = KeyComb(KEY_TAB, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kLeft)
+        Key = KeyComb(KEY_LEFT, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kRight)
+        Key = KeyComb(KEY_RIGHT, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kUp)
+        Key = KeyComb(KEY_UP, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kDown)
+        Key = KeyComb(KEY_DOWN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kHome)
+        Key = KeyComb(KEY_HOME, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kPgUp)
+        Key = KeyComb(KEY_PG_UP, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kPgDown)
+        Key = KeyComb(KEY_PG_DOWN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kEnd)
+        Key = KeyComb(KEY_END, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kReturn)
+        Key = KeyComb(KEY_RETURN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kChar) 
+        Key = KEY_CHAR;
+    c->LastChar = p->Char;
+    return Key;
 }
 
-internal finginline u16 Ctrl(u8 Key) {
-    // return GetKeyComb(1, 0, 0, Key);
-}
-
-internal finginline u16 Alt(u8 Key) {
-    // return GetKeyComb(0, 1, 0, Key);
-}
-
-internal finginline u16 Sh1ft(u8 Key) {
-    // return GetKeyComb(0, 0, 1, Key);
-}
+global command Keymap[1024];
 
 ///////////////////////////////////////////////////////////
 
@@ -121,6 +150,8 @@ typedef struct _app_state {
 
     ui_style UiStyle;
     ui_ctx   UiContext;
+
+    command *Keymap;
 
     i16 dLastMouseWheel;
 } app_state;
@@ -161,21 +192,20 @@ external APP_INIT(Init) {
     State->UiStyle.SliderHandleHeight = 20;
     State->UiStyle.SliderHandleWidth  = 10;
 
-    // command Keymap[] = {
-    //     [KEY_CHAR] = command_(cmd_proc_InsertChar,         "description"),
-    //     [KEY_DEL]  = command_(cmd_proc_DeleteCharFoward,   "description"),
-    //     [KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "description"),
-    //     [KEY_TAB]  = command_(cmd_proc_Indent,             "description"),
-    //     [KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft,        "description"),
-    //     [KEY_RIGHT] = command_(cmd_proc_MoveCarretRight,       "description"),
-    //     [KEY_UP]    = command_(cmd_proc_MoreCarretUp,          "description"),
-    //     [KEY_DOWN]  = command_(cmd_proc_MoveCarretDown,        "description"),
-    //     [KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "description"),
-    //     [KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd,   "description"),
-    //     [KEY_RETURN] = command_(cmd_proc_InsertNewLine, "description"),
-    //     // [Ctrl('S')] = command_(cmd_proc_SaveFile, "description"),
-    //     // [Ctrl('O')] = command_(cmd_proc_OpenFile, "description")
-    // };
+    Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
+    Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
+    Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
+    Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
+    Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
+    Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
+    Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
+    Keymap[KEY_UP]    = command_(cmd_proc_MoreCarretUp, "MoreCarretUp");
+    Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
+    Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
+    Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
+    Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
+    // Keymap[Ctrl('S')] = command_(cmd_proc_SaveFile, "SaveFile");
+    // Keymap[Ctrl('O')] = command_(cmd_proc_OpenFile, "OpenFile");    
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -195,8 +225,8 @@ external APP_UPDATE(Update) {
     Context.Renderer = State->Renderer;
     Context.mPos     = p->mPos;
 
-    // Keymap[GetKeyComb(/*i don't know what i am doing*/)]->
-    //     Command(&Context);
+    if (Keymap[GetPlatformKeyboardKeyComb(p, &Context)].Proc)
+        Keymap[GetPlatformKeyboardKeyComb(p, &Context)].Proc(&Context);
 
     DrawUi(&Context);
     //architecture:
