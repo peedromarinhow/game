@@ -10,156 +10,6 @@ platform_api GlobalPlatformApi;
 
 // #include "text_buffer.h"
 
-typedef struct _editor_context {
-    rv2 mPos;
-    r32 dtFrame;
-    u16 LastKeyComb;
-    c8  LastChar;
-
-    ui_style *uiStyle;
-    ui_ctx   *uiCtx;
-
-    buffer *Buffer;
-    u32 nCurrentBufferLine;
-    u32 nCurrentBufferColumn;
-    //todo: add buffer stuff, etc
-} editor_context;
-
-#define CMD_PROC(Name) void cmd_proc_##Name(editor_context *c)
-typedef CMD_PROC(callback);
-
-CMD_PROC(DoNothing) {
-
-}
-
-CMD_PROC(InsertChar) {
-
-}
-
-CMD_PROC(DeleteCharFoward) {
-
-}
-
-CMD_PROC(DeleteCharBackward) {
-
-}
-
-CMD_PROC(Indent) {
-
-}
-
-CMD_PROC(MoveCarretLeft) {
-
-}
-
-CMD_PROC(MoveCarretRight) {
-
-}
-
-CMD_PROC(MoreCarretUp) {
-
-}
-
-CMD_PROC(MoveCarretDown) {
-
-}
-
-CMD_PROC(MoveCarretToLineStart) {
-
-}
-
-CMD_PROC(MoveCarretToLineEnd) {
-
-}
-
-CMD_PROC(InsertNewLine) {
-
-}
-
-CMD_PROC(SaveFile) {
-
-}
-
-CMD_PROC(OpenFile) {
-
-}
-
-typedef struct _command {
-    cmd_proc_callback *Proc;
-    c8                *Desc;
-} command;
-#define command_(Proc, Desc) (command){(Proc), (Desc)}
-
-typedef enum _key {
-    KEY_NONE = 0, //note:
-    KEY_CHAR = 1, //note:
-    KEY_DEL,
-    KEY_BACK,
-    KEY_TAB,
-    KEY_LEFT,
-    KEY_RIGHT,
-    KEY_UP,
-    KEY_DOWN,
-    KEY_PG_UP,
-    KEY_PG_DOWN,
-    KEY_HOME,
-    KEY_END,
-    KEY_RETURN,
-    KEY_CTRL  = 1 << 8,
-    KEY_ALT   = 1 << 9,
-    KEY_SHIFT = 1 << 10
-} key;
-
-#define KeyComb(BaseKey, Ctrl, Alt, Shift) (u16)(BaseKey) | ((u16)(Ctrl) << 8) | ((u16)(Alt)  << 9) | ((u16)(Shift) << 10)
-#define Ctrl(Key)  KeyComb(Key, 1, 0, 0)
-#define Alt(Key)   KeyComb(Key, 0, 1, 0)
-#define Shift(Key) KeyComb(Key, 0, 0, 1)
-
-internal void UpdateEditorContextInput(editor_context *c, platform *p) {
-    c->uiCtx->mPos              = p->mPos;
-    c->uiCtx->mLeftButtonIsDown = p->mLeft;
-    c->mPos    = p->mPos;
-    c->dtFrame = p->dtForFrame;
-    
-    u16 Key = KEY_NONE;
-    if (p->kDelete)
-        Key = KeyComb(KEY_DEL, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kBack)
-        Key = KeyComb(KEY_BACK, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kTab)
-        Key = KeyComb(KEY_TAB, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kLeft)
-        Key = KeyComb(KEY_LEFT, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kRight)
-        Key = KeyComb(KEY_RIGHT, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kUp)
-        Key = KeyComb(KEY_UP, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kDown)
-        Key = KeyComb(KEY_DOWN, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kHome)
-        Key = KeyComb(KEY_HOME, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kPgUp)
-        Key = KeyComb(KEY_PG_UP, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kPgDown)
-        Key = KeyComb(KEY_PG_DOWN, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kEnd)
-        Key = KeyComb(KEY_END, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kReturn)
-        Key = KeyComb(KEY_RETURN, p->kCtrl, p->kAlt, p->kShift);
-    if (p->kChar) {
-        if (!p->kCtrl)
-            Key = KEY_CHAR;
-        else
-            Key = KeyComb(p->Char, p->kCtrl, p->kAlt, p->kShift);
-    }
-    c->LastChar    = p->Char;
-    c->LastKeyComb = Key;
-}
-
-global command Keymap[1024];
-
-///////////////////////////////////////////////////////////
-
 typedef u32 cursor;
 
 typedef struct _buffer {
@@ -387,8 +237,9 @@ internal u32 GetBufferColumn(buffer *Buffer, u32 CurrentCursor) {
     return CurrentCursor - GetBeginningOfLineCursor(Buffer, CurrentCursor);
 }
 
-internal void DrawBuffer(renderer *Renderer, buffer *Buffer,
-                         ui_ctx *Ctx, ui_style *Style,rv2 Pos) {
+internal void DrawBuffer(buffer *Buffer, ui_ctx *Ctx, ui_style *Style) {
+    renderer *Renderer = Ctx->Renderer;
+    rv2 Pos = rv2_(Style->Padding.x, Renderer->TargetClipRect.y - 100);
     u32 BufferLen = GetBufferLen(Buffer);
     font *Font = &Renderer->Fonts[Style->Font];
 
@@ -461,8 +312,198 @@ internal void LoadBuffer(buffer *Buffer, c8 *Filename) {
 
 ///////////////////////////////////////////////////////////
 
+typedef struct _editor_context {
+    rv2 mPos;
+    r32 dtFrame;
+    u16 LastKeyComb;
+    c8  LastChar;
+
+    ui_style *uiStyle;
+    ui_ctx   *uiCtx;
+
+    buffer **Buffers;
+    id       CurrentBuffer;
+    u32 nCurrentBufferLine;
+    u32 nCurrentBufferColumn;
+    //todo: add buffer stuff, etc
+} editor_context;
+
+#define CMD_PROC(Name) void cmd_proc_##Name(editor_context *c)
+typedef CMD_PROC(callback);
+
+CMD_PROC(DoNothing) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    //note: does nothing for now, consider error message.
+}
+
+CMD_PROC(InsertChar) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    InsertChar(Buffer, Buffer->Point,
+               c->LastChar);
+}
+
+CMD_PROC(DeleteCharFoward) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    DeleteFowardChar(Buffer, Buffer->Point);
+}
+
+CMD_PROC(DeleteCharBackward) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    DeleteBackwardChar(Buffer, Buffer->Point);
+}
+
+CMD_PROC(Indent) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    InsertChar(Buffer, Buffer->Point, '\t');
+}
+
+CMD_PROC(MoveCarretLeft) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetPrevCharCursor(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretRight) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetNextCharCursor(Buffer, Buffer->Point);
+}
+
+global u32 GoalColumn = -1;
+
+CMD_PROC(MoveCarretUp) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    if (GoalColumn == -1)
+        GoalColumn = GetBufferColumn(Buffer, Buffer->Point);
+    u32 BeginningOfPrevLine = GetBeginningOfPrevLineCursor(Buffer, Buffer->Point);
+    u32 PrevLineLen         = GetLineLen(Buffer, BeginningOfPrevLine);
+    Buffer->Point = BeginningOfPrevLine + Min(PrevLineLen, GoalColumn);
+}
+
+CMD_PROC(MoveCarretDown) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    if (GoalColumn == -1)
+        GoalColumn = GetBufferColumn(Buffer, Buffer->Point);
+    u32 BeginningOfNextLine = GetBeginningOfNextLineCursor(Buffer, Buffer->Point);
+    u32 NextLineLen         = GetLineLen(Buffer, BeginningOfNextLine);
+    Buffer->Point = Min(BeginningOfNextLine + Min(NextLineLen, GoalColumn), GetBufferLen(Buffer) - 1);
+}
+
+CMD_PROC(MoveCarretToLineStart) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point =
+        GetBeginningOfLineCursor(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretToLineEnd) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetEndOfLineCursor(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretToBeginningOfBuffer) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetBegginingOfBufferCursor(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretToEndOfBuffer) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetEndOfBufferCursor(Buffer, Buffer->Point);
+}
+
+CMD_PROC(InsertNewLine) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    InsertChar(Buffer, Buffer->Point, '\n');
+}
+
+CMD_PROC(SaveFile) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    SaveBuffer(Buffer, "a.c");
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
+}
+
+CMD_PROC(OpenFile) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    LoadBuffer(Buffer, "a.c");
+    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
+}
+
+typedef struct _command {
+    cmd_proc_callback *Proc;
+    c8                *Desc;
+} command;
+#define command_(Proc, Desc) (command){(Proc), (Desc)}
+
+typedef enum _key {
+    KEY_NONE = 0, //note:
+    KEY_CHAR = 1, //note:
+    KEY_DEL,
+    KEY_BACK,
+    KEY_TAB,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_PG_UP,
+    KEY_PG_DOWN,
+    KEY_HOME,
+    KEY_END,
+    KEY_RETURN,
+    KEY_CTRL  = 1 << 8,
+    KEY_ALT   = 1 << 9,
+    KEY_SHIFT = 1 << 10
+} key;
+
+#define KeyComb(BaseKey, Ctrl, Alt, Shift) (u16)(BaseKey) | ((u16)(Ctrl) << 8) | ((u16)(Alt)  << 9) | ((u16)(Shift) << 10)
+#define Ctrl(Key)  KeyComb(Key, 1, 0, 0)
+#define Alt(Key)   KeyComb(Key, 0, 1, 0)
+#define Shift(Key) KeyComb(Key, 0, 0, 1)
+
+internal void UpdateEditorContextInput(editor_context *c, platform *p) {
+    c->uiCtx->mPos              = p->mPos;
+    c->uiCtx->mLeftButtonIsDown = p->mLeft;
+    c->mPos    = p->mPos;
+    c->dtFrame = p->dtForFrame;
+    
+    u16 Key = KEY_NONE;
+    if (p->kDelete)
+        Key = KeyComb(KEY_DEL, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kBack)
+        Key = KeyComb(KEY_BACK, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kTab)
+        Key = KeyComb(KEY_TAB, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kLeft)
+        Key = KeyComb(KEY_LEFT, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kRight)
+        Key = KeyComb(KEY_RIGHT, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kUp)
+        Key = KeyComb(KEY_UP, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kDown)
+        Key = KeyComb(KEY_DOWN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kHome)
+        Key = KeyComb(KEY_HOME, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kPgUp)
+        Key = KeyComb(KEY_PG_UP, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kPgDown)
+        Key = KeyComb(KEY_PG_DOWN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kEnd)
+        Key = KeyComb(KEY_END, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kReturn)
+        Key = KeyComb(KEY_RETURN, p->kCtrl, p->kAlt, p->kShift);
+    if (p->kChar) {
+        if (!p->kCtrl)
+            Key = KEY_CHAR;
+        else
+            Key = KeyComb(p->Char, p->kCtrl, p->kAlt, p->kShift);
+    }
+    c->LastChar    = p->Char;
+    c->LastKeyComb = Key;
+}
+
+global command Keymap[1024];
+
+///////////////////////////////////////////////////////////
+
 void DrawUi(editor_context *c) {
     uiBottomBar(c->uiCtx, c->uiStyle, "some_text.c", 0, 0, c->dtFrame);
+    DrawBuffer(c->Buffers[0], c->uiCtx, c->uiStyle);
     // UiAddButton(c->uiCtx, c->uiStyle, c->mPos, "saaaaaaaaaaaaaaaaadg");
 }
 
@@ -498,7 +539,9 @@ external APP_INIT(Init) {
     State->Renderer = PlatformApi.AllocateMemory(sizeof(renderer));
     State->Context.uiCtx   = PlatformApi.AllocateMemory(sizeof(ui_ctx));
     State->Context.uiStyle = PlatformApi.AllocateMemory(sizeof(ui_style));
-    State->Context.Buffer  = PlatformApi.AllocateMemory(sizeof(buffer));
+    State->Context.Buffers = PlatformApi.AllocateMemory(sizeof(buffer *)*2);
+    State->Context.Buffers[0] = PlatformApi.AllocateMemory(sizeof(buffer));
+    State->Context.Buffers[1] = PlatformApi.AllocateMemory(sizeof(buffer));
     
     State->Context.uiCtx->Renderer = State->Renderer;
     State->Context.uiCtx->Hot      = -1;
@@ -526,7 +569,7 @@ external APP_INIT(Init) {
     Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
     Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
     Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
-    Keymap[KEY_UP]    = command_(cmd_proc_MoreCarretUp, "MoreCarretUp");
+    Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
     Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
     Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
     Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
@@ -575,9 +618,6 @@ external APP_DEINIT(Deinit) {
 }
 
 #if 0
-#ifndef STRETCHY_BUFFER_H
-#define STRETCHY_BUFFER_H
-
 #include "lingo.h"
 
 //note: will I ever use this?
@@ -651,6 +691,4 @@ internal c8 *_PrintfBuffer(c8 *Buffer, const c8 *Format, ...) {
     _BufferHeader(Buffer)->Len += n;
     return Buffer;
 }
-
-#ifndef STRETCHY_BUFFER_H
 #endif
