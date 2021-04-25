@@ -1,13 +1,18 @@
 #ifndef UI_H
 #define UI_H
 
+#include <stdio.h>
+
 #include "lingo.h"
 #include "renderer.h"
 
 typedef struct _ui_ctx {
+    renderer *Renderer;
+
     rv2 mPos;
     b32 mLeftButtonIsDown;
     i16 dmWheel;
+    //todo: get rid of these
 
     id Hot;
     id Clicked;
@@ -18,11 +23,16 @@ typedef struct _ui_ctx {
 } ui_ctx;
 
 typedef struct _ui_style {
-    id  Font;
+    id Font;
+    id MonoFont;
+    id IconFont;
+
     r32 CharSpacing;
     r32 LineSpacing;
 
     rv2 Padding;
+
+    colorb BarColor;
 
     colorb DefaultTextColor;
 
@@ -34,23 +44,25 @@ typedef struct _ui_style {
     r32 SliderHandleHeight;
 } ui_style;
 
-internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 Pos, c8 *Text) {
+internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, rv2 Pos, c8 *Text) {
+    renderer *Renderer = Ctx->Renderer;
     b32 WasClicked = 0;
-    id  Me = Ctx->Current;
+    id Me = Ctx->Current;
 
-    rv2 TextPos  = Pos;
+    rect MenuItemTextBounds = {0};// = MeasureText(Renderer, Text, Style->Font, TextPos);
+    MenuItemTextBounds.Pos = Pos;
+
+    rv2 TextPos = Pos;
 
     Pos.x += Style->Padding.x;
     Pos.y += Style->Padding.y;
 
     colorb ButtonColor = Style->DefaultButtonColor;
 
-    rect MenuItemTextBounds = MeasureText(Renderer, Text, Style->Font, TextPos);
-
     TextPos.x += Style->Padding.x/2;
     TextPos.y += Style->Padding.y/2;
 
-    MenuItemTextBounds.w += Style->Padding.x;
+    MenuItemTextBounds.w += MeasureText(Renderer, Text, Style->Font, TextPos).w + Style->Padding.x;
     MenuItemTextBounds.h  = Style->Padding.y                      +
                             Renderer->Fonts[Style->Font].Ascender +
                             Renderer->Fonts[Style->Font].Descender;
@@ -74,9 +86,10 @@ internal b32 UiAddButton(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, rv2 P
     return WasClicked;
 }
 
-internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, r32 LastValue, rv2 Pos, r32 Range) {
+internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, r32 LastValue, rv2 Pos, r32 Range) {
+    renderer *Renderer = Ctx->Renderer;
     r32 Value = LastValue*Range;
-    id  Me    = Ctx->Current;
+    id Me = Ctx->Current;
 
     rect SliderGroove = rect_(Pos.x, Pos.y, Range + Style->SliderHandleWidth, Style->SliderHandleWidth);
     rect SliderHandle = rect_(Pos.x + Value, Pos.y - Style->SliderHandleHeight/2 + Style->SliderHandleWidth/2,
@@ -109,6 +122,35 @@ internal f32 UiAddSlider(renderer *Renderer, ui_ctx *Ctx, ui_style *Style, r32 L
     Ctx->Current++; //todo: check for overflow.
 
     return Value/Range;
+}
+
+
+
+internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, c8 *Filename, u32 nLine, u32 nColumn, r32 dtFrame) {
+    renderer *Renderer = Ctx->Renderer;
+    id Me = Ctx->Current;
+
+    rv2 Pos = rv2_(0, 0);
+
+    colorb BackgroundColor = Style->DefaultButtonColor;
+
+    rect BarBackground;
+    BarBackground.w = Ctx->Renderer->TargetClipRect.w;
+    BarBackground.h = Style->Padding.y                      +
+                      Renderer->Fonts[Style->Font].Ascender +
+                      Renderer->Fonts[Style->Font].Descender;
+    BarBackground.Pos = Pos;
+    DrawRect(Renderer, BarBackground, BackgroundColor);
+
+    r32 x = 0;
+    uiButton(Ctx, Style, rv2_(x, 0), Filename);
+    x += MeasureText(Renderer, Filename, Style->Font, rv2_(0, 0)).w + Style->Padding.x*1.5f;
+    c8 TextBuffer[32];
+    sprintf_s(TextBuffer, 32, "%u, %u", nLine, nColumn);
+    uiButton(Ctx, Style, rv2_(x, 0), TextBuffer);
+    x = Renderer->TargetClipRect.w - MeasureText(Renderer, "0.000000", Style->Font, rv2_(0, 0)).w - Style->Padding.x;
+    sprintf_s(TextBuffer, 32, "%f", dtFrame);
+    uiButton(Ctx, Style, rv2_(x, 0), TextBuffer);
 }
 
 #endif//UI_H

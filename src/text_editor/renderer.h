@@ -83,7 +83,7 @@ typedef struct _renderer {
     render_piece Pieces[1024];
     u32          UsedPieces;
 
-    font Fonts[2];
+    font Fonts[3];
     u32  UsedFonts;
 } renderer;
 
@@ -331,12 +331,6 @@ internal void DrawGlyph(renderer *Renderer, id FontId, u32 Index, rv2 Pos, color
         PushPiece(Renderer, Piece);
     }
 }
-
-typedef struct _render_text {
-    c8 *Text;
-    id  Font;
-    rv2 Pos;
-} render_text;
 
 typedef enum _text_op {
     TEXT_OP_MEASURE,
