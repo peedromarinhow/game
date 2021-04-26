@@ -1,5 +1,5 @@
-#ifndef APP_H
-#define APP_H
+#ifndef API_H
+#define API_H
 
 #include "lingo.h"
 #include "platform.h"
@@ -17,4 +17,4 @@ typedef struct _platform_api {
     platform_report_error_and_die_callback       *ReportErrorAndDie;
 } platform_api;
 
-#endif//APP_H
+#endif//API_H

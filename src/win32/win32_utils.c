@@ -68,7 +68,6 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
             DWORD BytesRead = 0;
 
             ReadFile(FileHandle, ReadData, ReadBytes, &BytesRead, NULL);
-            //todo: figure out why the file is read but BytesRead keeps set to zero
 
             ((u8 *)ReadData)[ReadBytes] = 0;
 
@@ -95,7 +94,6 @@ PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
             DWORD BytesRead = 0;
 
             ReadFile(FileHandle, ReadData, ReadBytes, &BytesRead, NULL);
-            //todo: figure out why the file is read but BytesRead keeps set to zero
 
             ((u8 *)ReadData)[ReadBytes] = 0;
 
