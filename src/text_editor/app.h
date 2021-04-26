@@ -720,6 +720,32 @@ inline cursor GetPrevCharCursor(buffer *Buffer, cursor Cursor) {
         return Cursor;
 }
 
+inline cursor GetNextTokenCursor(buffer *Buffer, cursor Cursor) {
+    cursor Result = Cursor;
+    u32    BufferLen = GetBufferLen(Buffer);
+    if (GetBufferChar(Buffer, Result) == ' ')
+        Result++;
+    while (GetBufferChar(Buffer, Result) != ' ' /* ||
+           GetBufferChar(Buffer, Result) != '\n'*/ &&
+           Result < BufferLen)
+        Result++;
+
+    return Result;
+}
+
+inline cursor GetPrevTokenCursor(buffer *Buffer, cursor Cursor) {
+    cursor Result = Cursor;
+    u32    BufferLen = GetBufferLen(Buffer);
+    if (GetBufferChar(Buffer, Result) == ' ')
+        Result--;
+    while (GetBufferChar(Buffer, Result) != ' ' /*||
+           GetBufferChar(Buffer, Result) != '\n'*/ &&
+           Result > 0)
+        Result--;
+
+    return Result;
+}
+
 internal cursor GetBeginningOfLineCursor(buffer *Buffer, cursor Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
     Cursor = GetPrevCharCursor(Buffer, Cursor);
@@ -877,8 +903,8 @@ typedef struct _editor_context {
 
     c8 *Filename;
 
+    id  CurrentBuffer;
     buffer **Buffers;
-    id       CurrentBuffer;
     u32 nCurrentBufferLine;
     u32 nCurrentBufferColumn;
 } editor_context;
@@ -921,6 +947,18 @@ CMD_PROC(MoveCarretLeft) {
 CMD_PROC(MoveCarretRight) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
     Buffer->Point = GetNextCharCursor(Buffer, Buffer->Point);
+    c->nCurrentBufferColumn = GetBufferColumn(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretToPrevToken) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetPrevTokenCursor(Buffer, Buffer->Point);
+    c->nCurrentBufferColumn = GetBufferColumn(Buffer, Buffer->Point);
+}
+
+CMD_PROC(MoveCarretToNextToken) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    Buffer->Point = GetNextTokenCursor(Buffer, Buffer->Point);
     c->nCurrentBufferColumn = GetBufferColumn(Buffer, Buffer->Point);
 }
 

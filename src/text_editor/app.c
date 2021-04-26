@@ -9,16 +9,11 @@ platform_api GlobalPlatformApi;
 
 void DrawUi(editor_context *c) {
     uiBottomBar(c->uiCtx, c->uiStyle, c->uiInput, c->Filename,
-                GetBufferLine(c->Buffers[c->CurrentBuffer],
-                              c->Buffers[c->CurrentBuffer]->Point),
-                GetBufferColumn(c->Buffers[c->CurrentBuffer],
-                                c->Buffers[c->CurrentBuffer]->Point), c->dtFrame);
+                c->nCurrentBufferLine, c->nCurrentBufferColumn,
+                c->dtFrame);
     
     DrawBuffer(c->Buffers[c->CurrentBuffer], c->uiCtx, c->uiStyle, c->uiInput);
-    // UiAddButton(c->uiCtx, c->uiStyle, c->mPos, "saaaaaaaaaaaaaaaaadg");
 }
-
-///////////////////////////////////////////////////////////
 
 typedef struct _app_state {
     renderer *Renderer;
@@ -85,6 +80,8 @@ external APP_INIT(Init) {
     Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
     Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
     Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
+    Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
+    Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
     Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
     Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
     Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
@@ -101,10 +98,6 @@ external APP_INIT(Init) {
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-
-    i16 dMouseWheel = (State->dLastMouseWheel != p->dmWheel)? p->dmWheel : 0;
-    State->dLastMouseWheel = p->dmWheel;
-    State->Context.uiInput->dmWheel = dMouseWheel;
 
     State->Context.Filename = "a.c";
 
