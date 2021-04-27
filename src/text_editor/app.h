@@ -435,8 +435,6 @@ internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Co
 #include "lingo.h"
 
 typedef struct _ui_ctx {
-    renderer *Renderer;
-    //todo: get this renderer out of here and pass to the functions separately.
 
     id Hot;
     id Clicked;
@@ -475,8 +473,7 @@ typedef struct _ui_input {
     i16 dmWheel;
 } ui_input;
 
-internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, ui_input *Input, rv2 Pos, c8 *Text) {
-    renderer *Renderer = Ctx->Renderer;
+internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, rv2 Pos, c8 *Text) {
     b32 WasClicked = 0;
     id Me = Ctx->Current;
 
@@ -518,8 +515,7 @@ internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, ui_input *Input, rv2 Pos, c8
     return WasClicked;
 }
 
-internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, r32 LastValue, rv2 Pos, r32 Range) {
-    renderer *Renderer = Ctx->Renderer;
+internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, r32 LastValue, rv2 Pos, r32 Range) {
     r32 Value = LastValue*Range;
     id Me = Ctx->Current;
 
@@ -547,7 +543,7 @@ internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, r32 LastValu
     if (Value < 0)
         Value = 0;
 
-    DrawRect(Renderer, SliderGroove, (colorb){0x2A2A2AFF});
+    DrawRect(Renderer, SliderGroove, (colorb){GREY_800});
     DrawRect(Renderer, SliderHandle, HandleColor);
 
     Ctx->Last = Me;
@@ -557,18 +553,12 @@ internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, r32 LastValu
     return Value/Range;
 }
 
-
-
-internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, c8 *Filename, u32 nLine, u32 nColumn, r32 dtFrame) {
-    renderer *Renderer = Ctx->Renderer;
-    id Me = Ctx->Current;
-
+internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 *Filename, u32 nLine, u32 nColumn, r32 dtFrame) {
     rv2 Pos = rv2_(0, 0);
-
     colorb BackgroundColor = Style->DefaultButtonColor;
 
     rect BarBackground;
-    BarBackground.w = Ctx->Renderer->TargetClipRect.w;
+    BarBackground.w = Renderer->TargetClipRect.w;
     BarBackground.h = Style->Padding.y                      +
                       Renderer->Fonts[Style->Font].Ascender +
                       Renderer->Fonts[Style->Font].Descender;
@@ -576,14 +566,32 @@ internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, c8 *Fil
     DrawRect(Renderer, BarBackground, BackgroundColor);
 
     r32 x = 0;
-    uiButton(Ctx, Style, Input, rv2_(x, 0), Filename);
+    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), Filename);
     x += MeasureText(Renderer, Filename, Style->Font, rv2_(0, 0)).w + Style->Padding.x*1.5f;
     c8 TextBuffer[32];
     sprintf_s(TextBuffer, 32, "%u, %u", nLine, nColumn);
-    uiButton(Ctx, Style, Input, rv2_(x, 0), TextBuffer);
+    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
     x = Renderer->TargetClipRect.w - MeasureText(Renderer, "0.000000", Style->Font, rv2_(0, 0)).w - Style->Padding.x;
     sprintf_s(TextBuffer, 32, "%f", dtFrame);
-    uiButton(Ctx, Style, Input, rv2_(x, 0), TextBuffer);
+    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
+}
+
+internal void uiTabBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 **Tabs, u32 NoTabs) {
+    colorb BackgroundColor = Style->DefaultButtonColor;
+
+    rect BarBackground;
+    BarBackground.w = Renderer->TargetClipRect.w;
+    BarBackground.h = Style->Padding.y                      +
+                      Renderer->Fonts[Style->Font].Ascender +
+                      Renderer->Fonts[Style->Font].Descender;
+    BarBackground.Pos = rv2_(0, Renderer->TargetClipRect.h - BarBackground.h);
+    DrawRect(Renderer, BarBackground, BackgroundColor);
+
+    r32 x = 0;
+    for (u32 TabIndex = 0; TabIndex < NoTabs; TabIndex++) {
+        if (uiButton(Ctx, Style, Input, Renderer, rv2_(x, Renderer->TargetClipRect.h - BarBackground.h), Tabs[TabIndex]));
+        x += MeasureText(Renderer, Tabs[TabIndex], Style->Font, rv2_(0, 0)).w + Style->Padding.x;
+    }
 }
 #endif//UI_H
 
@@ -764,17 +772,21 @@ internal void LoadBuffer(buffer *Buffer, c8 *Filename) {
 }
 
 inline cursor GetNextCharCursor(buffer *Buffer, cursor Cursor) {
-    if (Cursor < GetBufferLen(Buffer))
-        return Cursor + 1;
-    else
-        return Cursor;
+    if (Cursor < GetBufferLen(Buffer)) {
+        Cursor++;
+        if (GetBufferChar(Buffer, Cursor) == '\r')
+            Cursor++;
+    }
+    return Cursor;
 }
 
 inline cursor GetPrevCharCursor(buffer *Buffer, cursor Cursor) {
-    if (Cursor > 0)
-        return Cursor - 1;
-    else
-        return Cursor;
+    if (Cursor > 0) {
+        Cursor--;
+        if (GetBufferChar(Buffer, Cursor) == '\r')
+            Cursor--;
+    }
+    return Cursor;
 }
 
 inline cursor GetNextTokenCursor(buffer *Buffer, cursor Cursor) {
@@ -863,11 +875,11 @@ inline cursor GetBufferColumn(buffer *Buffer, cursor CurrentCursor) {
 }
 
 inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
-    u32 Line = 1;
-    while (GetBeginningOfPrevLineCursor(Buffer, CurrentCursor) != 0) {
+    u32 Line = 0;
+    do {
         CurrentCursor = GetBeginningOfPrevLineCursor(Buffer, CurrentCursor);
         Line++;
-    }
+    } while (GetBeginningOfPrevLineCursor(Buffer, CurrentCursor) != 0);
     return Line;
 }
 #endif//GAP_BUFFER_H
@@ -879,6 +891,8 @@ inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
 // COMMANDS
 #define COMMANDS_H
 typedef struct _editor_context {
+    renderer *Renderer;
+
     rv2 mPos;
     r32 dtFrame;
     u16 LastKeyComb;
@@ -894,6 +908,8 @@ typedef struct _editor_context {
     buffer **Buffers;
     u32 nCurrentBufferLine;
     u32 nCurrentBufferColumn;
+
+    rv2 CurrentCaretPos;
 } editor_context;
 
 #define CMD_PROC(Name) void cmd_proc_##Name(editor_context *c)

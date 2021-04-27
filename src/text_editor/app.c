@@ -5,15 +5,23 @@
 
 platform_api GlobalPlatformApi;
 
+#include "colors.h"
 #include "app.h"
 
-internal void DrawBuffer(editor_context *c) {
+internal void DrawToken(renderer *Renderer, ui_ctx *Ctx, ui_input *Input, id Font, color Color, rv2 Pos) {
+
+}
+
+internal void DrawBuffer(editor_context *c, r32 y) {
     buffer   *Buffer   = c->Buffers[c->CurrentBuffer];
     ui_ctx   *Ctx      = c->uiCtx;
     ui_style *Style    = c->uiStyle;
     ui_input *Input    = c->uiInput;
-    renderer *Renderer = Ctx->Renderer;
-    rv2 Pos = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - 100);
+    renderer *Renderer = c->Renderer;
+    rv2 Pos = rv2_(Style->Padding.x,
+                   Renderer->TargetClipRect.h - (Style->Padding.y*2 +
+                   Renderer->Fonts[Style->Font].Ascender            +
+                   Renderer->Fonts[Style->Font].Descender));
     u32 BufferLen = GetBufferLen(Buffer);
     font *Font = &Renderer->Fonts[Style->MonoFont];
 
@@ -22,15 +30,20 @@ internal void DrawBuffer(editor_context *c) {
     r32  TempX = Pos.x;
     rv2  Offset;
     rect GlyphRect;
-    rect Caret = rect_(0, 0, 0, 0);
 
     rect BufferRect = {0};
     BufferRect.x = Style->Padding.x;
-    BufferRect.y = 100;
+    BufferRect.y = Style->Padding.y                      +
+                   Renderer->Fonts[Style->Font].Ascender +
+                   Renderer->Fonts[Style->Font].Descender;
     BufferRect.w = Renderer->TargetClipRect.w/2 - Style->Padding.x;
-    BufferRect.h = Renderer->TargetClipRect.h - 100;
+    BufferRect.h = Renderer->TargetClipRect.h - 2*BufferRect.y;
 
     DrawPushClip(Renderer, BufferRect);
+
+    colorb Color = Style->DefaultTextColor;
+
+    Pos.y += y;
 
     for (cursor Cursor = 0; Cursor < BufferLen; Cursor++) {
         Char   = GetBufferChar(Buffer, Cursor);
@@ -47,7 +60,7 @@ internal void DrawBuffer(editor_context *c) {
         }
 
         if (Cursor == Buffer->Point)
-            Caret = rect_(Pos.x, Pos.y + Font->Descender, 2, Font->Ascender);
+            c->CurrentCaretPos = rv2_(Pos.x +  Offset.x, Pos.y + Font->Descender);
 
         if (Char == ' ') {
             Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
@@ -59,35 +72,56 @@ internal void DrawBuffer(editor_context *c) {
         }
 
         if (Char == '\n') {
-            if (Cursor == Buffer->Point)
-                Caret = rect_(Pos.x +  Offset.x, Pos.y - Offset.y + Font->Descender, 2, Font->Ascender);
             Pos.y -= Font->LineGap + Style->LineSpacing;
             Pos.x  = TempX;
+            Color = Style->DefaultTextColor;
             continue;
         }
 
-        DrawGlyph(Renderer, Style->MonoFont, Index, GlyphRect.Pos, Style->DefaultTextColor);
+        if (Char == '/') {
+            cursor Temp = Cursor;
+            if (GetBufferChar(Buffer, ++Temp) == '/')
+                Color = (colorb){GREEN_600};
+        }
+
+        DrawGlyph(Renderer, Style->MonoFont, Index, GlyphRect.Pos, Color);
     
         Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
     }
 
-    DrawRect(Renderer, Caret, Style->DefaultTextColor);
+    // DrawRect(Renderer, Line,  (colorb){0x48484848/*GREY_800*/});
+    // DrawRect(Renderer, Caret, Style->DefaultTextColor);
     DrawPopClip(Renderer);
 }
 
+global r32 y = 0;
+
 void DrawUi(editor_context *c) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
-    uiBottomBar(c->uiCtx, c->uiStyle, c->uiInput, c->Filename,
+    c8 *Tabs[] = {
+        "tab 1",
+        "tab 2",
+        "tab 3",
+        "tab 4"
+    };
+    uiTabBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, Tabs, ArrayCount(Tabs));
+    uiBottomBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, c->Filename,
                 GetBufferLine(Buffer, Buffer->Point),
                 GetBufferColumn(Buffer, Buffer->Point),
                 c->dtFrame);
-    
-    DrawBuffer(c);
+    r32 Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
+    rect Line  = rect_(c->uiStyle->Padding.x, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - c->uiStyle->Padding.x, Ascender);
+    rect Caret = rect_(c->CurrentCaretPos.x,  c->CurrentCaretPos.y, 2, Ascender);
+    DrawRect(c->Renderer, Line,  (colorb){GREY_800});
+    DrawRect(c->Renderer, Caret, (colorb){GREY_50 });
+    y = uiSlder(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, y, rv2_(800, 100), 500);
+    DrawBuffer(c, y*50000);
 }
+
+command Keymap[1024];
 
 typedef struct _app_state {
     renderer Renderer;
-    command  Keymap[1024];
     editor_context Context;
     memory_arena   Arena;
     i16 dLastMouseWheel;
@@ -100,19 +134,17 @@ external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    platform_api PlatformApi;
+    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
+    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
+    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
+    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
+    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
+    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
+    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
+    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
 
-    PlatformApi.AllocateMemory         = p->AllocateMemoryCallback;
-    PlatformApi.FreeMemory             = p->FreeMemoryCallback;
-    PlatformApi.LoadFile               = p->LoadFileCallback;
-    PlatformApi.FreeFile               = p->FreeFileCallback;
-    PlatformApi.LoadFileToArena        = p->LoadFileToArenaCallback;
-    PlatformApi.FreeFileFromArena      = p->FreeFileFromArenaCallback;
-    PlatformApi.WriteFile              = p->WriteFileCallback;
-    PlatformApi.ReportError            = p->ReportErrorCallback;
-    PlatformApi.ReportErrorAndDie      = p->ReportErrorAndDieCallback;
-
-    GlobalPlatformApi = PlatformApi;
+    State->Context.Renderer = &State->Renderer;
 
     State->Arena = InitializeArena(p->Memory.Size     - sizeof(app_state),
                              (u8 *)p->Memory.Contents + sizeof(app_state));
@@ -122,49 +154,51 @@ external APP_INIT(Init) {
     State->Context.uiInput = PushToArena(&State->Arena, sizeof(ui_input));
     State->Context.Buffers = PushToArena(&State->Arena, sizeof(buffer *)*2);
     State->Context.Buffers[0] = CreateBuffer(8);
-    
-    State->Context.uiCtx->Renderer = &State->Renderer;
+    State->Context.CurrentCaretPos = rv2_(0, -100); //note: hack! (?: this may actually be reasonable)
+
     State->Context.uiCtx->Hot      = -1;
     State->Context.uiCtx->Clicked  = -1;
     State->Context.uiCtx->Last     = -1;
     State->Context.uiCtx->Current  = -1;
     State->Context.uiCtx->NoItems  = 256;
 
-    State->Context.uiStyle->Font     = LoadFont(State->Context.uiCtx->Renderer, &PlatformApi, "roboto.ttf", 400, 24);
-    State->Context.uiStyle->MonoFont = LoadFont(State->Context.uiCtx->Renderer, &PlatformApi, "roboto_mono.ttf", 400, 24);
-    State->Context.uiStyle->IconFont = LoadFont(State->Context.uiCtx->Renderer, &PlatformApi, "icons.ttf", 400, 24);
+    State->Context.uiStyle->Font     = LoadFont(State->Context.Renderer, &GlobalPlatformApi, "roboto.ttf", 400, 24);
+    State->Context.uiStyle->MonoFont = LoadFont(State->Context.Renderer, &GlobalPlatformApi, "roboto_mono.ttf", 400, 24);
+    State->Context.uiStyle->IconFont = LoadFont(State->Context.Renderer, &GlobalPlatformApi, "icons.ttf", 400, 24);
     State->Context.uiStyle->Padding = rv2_(20, 20);
-    State->Context.uiStyle->DefaultTextColor   = (colorb){0xFAFAFAFF};
-    State->Context.uiStyle->HotButtonColor     = (colorb){0x606060FF};
-    State->Context.uiStyle->ClickedButtonColor = (colorb){0x808080FF};
-    State->Context.uiStyle->DefaultButtonColor = (colorb){0x404040FF};
+    State->Context.uiStyle->DefaultTextColor   = (colorb){GREY_50 };
+    State->Context.uiStyle->ClickedButtonColor = (colorb){GREY_600};
+    State->Context.uiStyle->HotButtonColor     = (colorb){GREY_700};
+    State->Context.uiStyle->DefaultButtonColor = (colorb){GREY_800};
     State->Context.uiStyle->CharSpacing = 0;
     State->Context.uiStyle->LineSpacing = 0;
     State->Context.uiStyle->SliderHandleHeight = 20;
     State->Context.uiStyle->SliderHandleWidth  = 10;
 
-    State->Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
-    State->Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
-    State->Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
-    State->Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
-    State->Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
-    State->Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
-    State->Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
-    State->Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
-    State->Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
-    State->Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
-    State->Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
-    State->Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
-    State->Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
-    State->Keymap[KEY_CTRL | KEY_HOME]  = command_(cmd_proc_MoveCarretToBufferStart, "MoveCarretToLineStart");
-    State->Keymap[KEY_CTRL | KEY_END]   = command_(cmd_proc_MoveCarretToBufferEnd,   "MoveCarretToLineEnd");
-    State->Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
-    State->Keymap[KEY_CTRL | 'S'] = command_(cmd_proc_SaveFile, "SaveFile");
-    State->Keymap[KEY_CTRL | 'O'] = command_(cmd_proc_OpenFile, "OpenFile");    
+    Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
+    Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
+    Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
+    Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
+    Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
+    Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
+    Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
+    Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
+    Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
+    Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
+    Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
+    Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
+    Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
+    Keymap[KEY_CTRL | KEY_HOME]  = command_(cmd_proc_MoveCarretToBufferStart, "MoveCarretToLineStart");
+    Keymap[KEY_CTRL | KEY_END]   = command_(cmd_proc_MoveCarretToBufferEnd,   "MoveCarretToLineEnd");
+    Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
+    Keymap[KEY_CTRL | 'S'] = command_(cmd_proc_SaveFile, "SaveFile");
+    Keymap[KEY_CTRL | 'O'] = command_(cmd_proc_OpenFile, "OpenFile");
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
+
+global u8 KeyAccumulator = 0; //note: hack!
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
@@ -173,17 +207,44 @@ external APP_UPDATE(Update) {
 
     UpdateEditorContextInput(&State->Context, p);
 
-    if (State->Keymap[State->Context.LastKeyComb].Proc)
-        State->Keymap[State->Context.LastKeyComb].Proc(&State->Context);
+    if (Keymap[State->Context.LastKeyComb].Proc)
+        Keymap[State->Context.LastKeyComb].Proc(&State->Context);
 
     DrawUi(&State->Context);
-    Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
+    Render(&State->Renderer, p->WindowDim, (colorb){GREY_900});
 }
 
 external APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    // Init(p);
+    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
+    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
+    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
+    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
+    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
+    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
+    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
+    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
+    Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
+    Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
+    Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
+    Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
+    Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
+    Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
+    Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
+    Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
+    Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
+    Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
+    Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
+    Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
+    Keymap[KEY_CTRL | KEY_HOME]  = command_(cmd_proc_MoveCarretToBufferStart, "MoveCarretToLineStart");
+    Keymap[KEY_CTRL | KEY_END]   = command_(cmd_proc_MoveCarretToBufferEnd,   "MoveCarretToLineEnd");
+    Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
+    Keymap[KEY_CTRL | 'S'] = command_(cmd_proc_SaveFile, "SaveFile");
+    Keymap[KEY_CTRL | 'O'] = command_(cmd_proc_OpenFile, "OpenFile");
 }
 
 external APP_DEINIT(Deinit) {
