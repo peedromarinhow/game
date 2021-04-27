@@ -1008,13 +1008,11 @@ CMD_PROC(InsertNewLine) {
 CMD_PROC(SaveFile) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
     SaveBuffer(Buffer, c->Filename);
-    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0xFA4080FF));
 }
 
 CMD_PROC(OpenFile) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
     LoadBuffer(Buffer, c->Filename);
-    // DrawRect(ORIGIN_CENTERED, rv2_(100, 100), rv2_(50, 50), HexToColor(0x8040FAFF));
 }
 
 typedef struct _command {

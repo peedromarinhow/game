@@ -98,6 +98,13 @@ global r32 y = 0;
 
 void DrawUi(editor_context *c) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
+    r32 Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
+    rect Line  = rect_(c->uiStyle->Padding.x, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - c->uiStyle->Padding.x, Ascender);
+    rect Caret = rect_(c->CurrentCaretPos.x,  c->CurrentCaretPos.y, 2, Ascender);
+    DrawRect(c->Renderer, Line,  (colorb){GREY_800});
+    DrawRect(c->Renderer, Caret, (colorb){GREY_50 });
+    y = uiSlder(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, y, rv2_(800, 100), 500);
+    DrawBuffer(c, y*50000);
     c8 *Tabs[] = {
         "tab 1",
         "tab 2",
@@ -109,13 +116,6 @@ void DrawUi(editor_context *c) {
                 GetBufferLine(Buffer, Buffer->Point),
                 GetBufferColumn(Buffer, Buffer->Point),
                 c->dtFrame);
-    r32 Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
-    rect Line  = rect_(c->uiStyle->Padding.x, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - c->uiStyle->Padding.x, Ascender);
-    rect Caret = rect_(c->CurrentCaretPos.x,  c->CurrentCaretPos.y, 2, Ascender);
-    DrawRect(c->Renderer, Line,  (colorb){GREY_800});
-    DrawRect(c->Renderer, Caret, (colorb){GREY_50 });
-    y = uiSlder(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, y, rv2_(800, 100), 500);
-    DrawBuffer(c, y*50000);
 }
 
 command Keymap[1024];
