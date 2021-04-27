@@ -117,7 +117,7 @@ internal void Clear(rv2 TargetDim, color Color) {
 }
 
 internal void Clip(rect ClipRect) {
-    glScissor(ClipRect.x, ClipRect.y, ClipRect.w, ClipRect.x);
+    glScissor(ClipRect.x, ClipRect.y, ClipRect.w, ClipRect.h);
 }
 
 internal void RasterRect(rect Rect, color Color) {
@@ -168,7 +168,6 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
     Renderer->ClearColor         = ClearColor;
 
     rect ClipRect = Renderer->TargetClipRect;
-
     Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
@@ -176,15 +175,19 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
         rv2 Pos = Piece.Rect.Pos;
         rv2 Dim = Piece.Rect.Dim;
 
+        Clip(ClipRect);
+
         if (Piece.Type == PIECE_RECT) {
             RasterRect(rect_(GetVecComps(Pos), GetVecComps(Dim)), HexToColor(Piece.Color.rgba));
         }
         else
         if (Piece.Type == PIECE_CLIP) {
+            glEnable(GL_SCISSOR_TEST);
             ClipRect = Piece.Rect;
         }
         else
         if (Piece.Type == PIECE_UNCLIP) {
+            glDisable(GL_SCISSOR_TEST);
             ClipRect = Renderer->TargetClipRect;
         }
         else
@@ -194,7 +197,6 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
                               Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
         }
     }
-    Clip(ClipRect);
     Renderer->UsedPieces = 0;
 }
 
@@ -434,6 +436,7 @@ internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Co
 
 typedef struct _ui_ctx {
     renderer *Renderer;
+    //todo: get this renderer out of here and pass to the functions separately.
 
     id Hot;
     id Clicked;
@@ -866,62 +869,6 @@ inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
         Line++;
     }
     return Line;
-}
-
-internal void DrawBuffer(buffer *Buffer, ui_ctx *Ctx, ui_style *Style, ui_input *Input) {
-    renderer *Renderer = Ctx->Renderer;
-    rv2 Pos = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - 100);
-    u32 BufferLen = GetBufferLen(Buffer);
-    font *Font = &Renderer->Fonts[Style->MonoFont];
-
-    c8   Char;
-    u32  Index;
-    r32  TempX = Pos.x;
-    rv2  Offset;
-    rect GlyphRect;
-    rect Caret = rect_(0, 0, 0, 0);
-
-    DrawPushClip(Renderer, rect_(Style->Padding.x, 100, 600, 600));
-
-    for (cursor Cursor = 0; Cursor < BufferLen; Cursor++) {
-        Char   = GetBufferChar(Buffer, Cursor);
-        Index  = (Char - 32 >= 0)? Char - 32 : '?' - 32;
-        Offset = Font->GlyphOffsets[Index];
-        GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
-        
-        if (Input->mLeftButtonIsDown) {
-            if (IsInsideRect(Input->mPos, GlyphRect)) {
-                Buffer->Point = Cursor;
-            }
-        }
-
-        if (Cursor == Buffer->Point)
-            Caret = rect_(Pos.x, Pos.y + Font->Descender, 2, Font->Ascender);
-
-        if (Char == ' ') {
-            Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
-            continue;
-        }
-
-        if (Char == '\r') {
-            continue;
-        }
-
-        if (Char == '\n') {
-            if (Cursor == Buffer->Point)
-                Caret = rect_(Pos.x +  Offset.x, Pos.y - Offset.y + Font->Descender, 2, Font->Ascender);
-            Pos.y -= Font->LineGap + Style->LineSpacing;
-            Pos.x  = TempX;
-            continue;
-        }
-
-        DrawGlyph(Renderer, Style->MonoFont, Index, GlyphRect.Pos, Style->DefaultTextColor);
-    
-        Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
-    }
-
-    DrawRect(Renderer, Caret, Style->DefaultTextColor);
-    DrawPopClip(Renderer);
 }
 #endif//GAP_BUFFER_H
 

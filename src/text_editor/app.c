@@ -7,12 +7,82 @@ platform_api GlobalPlatformApi;
 
 #include "app.h"
 
+internal void DrawBuffer(editor_context *c) {
+    buffer   *Buffer   = c->Buffers[c->CurrentBuffer];
+    ui_ctx   *Ctx      = c->uiCtx;
+    ui_style *Style    = c->uiStyle;
+    ui_input *Input    = c->uiInput;
+    renderer *Renderer = Ctx->Renderer;
+    rv2 Pos = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - 100);
+    u32 BufferLen = GetBufferLen(Buffer);
+    font *Font = &Renderer->Fonts[Style->MonoFont];
+
+    c8   Char;
+    u32  Index;
+    r32  TempX = Pos.x;
+    rv2  Offset;
+    rect GlyphRect;
+    rect Caret = rect_(0, 0, 0, 0);
+
+    rect BufferRect = {0};
+    BufferRect.x = Style->Padding.x;
+    BufferRect.y = 100;
+    BufferRect.w = Renderer->TargetClipRect.w/2 - Style->Padding.x;
+    BufferRect.h = Renderer->TargetClipRect.h - 100;
+
+    DrawPushClip(Renderer, BufferRect);
+
+    for (cursor Cursor = 0; Cursor < BufferLen; Cursor++) {
+        Char   = GetBufferChar(Buffer, Cursor);
+        Index  = (Char - 32 >= 0)? Char - 32 : '?' - 32;
+        Offset = Font->GlyphOffsets[Index];
+        GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
+        
+        if (Input->mLeftButtonIsDown) {
+            if (IsInsideRect(Input->mPos, GlyphRect) && IsInsideRect(Input->mPos, BufferRect)) {
+                Buffer->Point = Cursor;
+                c->nCurrentBufferLine   = GetBufferLine(Buffer, Buffer->Point);
+                c->nCurrentBufferColumn = GetBufferColumn(Buffer, Buffer->Point);
+            }
+        }
+
+        if (Cursor == Buffer->Point)
+            Caret = rect_(Pos.x, Pos.y + Font->Descender, 2, Font->Ascender);
+
+        if (Char == ' ') {
+            Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
+            continue;
+        }
+
+        if (Char == '\r') {
+            continue;
+        }
+
+        if (Char == '\n') {
+            if (Cursor == Buffer->Point)
+                Caret = rect_(Pos.x +  Offset.x, Pos.y - Offset.y + Font->Descender, 2, Font->Ascender);
+            Pos.y -= Font->LineGap + Style->LineSpacing;
+            Pos.x  = TempX;
+            continue;
+        }
+
+        DrawGlyph(Renderer, Style->MonoFont, Index, GlyphRect.Pos, Style->DefaultTextColor);
+    
+        Pos.x += Font->GlyphAdvances[Index] + Style->CharSpacing;
+    }
+
+    DrawRect(Renderer, Caret, Style->DefaultTextColor);
+    DrawPopClip(Renderer);
+}
+
 void DrawUi(editor_context *c) {
+    buffer *Buffer = c->Buffers[c->CurrentBuffer];
     uiBottomBar(c->uiCtx, c->uiStyle, c->uiInput, c->Filename,
-                c->nCurrentBufferLine, c->nCurrentBufferColumn,
+                GetBufferLine(Buffer, Buffer->Point),
+                GetBufferColumn(Buffer, Buffer->Point),
                 c->dtFrame);
     
-    DrawBuffer(c->Buffers[c->CurrentBuffer], c->uiCtx, c->uiStyle, c->uiInput);
+    DrawBuffer(c);
 }
 
 typedef struct _app_state {
