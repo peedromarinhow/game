@@ -62,6 +62,8 @@ typedef struct _font {
 
 enum piece_type {
     PIECE_RECT,
+    PIECE_CLIP,
+    PIECE_UNCLIP,
     PIECE_GLYPH
     //...
 };
@@ -86,6 +88,9 @@ typedef struct _renderer {
 
     render_piece Pieces[1024];
     u32          UsedPieces;
+
+    rect Clips[8];
+    u32  UsedClips;
 
     font Fonts[3];
     u32  UsedFonts;
@@ -162,6 +167,8 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
     Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
     Renderer->ClearColor         = ClearColor;
 
+    rect ClipRect = Renderer->TargetClipRect;
+
     Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
@@ -173,13 +180,21 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
             RasterRect(rect_(GetVecComps(Pos), GetVecComps(Dim)), HexToColor(Piece.Color.rgba));
         }
         else
+        if (Piece.Type == PIECE_CLIP) {
+            ClipRect = Piece.Rect;
+        }
+        else
+        if (Piece.Type == PIECE_UNCLIP) {
+            ClipRect = Renderer->TargetClipRect;
+        }
+        else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
             RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Glyph.Index],
                               Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
         }
     }
-
+    Clip(ClipRect);
     Renderer->UsedPieces = 0;
 }
 
@@ -311,11 +326,33 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 
 internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
     render_piece Piece;
+    //render_piece Piece = {0};
 
     Piece.Type     = PIECE_RECT;
     Piece.Rect.Pos = Rect.Pos;
     Piece.Rect.Dim = Rect.Dim;
     Piece.Color    = Color;
+
+    if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect))
+        PushPiece(Renderer, Piece);
+}
+
+internal void DrawPushClip(renderer *Renderer, rect Clip) {
+    render_piece Piece;
+    //render_piece Piece = {0};
+
+    Piece.Type     = PIECE_CLIP;
+    Piece.Rect.Pos = Clip.Pos;
+    Piece.Rect.Dim = Clip.Dim;
+
+    if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect))
+        PushPiece(Renderer, Piece);
+}
+
+internal void DrawPopClip(renderer *Renderer) {
+    render_piece Piece = {0};
+
+    Piece.Type = PIECE_UNCLIP;
 
     if (AreRectsClipping(Renderer->TargetClipRect, Piece.Rect))
         PushPiece(Renderer, Piece);
@@ -706,6 +743,23 @@ internal b32 DeleteFowardChar(buffer *Buffer, cursor Cursor) {
     }
 }
 
+internal void SaveBuffer(buffer *Buffer, c8 *Filename) {
+    GlobalPlatformApi.WriteFile(Buffer->Data, Buffer->GapStart, Filename, 0);
+    GlobalPlatformApi.WriteFile(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Filename, 1);
+}
+
+internal void LoadBuffer(buffer *Buffer, c8 *Filename) {
+    if (Filename) {
+        file File = GlobalPlatformApi.LoadFile(Filename);
+        DeleteBuffer(Buffer);
+        EnsureGapSize(Buffer, File.Size);
+        //todo: unecessary CopyMemory?
+        CopyMemory(Buffer->Data, File.Data, File.Size);
+        Buffer->GapStart = File.Size;
+        GlobalPlatformApi.FreeFile(File);
+    }
+}
+
 inline cursor GetNextCharCursor(buffer *Buffer, cursor Cursor) {
     if (Cursor < GetBufferLen(Buffer))
         return Cursor + 1;
@@ -725,10 +779,11 @@ inline cursor GetNextTokenCursor(buffer *Buffer, cursor Cursor) {
     u32    BufferLen = GetBufferLen(Buffer);
     if (GetBufferChar(Buffer, Result) == ' ')
         Result++;
-    while (GetBufferChar(Buffer, Result) != ' ' /* ||
-           GetBufferChar(Buffer, Result) != '\n'*/ &&
-           Result < BufferLen)
+    while (GetBufferChar(Buffer, Result) != ' ' && Result < BufferLen) {
         Result++;
+        if (GetBufferChar(Buffer, Result) == '\n')
+            break;
+    }
 
     return Result;
 }
@@ -738,15 +793,16 @@ inline cursor GetPrevTokenCursor(buffer *Buffer, cursor Cursor) {
     u32    BufferLen = GetBufferLen(Buffer);
     if (GetBufferChar(Buffer, Result) == ' ')
         Result--;
-    while (GetBufferChar(Buffer, Result) != ' ' /*||
-           GetBufferChar(Buffer, Result) != '\n'*/ &&
-           Result > 0)
+    while (GetBufferChar(Buffer, Result) != ' ' && Result > 0) {
         Result--;
+        if (GetBufferChar(Buffer, Result) == '\n')
+            break;
+    }
 
     return Result;
 }
 
-internal cursor GetBeginningOfLineCursor(buffer *Buffer, cursor Cursor) {
+inline cursor GetBeginningOfLineCursor(buffer *Buffer, cursor Cursor) {
     AssertCursorInvariants(Buffer, Cursor);
     Cursor = GetPrevCharCursor(Buffer, Cursor);
     while (Cursor > 0) {
@@ -759,7 +815,7 @@ internal cursor GetBeginningOfLineCursor(buffer *Buffer, cursor Cursor) {
     return 0;
 }
 
-internal cursor GetEndOfLineCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetEndOfLineCursor(buffer *Buffer, cursor CurrentCursor) {
     AssertCursorInvariants(Buffer, CurrentCursor);
     while (CurrentCursor < GetBufferLen(Buffer)) {
         c8  Char = GetBufferChar(Buffer, CurrentCursor);
@@ -771,62 +827,45 @@ internal cursor GetEndOfLineCursor(buffer *Buffer, cursor CurrentCursor) {
     return GetBufferLen(Buffer);
 }
 
-internal cursor GetBeginningOfNextLineCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetBeginningOfNextLineCursor(buffer *Buffer, cursor CurrentCursor) {
     return GetNextCharCursor(Buffer, GetEndOfLineCursor(Buffer, CurrentCursor));
 }
 
-internal cursor GetEndOfPrevLineCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetEndOfPrevLineCursor(buffer *Buffer, cursor CurrentCursor) {
     return GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor));
 }
 
-internal cursor GetBeginningOfPrevLineCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetBeginningOfPrevLineCursor(buffer *Buffer, cursor CurrentCursor) {
     return GetBeginningOfLineCursor(Buffer, GetPrevCharCursor(Buffer, GetBeginningOfLineCursor(Buffer, CurrentCursor)));
 }
 
-internal cursor GetCursorColumn(buffer *Buffer, cursor Cursor) {
+inline cursor GetCursorColumn(buffer *Buffer, cursor Cursor) {
     return Cursor - GetBeginningOfLineCursor(Buffer, Cursor);
 }
 
-internal cursor GetLineLen(buffer *Buffer, cursor Cursor) {
+inline cursor GetLineLen(buffer *Buffer, cursor Cursor) {
     return GetEndOfLineCursor(Buffer, Cursor) - GetBeginningOfLineCursor(Buffer, Cursor);
 }
 
-internal cursor GetBegginingOfBufferCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetBegginingOfBufferCursor(buffer *Buffer, cursor CurrentCursor) {
     return 0;
 }
 
-internal cursor GetEndOfBufferCursor(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetEndOfBufferCursor(buffer *Buffer, cursor CurrentCursor) {
     return GetBufferLen(Buffer);
 }
 
-internal cursor GetBufferColumn(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetBufferColumn(buffer *Buffer, cursor CurrentCursor) {
     return CurrentCursor - GetBeginningOfLineCursor(Buffer, CurrentCursor);
 }
 
-internal cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
+inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
     u32 Line = 1;
     while (GetBeginningOfPrevLineCursor(Buffer, CurrentCursor) != 0) {
         CurrentCursor = GetBeginningOfPrevLineCursor(Buffer, CurrentCursor);
         Line++;
     }
     return Line;
-}
-
-internal void SaveBuffer(buffer *Buffer, c8 *Filename) {
-    GlobalPlatformApi.WriteFile(Buffer->Data, Buffer->GapStart, Filename, 0);
-    GlobalPlatformApi.WriteFile(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Filename, 1);
-}
-
-internal void LoadBuffer(buffer *Buffer, c8 *Filename) {
-    if (Filename) {
-        file File = GlobalPlatformApi.LoadFile(Filename);
-        DeleteBuffer(Buffer);
-        EnsureGapSize(Buffer, File.Size);
-        //todo: unecessary CopyMemory?
-        CopyMemory(Buffer->Data, File.Data, File.Size);
-        Buffer->GapStart = File.Size;
-        GlobalPlatformApi.FreeFile(File);
-    }
 }
 
 internal void DrawBuffer(buffer *Buffer, ui_ctx *Ctx, ui_style *Style, ui_input *Input) {
@@ -837,12 +876,12 @@ internal void DrawBuffer(buffer *Buffer, ui_ctx *Ctx, ui_style *Style, ui_input 
 
     c8   Char;
     u32  Index;
+    r32  TempX = Pos.x;
     rv2  Offset;
     rect GlyphRect;
-
-    r32 TempX = Pos.x;
-
     rect Caret = rect_(0, 0, 0, 0);
+
+    DrawPushClip(Renderer, rect_(Style->Padding.x, 100, 600, 600));
 
     for (cursor Cursor = 0; Cursor < BufferLen; Cursor++) {
         Char   = GetBufferChar(Buffer, Cursor);
@@ -882,6 +921,7 @@ internal void DrawBuffer(buffer *Buffer, ui_ctx *Ctx, ui_style *Style, ui_input 
     }
 
     DrawRect(Renderer, Caret, Style->DefaultTextColor);
+    DrawPopClip(Renderer);
 }
 #endif//GAP_BUFFER_H
 
@@ -1085,7 +1125,6 @@ internal void UpdateEditorContextInput(editor_context *c, platform *p) {
     c->LastKeyComb = Key;
 }
 
-global command Keymap[1024];
 #endif//COMMANDS_H
 
 #endif//APP_H

@@ -16,11 +16,10 @@ void DrawUi(editor_context *c) {
 }
 
 typedef struct _app_state {
-    renderer *Renderer;
-
-    command *Keymap;
+    renderer Renderer;
+    command  Keymap[1024];
     editor_context Context;
-
+    memory_arena   Arena;
     i16 dLastMouseWheel;
 } app_state;
 
@@ -45,15 +44,16 @@ external APP_INIT(Init) {
 
     GlobalPlatformApi = PlatformApi;
 
-    State->Renderer = PlatformApi.AllocateMemory(sizeof(renderer));
-    State->Context.uiCtx   = PlatformApi.AllocateMemory(sizeof(ui_ctx));
-    State->Context.uiStyle = PlatformApi.AllocateMemory(sizeof(ui_style));
-    State->Context.uiInput = PlatformApi.AllocateMemory(sizeof(ui_input));
-    State->Context.Buffers = PlatformApi.AllocateMemory(sizeof(buffer *)*2);
+    State->Arena = InitializeArena(p->Memory.Size     - sizeof(app_state),
+                             (u8 *)p->Memory.Contents + sizeof(app_state));
+
+    State->Context.uiCtx   = PushToArena(&State->Arena, sizeof(ui_ctx));
+    State->Context.uiStyle = PushToArena(&State->Arena, sizeof(ui_style));
+    State->Context.uiInput = PushToArena(&State->Arena, sizeof(ui_input));
+    State->Context.Buffers = PushToArena(&State->Arena, sizeof(buffer *)*2);
     State->Context.Buffers[0] = CreateBuffer(8);
-    // State->Context.Buffers[1] = CreateBuffer(8);
     
-    State->Context.uiCtx->Renderer = State->Renderer;
+    State->Context.uiCtx->Renderer = &State->Renderer;
     State->Context.uiCtx->Hot      = -1;
     State->Context.uiCtx->Clicked  = -1;
     State->Context.uiCtx->Last     = -1;
@@ -73,24 +73,24 @@ external APP_INIT(Init) {
     State->Context.uiStyle->SliderHandleHeight = 20;
     State->Context.uiStyle->SliderHandleWidth  = 10;
 
-    Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
-    Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
-    Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
-    Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
-    Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
-    Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
-    Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
-    Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
-    Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
-    Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
-    Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
-    Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
-    Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
-    Keymap[KEY_CTRL | KEY_HOME]  = command_(cmd_proc_MoveCarretToBufferStart, "MoveCarretToLineStart");
-    Keymap[KEY_CTRL | KEY_END]   = command_(cmd_proc_MoveCarretToBufferEnd,   "MoveCarretToLineEnd");
-    Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
-    Keymap[KEY_CTRL | 'S'] = command_(cmd_proc_SaveFile, "SaveFile");
-    Keymap[KEY_CTRL | 'O'] = command_(cmd_proc_OpenFile, "OpenFile");    
+    State->Keymap[KEY_NONE] = command_(cmd_proc_DoNothing, "DoNothing");
+    State->Keymap[KEY_CHAR] = command_(cmd_proc_InsertChar, "InsertChar");
+    State->Keymap[KEY_DEL]  = command_(cmd_proc_DeleteCharFoward, "DeleteCharFoward");
+    State->Keymap[KEY_BACK] = command_(cmd_proc_DeleteCharBackward, "DeleteCharBackward");
+    State->Keymap[KEY_TAB]  = command_(cmd_proc_Indent, "Indent");
+    State->Keymap[KEY_LEFT]  = command_(cmd_proc_MoveCarretLeft, "MoveCarretLeft");
+    State->Keymap[KEY_RIGHT] = command_(cmd_proc_MoveCarretRight, "MoveCarretRight");
+    State->Keymap[KEY_CTRL | KEY_LEFT]  = command_(cmd_proc_MoveCarretToPrevToken, "MoveCarretToPrevToken");
+    State->Keymap[KEY_CTRL | KEY_RIGHT] = command_(cmd_proc_MoveCarretToNextToken, "MoveCarretToNextToken");
+    State->Keymap[KEY_UP]    = command_(cmd_proc_MoveCarretUp, "MoreCarretUp");
+    State->Keymap[KEY_DOWN]  = command_(cmd_proc_MoveCarretDown, "MoveCarretDown");
+    State->Keymap[KEY_HOME]  = command_(cmd_proc_MoveCarretToLineStart, "MoveCarretToLineStart");
+    State->Keymap[KEY_END]   = command_(cmd_proc_MoveCarretToLineEnd, "MoveCarretToLineEnd");
+    State->Keymap[KEY_CTRL | KEY_HOME]  = command_(cmd_proc_MoveCarretToBufferStart, "MoveCarretToLineStart");
+    State->Keymap[KEY_CTRL | KEY_END]   = command_(cmd_proc_MoveCarretToBufferEnd,   "MoveCarretToLineEnd");
+    State->Keymap[KEY_RETURN] = command_(cmd_proc_InsertNewLine, "InsertNewLine");
+    State->Keymap[KEY_CTRL | 'S'] = command_(cmd_proc_SaveFile, "SaveFile");
+    State->Keymap[KEY_CTRL | 'O'] = command_(cmd_proc_OpenFile, "OpenFile");    
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -103,17 +103,17 @@ external APP_UPDATE(Update) {
 
     UpdateEditorContextInput(&State->Context, p);
 
-    if (Keymap[State->Context.LastKeyComb].Proc)
-        Keymap[State->Context.LastKeyComb].Proc(&State->Context);
+    if (State->Keymap[State->Context.LastKeyComb].Proc)
+        State->Keymap[State->Context.LastKeyComb].Proc(&State->Context);
 
     DrawUi(&State->Context);
-    Render(State->Renderer, p->WindowDim, (colorb){0x202020FF});
+    Render(&State->Renderer, p->WindowDim, (colorb){0x202020FF});
 }
 
 external APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    Init(p);
+    // Init(p);
 }
 
 external APP_DEINIT(Deinit) {

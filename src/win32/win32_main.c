@@ -11,11 +11,10 @@
 
 #include "lingo.h"
 #include "platform.h"
-#include "memory.h"
 
 #include "win32_internal.c"
 #include "win32_utils.c"
-#include "win32_code.c"     //almost aligned all!
+#include "win32_code.c"
 #include "win32_opengl.c"
 
 PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Win32GetAllFilenamesFromDir) {
