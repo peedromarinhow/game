@@ -229,7 +229,7 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
         .Id      = Renderer->UsedFonts,
         .NoChars = NoChars,
 
-        .Height    = (i32)(Ascender - Descender + LineGap),
+        .Height    = (i32)(Ascender + Descender),
         .Ascender  = (i32)(Ascender),
         .Descender = (i32)(Descender),
         .LineGap   = (i32)(LineGap),
@@ -328,7 +328,6 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 
 internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
     render_piece Piece;
-    //render_piece Piece = {0};
 
     Piece.Type     = PIECE_RECT;
     Piece.Rect.Pos = Rect.Pos;
@@ -341,7 +340,6 @@ internal void DrawRect(renderer *Renderer, rect Rect, colorb Color) {
 
 internal void DrawPushClip(renderer *Renderer, rect Clip) {
     render_piece Piece;
-    //render_piece Piece = {0};
 
     Piece.Type     = PIECE_CLIP;
     Piece.Rect.Pos = Clip.Pos;
@@ -435,78 +433,63 @@ internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Co
 #include "lingo.h"
 
 typedef struct _ui_ctx {
-
-    id Hot;
-    id Clicked;
-    id Last;
-    id Current;
+    id  Hot;
+    id  Clicked;
+    id  Last;
+    id  Current;
     u32 NoItems;
-
-    r32 Point;
 } ui_ctx;
 
 typedef struct _ui_style {
-    id Font;
+    id MainFont;
     id MonoFont;
     id IconFont;
+    // rv2 TextSpacing;
 
-    r32 CharSpacing;
-    r32 LineSpacing;
-
+    colorb BackColor;
+    colorb HotColor;
+    colorb ClickedColor;
+    colorb DefaultColor;
+    
     rv2 Padding;
-
-    colorb BarColor;
-
-    colorb DefaultTextColor;
-
-    colorb HotButtonColor;
-    colorb ClickedButtonColor;
-    colorb DefaultButtonColor;
-
-    r32 SliderHandleWidth;
-    r32 SliderHandleHeight;
 } ui_style;
 
 typedef struct _ui_input {
     rv2 mPos;
-    b32 mLeftButtonIsDown;
-    i16 dmWheel;
+    b32 mLeft;
+    b32 mRight;
+    i16 mWheel;
 } ui_input;
 
 internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, rv2 Pos, c8 *Text) {
     b32 WasClicked = 0;
-    id Me = Ctx->Current;
+    id  Me = Ctx->Current;
 
-    rect MenuItemTextBounds = {0};// = MeasureText(Renderer, Text, Style->Font, TextPos);
-    MenuItemTextBounds.Pos = Pos;
+    rv2 TextPos = {
+        .x = Pos.x + Style->Padding.x,
+        .y = Pos.y + Style->Padding.y
+    };
 
-    rv2 TextPos = Pos;
+    rect MenuItemTextBounds = {
+        .Pos   = Pos,
+        .Dim.w = MeasureText(Renderer, Text, Style->MainFont, TextPos).w + Style->Padding.w*2,
+        .Dim.h = Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height
+    };
 
-    Pos.x += Style->Padding.x;
-    Pos.y += Style->Padding.y;
-
-    colorb ButtonColor = Style->DefaultButtonColor;
-
-    TextPos.x += Style->Padding.x/2;
-    TextPos.y += Style->Padding.y/2;
-
-    MenuItemTextBounds.w += MeasureText(Renderer, Text, Style->Font, TextPos).w + Style->Padding.x;
-    MenuItemTextBounds.h  = Style->Padding.y                      +
-                            Renderer->Fonts[Style->Font].Ascender +
-                            Renderer->Fonts[Style->Font].Descender;
+    colorb ButtonColor = Style->DefaultColor;
 
     if (IsInsideRect(Input->mPos, MenuItemTextBounds)) {
         Ctx->Hot    = Me;
-        ButtonColor = Style->HotButtonColor;
-        if (Input->mLeftButtonIsDown) {
+        ButtonColor = Style->HotColor;
+        if (Input->mLeft) {
             Ctx->Clicked = Me;
             WasClicked   = 1;
-            ButtonColor  = Style->ClickedButtonColor;
+            ButtonColor  = Style->ClickedColor;
         }
     }
 
     DrawRect(Renderer, MenuItemTextBounds, ButtonColor);
-    DrawText(Renderer, Text, Style->Font, TextPos, Style->DefaultTextColor);
+    DrawText(Renderer, Text, Style->MainFont, TextPos, GREY_50);
 
     Ctx->Last = Me;
     if (Ctx->Current < Ctx->NoItems)
@@ -515,6 +498,7 @@ internal b32 uiButton(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *R
     return WasClicked;
 }
 
+#if 0
 internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, r32 LastValue, rv2 Pos, r32 Range) {
     r32 Value = LastValue*Range;
     id Me = Ctx->Current;
@@ -523,7 +507,7 @@ internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Re
     rect SliderHandle = rect_(Pos.x + Value, Pos.y - Style->SliderHandleHeight/2 + Style->SliderHandleWidth/2,
                               Style->SliderHandleWidth, Style->SliderHandleHeight);
 
-    colorb HandleColor = Style->DefaultButtonColor;
+    colorb HandleColor = Style->DefaultColor;
 
     if (IsInsideRect(Input->mPos, rect_Union(SliderGroove, SliderHandle))) {
         Ctx->Hot    = Me;
@@ -552,52 +536,7 @@ internal f32 uiSlder(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Re
 
     return Value/Range;
 }
-
-internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 *Filename, u32 nLine, u32 nColumn, r32 dtFrame) {
-    rv2 Pos = rv2_(0, 0);
-    colorb BackgroundColor = Style->DefaultButtonColor;
-
-    rect BarBackground;
-    BarBackground.w = Renderer->TargetClipRect.w;
-    BarBackground.h = Style->Padding.y                      +
-                      Renderer->Fonts[Style->Font].Ascender +
-                      Renderer->Fonts[Style->Font].Descender;
-    BarBackground.Pos = Pos;
-    DrawRect(Renderer, BarBackground, BackgroundColor);
-
-    r32 x = 0;
-    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), Filename);
-    x += MeasureText(Renderer, Filename, Style->Font, rv2_(0, 0)).w + Style->Padding.x*1.5f;
-    c8 TextBuffer[32];
-    sprintf_s(TextBuffer, 32, "%u, %u", nLine, nColumn);
-    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
-    x = Renderer->TargetClipRect.w - MeasureText(Renderer, "0.000000", Style->Font, rv2_(0, 0)).w - Style->Padding.x;
-    sprintf_s(TextBuffer, 32, "%f", dtFrame);
-    uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
-}
-
-internal u32 uiTabBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 **Tabs, u32 NoTabs) {
-    colorb BackgroundColor = Style->DefaultButtonColor;
-
-    rect BarBackground;
-    BarBackground.w = Renderer->TargetClipRect.w;
-    BarBackground.h = Style->Padding.y                      +
-                      Renderer->Fonts[Style->Font].Ascender +
-                      Renderer->Fonts[Style->Font].Descender;
-    BarBackground.Pos = rv2_(0, Renderer->TargetClipRect.h - BarBackground.h);
-    DrawRect(Renderer, BarBackground, BackgroundColor);
-
-    u32 ClickedTab = -1;
-
-    r32 x = 0;
-    for (u32 TabIndex = 0; TabIndex < NoTabs; TabIndex++) {
-        if (uiButton(Ctx, Style, Input, Renderer, rv2_(x, Renderer->TargetClipRect.h - BarBackground.h), Tabs[TabIndex]))
-            ClickedTab = TabIndex;
-        x += MeasureText(Renderer, Tabs[TabIndex], Style->Font, rv2_(0, 0)).w + Style->Padding.x;
-    }
-
-    return ClickedTab;
-}
+#endif
 #endif//UI_H
 
 
@@ -976,6 +915,7 @@ CMD_PROC(MoveCarretUp) {
     u32 BeginningOfPrevLine = GetBeginningOfPrevLineCursor(Buffer, Buffer->Point);
     u32 PrevLineLen         = GetLineLen(Buffer, BeginningOfPrevLine);
     Buffer->Point = BeginningOfPrevLine + Min(PrevLineLen, c->nCurrentBufferColumn);
+    c->nCurrentBufferLine = GetBufferLine(Buffer, Buffer->Point);
 }
 
 CMD_PROC(MoveCarretDown) {
@@ -983,6 +923,7 @@ CMD_PROC(MoveCarretDown) {
     u32 BeginningOfNextLine = GetBeginningOfNextLineCursor(Buffer, Buffer->Point);
     u32 NextLineLen         = GetLineLen(Buffer, BeginningOfNextLine);
     Buffer->Point = Min(BeginningOfNextLine + Min(NextLineLen, c->nCurrentBufferColumn), GetBufferLen(Buffer) - 1);
+    c->nCurrentBufferLine = GetBufferLine(Buffer, Buffer->Point);
 }
 
 CMD_PROC(MoveCarretToLineStart) {
@@ -1054,7 +995,7 @@ typedef enum _key {
 
 internal void UpdateEditorContextInput(editor_context *c, platform *p) {
     c->uiInput->mPos = p->mPos;
-    c->uiInput->mLeftButtonIsDown = p->mLeft;
+    c->uiInput->mLeft = p->mLeft;
     c->dtFrame = p->dtForFrame;
     
     u16 Key = KEY_NONE;
