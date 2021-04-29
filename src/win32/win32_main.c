@@ -17,29 +17,6 @@
 #include "win32_code.c"
 #include "win32_opengl.c"
 
-PLATFORM_GET_ALL_FILENAMES_FROM_DIR(Win32GetAllFilenamesFromDir) {
-    WIN32_FIND_DATA FindData;
-    HANDLE FindHandle = FindFirstFile(DirPath, &FindData);
-    u32 NoFilenames = 0;
-    c8 **Result = NULL;
-
-    if (FindHandle != INVALID_HANDLE_VALUE) {
-        do {
-            if (!(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-                NoFilenames++;
-        } while(FindNextFile(FindHandle, &FindData));
-    }
-
-    FindHandle = FindFirstFileA(DirPath, &FindData);
-    Result = Win32AllocateMemory(NoFilenames);
-    for (u32 FilenameIndex = 0; FilenameIndex < NoFilenames; FilenameIndex++) {
-        FindNextFile(FindHandle, &FindData);
-        Result[FilenameIndex] = FindData.cFileName;
-    }
-
-    return Result;
-}
-
 global b32 *GlobalRunning;
 
 //note: hopefully the demiurge is having fun
@@ -124,7 +101,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.LoadFileToArenaCallback   = Win32LoadFileToArena;
         Platform.FreeFileFromArenaCallback = Win32FreeFileFromArena;
         Platform.WriteFileCallback         = Win32WriteFile;
-        // Platform.GetAllFilenamesFromDir    = Win32GetAllFilenamesFromDir;
+        Platform.GetDirFilenames           = Win32GetDirFilenames;
         Platform.ReportErrorCallback       = Win32ReportError;
         Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
 

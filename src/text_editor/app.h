@@ -576,7 +576,7 @@ internal void uiBottomBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, rendere
     uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
 }
 
-internal void uiTabBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 **Tabs, u32 NoTabs) {
+internal u32 uiTabBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *Renderer, c8 **Tabs, u32 NoTabs) {
     colorb BackgroundColor = Style->DefaultButtonColor;
 
     rect BarBackground;
@@ -587,11 +587,16 @@ internal void uiTabBar(ui_ctx *Ctx, ui_style *Style, ui_input *Input, renderer *
     BarBackground.Pos = rv2_(0, Renderer->TargetClipRect.h - BarBackground.h);
     DrawRect(Renderer, BarBackground, BackgroundColor);
 
+    u32 ClickedTab = -1;
+
     r32 x = 0;
     for (u32 TabIndex = 0; TabIndex < NoTabs; TabIndex++) {
-        if (uiButton(Ctx, Style, Input, Renderer, rv2_(x, Renderer->TargetClipRect.h - BarBackground.h), Tabs[TabIndex]));
+        if (uiButton(Ctx, Style, Input, Renderer, rv2_(x, Renderer->TargetClipRect.h - BarBackground.h), Tabs[TabIndex]))
+            ClickedTab = TabIndex;
         x += MeasureText(Renderer, Tabs[TabIndex], Style->Font, rv2_(0, 0)).w + Style->Padding.x;
     }
+
+    return ClickedTab;
 }
 #endif//UI_H
 
@@ -903,6 +908,7 @@ typedef struct _editor_context {
     ui_input *uiInput;
 
     c8 *Filename;
+    u32 Tab;
 
     id  CurrentBuffer;
     buffer **Buffers;

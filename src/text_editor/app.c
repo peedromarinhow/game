@@ -1,9 +1,21 @@
 #include "lingo.h"
 #include "platform.h"
 #include "maths.h"
-#include "api.h"
 
-platform_api GlobalPlatformApi;
+typedef struct _platform_api {
+    platform_allocate_memory_callback      *AllocateMemory;
+    platform_free_memory_callback          *FreeMemory;
+    platform_load_file_callback            *LoadFile;
+    platform_free_file_callback            *FreeFile;
+    platform_load_file_to_arena_callback   *LoadFileToArena;
+    platform_free_file_from_arena_callback *FreeFileFromArena;
+    platform_write_file_callback           *WriteFile;
+    platform_get_dir_filenames             *GetDirFilenames;
+    platform_report_error_callback         *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
+} platform_api;
+
+global platform_api GlobalPlatformApi;
 
 #include "colors.h"
 #include "app.h"
@@ -105,13 +117,18 @@ void DrawUi(editor_context *c) {
     DrawRect(c->Renderer, Caret, (colorb){GREY_50 });
     y = uiSlder(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, y, rv2_(800, 100), 500);
     DrawBuffer(c, y*50000);
-    c8 *Tabs[] = {
-        "tab 1",
-        "tab 2",
-        "tab 3",
-        "tab 4"
-    };
-    uiTabBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, Tabs, ArrayCount(Tabs));
+
+    file_group Tabs = GlobalPlatformApi.GetDirFilenames("D:/code/etc/etcetc/*.c");
+
+    c8 PathBuffer[256];
+    for (c8 *Char = PathBuffer; *Char; Char++)
+        *Char = '\0';
+    if (uiTabBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, Tabs.Filenames, Tabs.NoFiles) != -1)
+        c->Tab = uiTabBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, Tabs.Filenames, Tabs.NoFiles);
+    if (c->Tab != -1) {
+        sprintf_s(PathBuffer, 256, "D:/code/etc/etcetc/%s", Tabs.Filenames[c->Tab]);
+        c->Filename = PathBuffer;
+    }
     uiBottomBar(c->uiCtx, c->uiStyle, c->uiInput, c->Renderer, c->Filename,
                 GetBufferLine(Buffer, Buffer->Point),
                 GetBufferColumn(Buffer, Buffer->Point),
@@ -121,10 +138,9 @@ void DrawUi(editor_context *c) {
 command Keymap[1024];
 
 typedef struct _app_state {
-    renderer Renderer;
+    renderer       Renderer;
     editor_context Context;
     memory_arena   Arena;
-    i16 dLastMouseWheel;
 } app_state;
 
 external APP_INIT(Init) {
@@ -134,17 +150,19 @@ external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
 
-    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
-    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
-    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
-    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
-    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
-    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
-    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
-    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
-    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    GlobalPlatformApi.AllocateMemory       = p->AllocateMemoryCallback;
+    GlobalPlatformApi.FreeMemory           = p->FreeMemoryCallback;
+    GlobalPlatformApi.LoadFile             = p->LoadFileCallback;
+    GlobalPlatformApi.FreeFile             = p->FreeFileCallback;
+    GlobalPlatformApi.LoadFileToArena      = p->LoadFileToArenaCallback;
+    GlobalPlatformApi.FreeFileFromArena    = p->FreeFileFromArenaCallback;
+    GlobalPlatformApi.WriteFile            = p->WriteFileCallback;
+    GlobalPlatformApi.GetDirFilenames      = p->GetDirFilenames;
+    GlobalPlatformApi.ReportError          = p->ReportErrorCallback;
+    GlobalPlatformApi.ReportErrorAndDie    = p->ReportErrorAndDieCallback;
 
     State->Context.Renderer = &State->Renderer;
+    State->Context.Filename = "";
 
     State->Arena = InitializeArena(p->Memory.Size     - sizeof(app_state),
                              (u8 *)p->Memory.Contents + sizeof(app_state));
@@ -202,15 +220,13 @@ global u8 KeyAccumulator = 0; //note: hack!
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
-
-    State->Context.Filename = "a.c";
+    DrawUi(&State->Context);
 
     UpdateEditorContextInput(&State->Context, p);
 
     if (Keymap[State->Context.LastKeyComb].Proc)
         Keymap[State->Context.LastKeyComb].Proc(&State->Context);
 
-    DrawUi(&State->Context);
     Render(&State->Renderer, p->WindowDim, (colorb){GREY_900});
 }
 

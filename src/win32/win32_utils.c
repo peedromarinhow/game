@@ -28,16 +28,16 @@ internal void Win32BuildEXEPathFilename(char *Dest, i32 DestCount, char *Filenam
 //note: all this is basically _stolen_ from ryan's platform layer
 
 //todo: varargs for formats on these two functions
-PLATFORM_REPORT_ERROR(Win32ReportError) {
+internal PLATFORM_REPORT_ERROR(Win32ReportError) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
 }
 
-PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
+internal PLATFORM_REPORT_ERROR_AND_DIE(Win32ReportErrorAndDie) {
     MessageBoxA(0, ErrorMessage, Title, MB_OK);
     _Exit(1);
 }
 
-PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
+internal PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
     void *Result = VirtualAlloc(0, (size_t)Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!Result) {
         Win32ReportError("MEMORY ALLOCATION ERROR", "Could not allocate");
@@ -45,18 +45,18 @@ PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
     return Result;
 }
 
-PLATFORM_FREE_MEMORY(Win32FreeMemory) {
+internal PLATFORM_FREE_MEMORY(Win32FreeMemory) {
     if (Data)
         VirtualFree(Data, sizeof(Data), MEM_RELEASE);
 }
 
-PLATFORM_FREE_FILE(Win32FreeFile) {
+internal PLATFORM_FREE_FILE(Win32FreeFile) {
     if (File.Data)
         VirtualFree(File.Data, File.Size, MEM_RELEASE);
 }
 
 //note: basically copied from ryan's
-PLATFORM_LOAD_FILE(Win32LoadFile) {
+internal PLATFORM_LOAD_FILE(Win32LoadFile) {
     file Result;
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, OPEN_EXISTING, 0, 0);
@@ -79,11 +79,11 @@ PLATFORM_LOAD_FILE(Win32LoadFile) {
     return Result;
 }
 
-PLATFORM_FREE_FILE_FROM_ARENA(Win32FreeFileFromArena) {
+internal PLATFORM_FREE_FILE_FROM_ARENA(Win32FreeFileFromArena) {
     PopFromArena(Arena, File.Size);
 }
 
-PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
+internal PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
     file Result;
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE,
                                     0, 0, OPEN_EXISTING, 0, 0);
@@ -105,7 +105,7 @@ PLATFORM_LOAD_FILE_TO_ARENA(Win32LoadFileToArena) {
     return Result;
 }
 
-PLATFORM_WRITE_FILE(Win32WriteFile) {
+internal PLATFORM_WRITE_FILE(Win32WriteFile) {
     HANDLE FileHandle = {0};
     if (Append) {
         FileHandle = CreateFileA(Filename, FILE_APPEND_DATA,
@@ -131,6 +131,33 @@ PLATFORM_WRITE_FILE(Win32WriteFile) {
         Win32ReportError("ERROR", "Could not save to file");
         //Win32ReportError("ERROR", "Could not save to file\"%s\"\n", Filename);
     }
+}
+
+PLATFORM_GET_DIR_FILENAMES(Win32GetDirFilenames) {
+    WIN32_FIND_DATA FindData = {0};
+    HANDLE          FindHandle = FindFirstFileA(Dir, &FindData);
+    u32             NoFiles = 0;
+    if (FindHandle != INVALID_HANDLE_VALUE) {
+        do {
+            NoFiles++;
+        } while (FindNextFileA(FindHandle, &FindData));
+    }
+
+    c8 **Filenames = Win32AllocateMemory(NoFiles + 1 * sizeof(c8 *));
+    u32  FileIndex = 0;
+    FindHandle = FindFirstFileA(Dir, &FindData);
+    if (FindHandle != INVALID_HANDLE_VALUE) {
+        do {
+            Filenames[FileIndex] = Win32AllocateMemory(sizeof(FindData.cFileName));
+            CopyMemory(Filenames[FileIndex], FindData.cFileName, sizeof(FindData.cFileName));
+            FileIndex++;
+        } while (FindNextFileA(FindHandle, &FindData));
+        FindClose(FindHandle);
+    }
+
+    Filenames[NoFiles] = 0;
+
+    return (file_group){Filenames, NoFiles};
 }
 
 internal void Win32ToggleFullScreen(HWND Window) {
