@@ -53,7 +53,8 @@ typedef enum _token_type {
     TOKEN_TYPE_STR,
     TOKEN_TYPE_INT,
     TOKEN_TYPE_FLOAT,
-    TOKEN_TYPE_NAME
+    TOKEN_TYPE_NAME,
+    TOKEN_TYPE_COMMENT
 } token_type;
 
 typedef enum _token_mode {
@@ -315,6 +316,22 @@ TOP:
             Cursor = ScanStr(Buffer, Cursor, Token);
             break;
         }
+        case '/': {
+            Cursor++;
+            if (GetBufferChar(Buffer, Cursor) == '/') {
+                while (GetBufferChar(Buffer, Cursor) != '\n')
+                    Cursor++;
+                Token->Type = TOKEN_TYPE_COMMENT;
+            }
+            else
+            if (GetBufferChar(Buffer, Cursor) == '*') {
+                while (GetBufferChar(Buffer, Cursor)     != '*' &&
+                       GetBufferChar(Buffer, Cursor + 1) != '/')
+                    Cursor++;
+                Token->Type = TOKEN_TYPE_COMMENT;
+            }
+            break;
+        }
         case '.': {
             if (isdigit(GetBufferChar(Buffer, Cursor) + 1)) {
                 Cursor = ScanFloat(Buffer, Cursor, Token);
@@ -374,7 +391,6 @@ TOP:
         case '|':
         case '^':
         case '*':
-        case '/':
         case '%':
         case '=':
         case '!':
@@ -470,7 +486,7 @@ TOP:
     return Cursor;
 }
 
-internal rv2 DrawToken(editor_context *c, buffer *Buffer, token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
+internal rv2 DrawToken(editor_context *c, ui_input *Input, buffer *Buffer, token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
     font Font = Renderer->Fonts[FontId];
 
     if (Token->Type == '\n') {
@@ -498,6 +514,14 @@ internal rv2 DrawToken(editor_context *c, buffer *Buffer, token *Token, renderer
 
         DrawGlyph(Renderer, FontId, Index, GlyphRect.Pos, Color);
 
+        if (Input->mLeft) {
+            if (IsInsideRect(Input->mPos, GlyphRect)) {
+                Buffer->Point = Cursor;
+                c->nCurrentBufferLine   = GetBufferLine(Buffer, Buffer->Point);
+                c->nCurrentBufferColumn = GetBufferColumn(Buffer, Buffer->Point);
+            }
+        }
+
         Pos.x += Font.GlyphAdvances[Index];
     }
 
@@ -519,7 +543,8 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
         [TOKEN_TYPE_STR]       = GREEN_600,
         [TOKEN_TYPE_INT]       = ORANGE_600,
         [TOKEN_TYPE_FLOAT]     = RED_500,
-        [TOKEN_TYPE_NAME]      = GREY_50
+        [TOKEN_TYPE_NAME]      = GREY_50,
+        [TOKEN_TYPE_COMMENT]   = GREEN_200
     };
 
     r32  Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
@@ -530,7 +555,7 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
 
     cursor Cursor = NextToken(Buffer, 0, &Token);
     while (Token.Type != TOKEN_TYPE_EOF) {
-        Pos    = DrawToken(c, Buffer, &Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
+        Pos    = DrawToken(c, Input, Buffer, &Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
         Cursor = NextToken(Buffer, Cursor, &Token);
     }
 }
