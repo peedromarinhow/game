@@ -70,8 +70,8 @@ typedef struct _token {
 
     u32 Error;
 
-    c8 *Start;
-    c8 *End;
+    cursor Start;
+    cursor End;
 
     union {
         u64 iVal;
@@ -82,32 +82,32 @@ typedef struct _token {
     u32 NameLen;
 } token;
 
-internal c8 *ScanInt(c8 *Stream, token *Token) {
-    Token->Start = Stream;
+internal cursor ScanInt(buffer *Buffer, cursor Cursor, token *Token) {
+    Token->Start = Cursor;
     u64 Base = 10;
-    if (*Stream == '0') {
-        Stream++;
-        if (tolower(*Stream) == 'x') {
-            Stream++;
+    if (GetBufferChar(Buffer, Cursor) == '0') {
+        Cursor++;
+        if (tolower(GetBufferChar(Buffer, Cursor)) == 'x') {
+            Cursor++;
             Token->Mode = TOKEN_MODE_HEX;
             Base = 16;
         }
         else
-        if (tolower(*Stream) == 'b') {
-            Stream++;
+        if (tolower(GetBufferChar(Buffer, Cursor)) == 'b') {
+            Cursor++;
             Token->Mode = TOKEN_MODE_BIN;
             Base = 2;
         }
         else
-        if (isdigit(*Stream)) {
+        if (isdigit(GetBufferChar(Buffer, Cursor))) {
             Token->Mode = TOKEN_MODE_OCT;
             Base = 8;
         }
     }
     u64 Val = 0;
     while (1) {
-        u64 Digit = CHAR_TO_DIGIT[*Stream];
-        if (Digit == 0 && *Stream != '0') {
+        u64 Digit = CHAR_TO_DIGIT[GetBufferChar(Buffer, Cursor)];
+        if (Digit == 0 && GetBufferChar(Buffer, Cursor) != '0') {
             break;
         }
         if (Digit > Base) {
@@ -117,55 +117,55 @@ internal c8 *ScanInt(c8 *Stream, token *Token) {
         if (Val > (UINT64_MAX - Digit)/Base) {
             //note: see above todo
             Token->Error = 1;
-            while (isdigit(*Stream))
-                Stream++;
+            while (isdigit(GetBufferChar(Buffer, Cursor)))
+                Cursor++;
             Val = 0;
         }
         Val = Val * Base + Digit;
-        Stream++;
+        Cursor++;
     }
-    Token->End  = Stream;
+    Token->End  = Cursor;
     Token->iVal = Val;
     Token->Type = TOKEN_TYPE_INT;
 
-    return Stream;
+    return Cursor;
 }
 
-internal c8 *ScanFloat(c8 *Stream, token *Token) {
-    c8 *Start    = Stream;
+internal cursor ScanFloat(buffer *Buffer, cursor Cursor, token *Token) {
+    cursor Start = Cursor;
     Token->Start = Start;
-    while (isdigit(*Stream)) {
-        Stream++;
+    while (isdigit(GetBufferChar(Buffer, Cursor))) {
+        Cursor++;
     }
-    if (*Stream == '.') {
-        Stream++;
+    if (GetBufferChar(Buffer, Cursor) == '.') {
+        Cursor++;
     }
-    Stream++;
-    while (isdigit(*Stream)) {
-        Stream++;
+    Cursor++;
+    while (isdigit(GetBufferChar(Buffer, Cursor))) {
+        Cursor++;
     }
-    if (tolower(*Stream) == 'e') {
-        Stream++;
-        if (*Stream == '+' || *Stream == '-') {
-            Stream++;
+    if (tolower(GetBufferChar(Buffer, Cursor)) == 'e') {
+        Cursor++;
+        if (GetBufferChar(Buffer, Cursor) == '+' || GetBufferChar(Buffer, Cursor) == '-') {
+            Cursor++;
         }
-        if (!isdigit(*Stream)) {
+        if (!isdigit(GetBufferChar(Buffer, Cursor))) {
             Token->Error = 1;
         }
-        while (isdigit(*Stream)) {
-            Stream++;
+        while (isdigit(GetBufferChar(Buffer, Cursor))) {
+            Cursor++;
         }
     }
-    c8 *End = Stream;
-    f64 Val = strtod(Start, NULL);
+    // c8 *End = Cursor;
+    f64 Val = 0;//strtod(Start, NULL); todo
     if (Val == HUGE_VAL || Val == -HUGE_VAL) {
         Token->Error = 1;
     }
-    Token->End  = Stream;
+    Token->End  = Cursor;
     Token->fVal = Val;
     Token->Type = TOKEN_TYPE_FLOAT;
 
-    return Stream;
+    return Cursor;
 }
 
 char ESCAPE_TO_CHAR[128] = {
@@ -178,101 +178,101 @@ char ESCAPE_TO_CHAR[128] = {
     ['0'] =   0,
 };
 
-internal c8 *ScanStr(c8 *Stream, token *Token) {
-    Assert(*Stream == '"');
-    Token->Start = Stream;
-    Stream++;
+internal cursor ScanStr(buffer *Buffer, cursor Cursor, token *Token) {
+    Assert(GetBufferChar(Buffer, Cursor) == '"');
+    Token->Start = Cursor;
+    Cursor++;
     char *Str = NULL;
-    while (*Stream && *Stream != '"') {
-        char Val = *Stream;
+    while (GetBufferChar(Buffer, Cursor) && GetBufferChar(Buffer, Cursor) != '"') {
+        char Val = GetBufferChar(Buffer, Cursor);
         if (Val == '\n') {
             Token->Error = 1;
         }
         else
         if (Val == '\\') {
-            Stream++;
-            Val = ESCAPE_TO_CHAR[*Stream];
-            if (Val == 0 && *Stream != '0') {
+            Cursor++;
+            Val = ESCAPE_TO_CHAR[GetBufferChar(Buffer, Cursor)];
+            if (Val == 0 && GetBufferChar(Buffer, Cursor) != '0') {
                 Token->Error = 1;
             }
         }
-        Stream++;
+        Cursor++;
     }
-    if (*Stream) {
-        Assert(*Stream == '"');
-        Stream++;
+    if (GetBufferChar(Buffer, Cursor)) {
+        Assert(GetBufferChar(Buffer, Cursor) == '"');
+        Cursor++;
     }
     else {
         Token->Error = 1;
     }
-    Token->End  = Stream;
+    Token->End  = Cursor;
     Token->sVal = Str;
     Token->Type = TOKEN_TYPE_STR;
 
-    return Stream;
+    return Cursor;
 }
 
-internal c8 *ScanChar(c8 *Stream, token *Token) {
-    Token->Start = Stream;
-    Stream++;
+internal cursor ScanChar(buffer *Buffer, cursor Cursor, token *Token) {
+    Token->Start = Cursor;
+    Cursor++;
     c8 Val = 0;
-    if (*Stream == '\'') {
+    if (GetBufferChar(Buffer, Cursor) == '\'') {
         //
-        Stream++;
+        Cursor++;
     }
     else
-    if (*Stream == '\n') {
+    if (GetBufferChar(Buffer, Cursor) == '\n') {
         //
     }
     else
-    if (*Stream == '\\') {
-        Stream++;
-        Val = ESCAPE_TO_CHAR[*Stream];
-        if (Val == 0 && *Stream != '0') {
+    if (GetBufferChar(Buffer, Cursor) == '\\') {
+        Cursor++;
+        Val = ESCAPE_TO_CHAR[GetBufferChar(Buffer, Cursor)];
+        if (Val == 0 && GetBufferChar(Buffer, Cursor) != '0') {
             //
         }
-        Stream++;
+        Cursor++;
     }
     else {
-        Val = *Stream;
-        Stream++;
+        Val = GetBufferChar(Buffer, Cursor);
+        Cursor++;
     }
     
-    if (*Stream != '\'') {
+    if (GetBufferChar(Buffer, Cursor) != '\'') {
         //
     }
     else {
-        Stream++;
+        Cursor++;
     }
-    Token->End  = Stream;
+    Token->End  = Cursor;
     Token->iVal = Val;
     Token->Type = TOKEN_TYPE_INT;
     Token->Mode = TOKEN_MODE_CHAR;
 
-    return Stream;
+    return Cursor;
 }
 
 #define CASE1(c, c1, k)             \
     case c: {                       \
-        Token->Type = *Stream++;    \
-        if (*Stream == c1) {        \
+        Token->Type = GetBufferChar(Buffer, Cursor)++;    \
+        if (GetBufferChar(Buffer, Cursor) == c1) {        \
             Token->Type = k;        \
-            Stream++;               \
+            Cursor++;               \
         }                           \
         break;                      \
     }
 
 #define CASE2(c, c1, k, c2, k1)     \
     case c: {                       \
-        Token->Type = *Stream++;    \
-        if (*Stream == c1) {        \
+        Token->Type = GetBufferChar(Buffer, Cursor)++;    \
+        if (GetBufferChar(Buffer, Cursor) == c1) {        \
             Token->Type = k;        \
-            Stream++;               \
+            Cursor++;               \
         }                           \
         else                        \
-        if (*Stream == c2) {        \
+        if (GetBufferChar(Buffer, Cursor) == c2) {        \
             Token->Type = k1;       \
-            Stream++;               \
+            Cursor++;               \
         }                           \
         break;                      \
     }
@@ -295,32 +295,32 @@ b32 IsKeyword(c8 *Name, u32 NameLen) {
     return Result;
 }
 
-internal c8 *NextToken(c8 *Stream, token *Token) {
+internal cursor NextToken(buffer *Buffer, cursor Cursor, token *Token) {
 TOP:
-    Token->Start = Stream;
+    Token->Start = Cursor;
     Token->Mode  = 0;
-    switch (*Stream) {
+    switch (GetBufferChar(Buffer, Cursor)) {
         case '\r': case '\v': {
-            while (*Stream == '\r' || *Stream == '\v') {
-                Stream++;
+            while (GetBufferChar(Buffer, Cursor) == '\r' || GetBufferChar(Buffer, Cursor) == '\v') {
+                Cursor++;
             }
             goto TOP;
             break;
         }
         case '\'': {
-            Stream = ScanChar(Stream, Token);
+            Cursor = ScanChar(Buffer, Cursor, Token);
             break;
         }
         case '"': {
-            Stream = ScanStr(Stream, Token);
+            Cursor = ScanStr(Buffer, Cursor, Token);
             break;
         }
         case '.': {
-            if (isdigit(*Stream + 1)) {
-                Stream = ScanFloat(Stream, Token);
+            if (isdigit(GetBufferChar(Buffer, Cursor) + 1)) {
+                Cursor = ScanFloat(Buffer, Cursor, Token);
             }
             else {
-                Stream++;
+                Cursor++;
                 Token->Type = TOKEN_TYPE_OPERATOR;
             }
 
@@ -336,16 +336,16 @@ TOP:
         case '7':
         case '8':
         case '9': {
-            while (isdigit(*Stream)) {
-                Stream++;
+            while (isdigit(GetBufferChar(Buffer, Cursor))) {
+                Cursor++;
             }
-            c8 c = *Stream;
-            Stream = Token->Start;
+            c8 c = GetBufferChar(Buffer, Cursor);
+            Cursor = Token->Start;
             if (c == '.' || tolower(c) == 'e') {
-                Stream = ScanFloat(Stream, Token);
+                Cursor = ScanFloat(Buffer, Cursor, Token);
             }
             else {
-                Stream = ScanInt(Stream, Token);
+                Cursor = ScanInt(Buffer, Cursor, Token);
             }
             break;
         }
@@ -362,13 +362,13 @@ TOP:
         case 'U': case 'V': case 'W': case 'X': case 'Y':
         case 'Z':
         case '_': {
-            c8 *Start = Stream++;
-            while (isalnum(*Stream) || *Stream == '_') {
-                Stream++;
+            // c8 *Start = Cursor++;
+            while (isalnum(GetBufferChar(Buffer, Cursor)) || GetBufferChar(Buffer, Cursor) == '_') {
+                Cursor++;
             }
-            Token->Name    = Token->Start;
-            Token->NameLen = Stream - Token->Start;
-            Token->Type = IsKeyword(Token->Name, Token->NameLen) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
+            Token->Name    = "provisory name";
+            Token->NameLen = 15;
+            Token->Type    = IsKeyword(Token->Name, Token->NameLen) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
             break;
         }
         case '|':
@@ -386,7 +386,7 @@ TOP:
         case ':':
         case ',': {
             Token->Type = TOKEN_TYPE_OPERATOR;
-            Stream++;
+            Cursor++;
             break;
         }
         case '(':
@@ -397,40 +397,40 @@ TOP:
         case '}':
         case ';': {
             Token->Type = TOKEN_TYPE_DELIMITER;
-            Stream++;
+            Cursor++;
             break;
         }
         /*case '<': {
-            Token->Type = *Stream++;
-            if (*Stream == '<') {
+            Token->Type = GetBufferChar(Buffer, Cursor)++;
+            if (GetBufferChar(Buffer, Cursor) == '<') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LSHIFT;
-                Stream++;
-                if (*Stream == '=') {
+                Cursor++;
+                if (GetBufferChar(Buffer, Cursor) == '=') {
                     Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LSHIFT_ASSIGN;
-                    Stream++;
+                    Cursor++;
                 }
             }
             else
-            if (*Stream == '=') {
+            if (GetBufferChar(Buffer, Cursor) == '=') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LTEQ;
-                Stream++;
+                Cursor++;
             }
             break;
         }
         case '>': {
-            Token->Type = *Stream++;
-            if (*Stream == '>') {
+            Token->Type = GetBufferChar(Buffer, Cursor)++;
+            if (GetBufferChar(Buffer, Cursor) == '>') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_RSHIFT;
-                Stream++;
-                if (*Stream == '=') {
+                Cursor++;
+                if (GetBufferChar(Buffer, Cursor) == '=') {
                     Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_RSHIFT_ASSIGN;
-                    Stream++;
+                    Cursor++;
                 }
             }
             else
-            if (*Stream == '=') {
+            if (GetBufferChar(Buffer, Cursor) == '=') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_GTEQ;
-                Stream++;
+                Cursor++;
             }
             break;
         }
@@ -444,37 +444,38 @@ TOP:
         CASE1('!', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_NOTEQ)
         CASE2('+', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_ADD_ASSIGN, '+', TOKEN_TYPE_OPERATOR TOKEN_TYPE_INC)
         case '-': {
-            Token->Type = *Stream++;
-            if (*Stream == '=') {
+            Token->Type = GetBufferChar(Buffer, Cursor)++;
+            if (GetBufferChar(Buffer, Cursor) == '=') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_MIN_ASSIGN;
-                Stream++;
-                if (*Stream == '-') {
+                Cursor++;
+                if (GetBufferChar(Buffer, Cursor) == '-') {
                     Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_DEC;
-                    Stream++;
+                    Cursor++;
                 }
             }
             else
-            if (*Stream == '>') {
+            if (GetBufferChar(Buffer, Cursor) == '>') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_ARR;
-                Stream++;
+                Cursor++;
             }
             break;
         }*/
         default: {
-            Token->Type = *Stream++;
+            Token->Type = GetBufferChar(Buffer, Cursor++);
             break;
         }
     }
-    Token->End = Stream;
-    return Stream;
+    Token->End = Cursor;
+
+    return Cursor;
 }
 
-internal rv2 DrawToken(token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
+internal rv2 DrawToken(editor_context *c, buffer *Buffer, token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
     font Font = Renderer->Fonts[FontId];
 
     if (Token->Type == '\n') {
         Pos.y -= Font.LineGap;// + Style->LineSpacing;
-        Pos.x  = 0;
+        Pos.x  = 10;//note: hack!
         return Pos;
     }
     else
@@ -486,10 +487,14 @@ internal rv2 DrawToken(token *Token, renderer *Renderer, id FontId, colorb Color
     if (Token->Error)
         Color = RED_900;
 
-    for (c8 *Char = Token->Start; Char < Token->End; Char++) {
-        u32  Index     = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+    for (cursor Cursor = Token->Start; Cursor < Token->End; Cursor++) {
+        c8 Char = GetBufferChar(Buffer, Cursor);
+        u32  Index     = (Char - 32 >= 0)? Char - 32 : '?' - 32;
         rv2  Offset    = Font.GlyphOffsets[Index];
         rect GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font.GlyphRects[Index].Dim));
+
+        if (Cursor == Buffer->Point)
+            c->CurrentCaretPos = rv2_(Pos.x +  Offset.x, Pos.y + Font.Descender);
 
         DrawGlyph(Renderer, FontId, Index, GlyphRect.Pos, Color);
 
@@ -499,12 +504,12 @@ internal rv2 DrawToken(token *Token, renderer *Renderer, id FontId, colorb Color
     return Pos;
 }
 
-internal void DrawScannedBuffer(editor_context *c, c8 *Stream) {
+internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
     ui_style *Style    = c->uiStyle;
     ui_input *Input    = c->uiInput;
     renderer *Renderer = c->Renderer;
 
-    rv2    Pos   = rv2_(0, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
+    rv2    Pos   = rv2_(10 /*note: hack!*/, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
     token  Token = {0};
     
     colorb SyntaxColors[] = {
@@ -517,10 +522,16 @@ internal void DrawScannedBuffer(editor_context *c, c8 *Stream) {
         [TOKEN_TYPE_NAME]      = GREY_50
     };
 
-    Stream = NextToken(Stream, &Token);
+    r32  Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
+    rect Line  = rect_(c->uiStyle->Padding.x, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - c->uiStyle->Padding.x, Ascender);
+    rect Caret = rect_(c->CurrentCaretPos.x,  c->CurrentCaretPos.y, 2, Ascender);
+    DrawRect(c->Renderer, Line,  GREY_800);
+    DrawRect(c->Renderer, Caret, GREY_50);
+
+    cursor Cursor = NextToken(Buffer, 0, &Token);
     while (Token.Type != TOKEN_TYPE_EOF) {
-        Pos    = DrawToken(&Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
-        Stream = NextToken(Stream, &Token);
+        Pos    = DrawToken(c, Buffer, &Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
+        Cursor = NextToken(Buffer, Cursor, &Token);
     }
 }
 
@@ -660,9 +671,9 @@ internal void DrawBuffer(editor_context *c) {
 
 global r32 y = 0;
 
-internal void DrawUi(editor_context *c, c8 *Stream) {
+internal void DrawUi(editor_context *c) {
     // DrawBuffer(c);
-    DrawScannedBuffer(c, Stream);
+    DrawScannedBuffer(c, c->Buffers[c->CurrentBuffer]);
     DrawBottomBar(c);
 
     // file_group Tabs = GlobalPlatformApi.GetDirFilenames("D:/code/etc/etcetc/*.c");
@@ -767,7 +778,7 @@ external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     UpdateEditorContextInput(&State->Context, p);
-    DrawUi(&State->Context, State->HackLexTextStream);
+    DrawUi(&State->Context);
     if (Keymap[State->Context.LastKeyComb].Proc)
         Keymap[State->Context.LastKeyComb].Proc(&State->Context);
     Render(&State->Renderer, p->WindowDim, GREY_900);
