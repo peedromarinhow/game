@@ -277,10 +277,6 @@ internal c8 *ScanChar(c8 *Stream, token *Token) {
         break;                      \
     }
 
-i32 IsKeyword(c8 *Name) {
-    return 0;
-}
-
 internal c8 *GetSubStr(c8 *Start, c8 *End) {
     u32 Len = (i32)(End - Start);
     c8 *Str = GlobalPlatformApi.AllocateMemory(Len + 1);
@@ -289,13 +285,23 @@ internal c8 *GetSubStr(c8 *Start, c8 *End) {
     return Str;
 }
 
+b32 IsKeyword(c8 *Name, u32 NameLen) {
+    b32 Result = 0;
+    // c8 Temp = Name[NameLen];
+    // Name[NameLen] = 0;
+    // if (strcmp(Name, "return"))
+    //     Result = 1;
+    // Name[NameLen] = Temp;
+    return Result;
+}
+
 internal c8 *NextToken(c8 *Stream, token *Token) {
 TOP:
     Token->Start = Stream;
     Token->Mode  = 0;
     switch (*Stream) {
-        case ' ': case '\n': case '\r': case '\t': case '\v': {
-            while (isspace(*Stream)) {
+        case '\r': case '\v': {
+            while (*Stream == '\r' || *Stream == '\v') {
                 Stream++;
             }
             goto TOP;
@@ -310,7 +316,14 @@ TOP:
             break;
         }
         case '.': {
-            Stream = ScanFloat(Stream, Token);
+            if (isdigit(*Stream + 1)) {
+                Stream = ScanFloat(Stream, Token);
+            }
+            else {
+                Stream++;
+                Token->Type = TOKEN_TYPE_OPERATOR;
+            }
+
             break;
         }
         case '0':
@@ -342,6 +355,12 @@ TOP:
         case 'p': case 'q': case 'r': case 's': case 't':
         case 'u': case 'v': case 'w': case 'x': case 'y':
         case 'z':
+        case 'A': case 'B': case 'C': case 'D': case 'E':
+        case 'F': case 'G': case 'H': case 'I': case 'J':
+        case 'K': case 'L': case 'M': case 'N': case 'O':
+        case 'P': case 'Q': case 'R': case 'S': case 'T':
+        case 'U': case 'V': case 'W': case 'X': case 'Y':
+        case 'Z':
         case '_': {
             c8 *Start = Stream++;
             while (isalnum(*Stream) || *Stream == '_') {
@@ -349,10 +368,39 @@ TOP:
             }
             Token->Name    = Token->Start;
             Token->NameLen = Stream - Token->Start;
-            Token->Type = IsKeyword(Token->Name) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
+            Token->Type = IsKeyword(Token->Name, Token->NameLen) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
             break;
         }
-        case '<': {
+        case '|':
+        case '^':
+        case '*':
+        case '/':
+        case '%':
+        case '=':
+        case '!':
+        case '+':
+        case '-':
+        case '<':
+        case '>':
+        case '?':
+        case ':':
+        case ',': {
+            Token->Type = TOKEN_TYPE_OPERATOR;
+            Stream++;
+            break;
+        }
+        case '(':
+        case ')':
+        case '[':
+        case ']':
+        case '{':
+        case '}':
+        case ';': {
+            Token->Type = TOKEN_TYPE_DELIMITER;
+            Stream++;
+            break;
+        }
+        /*case '<': {
             Token->Type = *Stream++;
             if (*Stream == '<') {
                 Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LSHIFT;
@@ -386,15 +434,15 @@ TOP:
             }
             break;
         }
-        CASE1('&', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_AND_ASSIGN*/)
-        CASE1('|', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_OR_ASSIGN*/)
-        CASE1('^', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_XOR_ASSIGN*/)
-        CASE1('*', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_MUL_ASSIGN*/)
-        CASE1('/', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_DIV_ASSIGN*/)
-        CASE1('%', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_MOD_ASSIGN*/)
-        CASE1('=', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_EQ*/)
-        CASE1('!', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_NOTEQ*/)
-        CASE2('+', '=', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_ADD_ASSIGN*/, '+', TOKEN_TYPE_OPERATOR/*TOKEN_TYPE_INC*/)
+        CASE1('&', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_AND_ASSIGN)
+        CASE1('|', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_OR_ASSIGN)
+        CASE1('^', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_XOR_ASSIGN)
+        CASE1('*', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_MUL_ASSIGN)
+        CASE1('/', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_DIV_ASSIGN)
+        CASE1('%', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_MOD_ASSIGN)
+        CASE1('=', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_EQ)
+        CASE1('!', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_NOTEQ)
+        CASE2('+', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_ADD_ASSIGN, '+', TOKEN_TYPE_OPERATOR TOKEN_TYPE_INC)
         case '-': {
             Token->Type = *Stream++;
             if (*Stream == '=') {
@@ -411,7 +459,7 @@ TOP:
                 Stream++;
             }
             break;
-        }
+        }*/
         default: {
             Token->Type = *Stream++;
             break;
@@ -421,53 +469,57 @@ TOP:
     return Stream;
 }
 
+internal rv2 DrawToken(token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
+    font Font = Renderer->Fonts[FontId];
+
+    if (Token->Type == '\n') {
+        Pos.y -= Font.LineGap;// + Style->LineSpacing;
+        Pos.x  = 0;
+        return Pos;
+    }
+    else
+    if (Token->Type == ' ') {
+        Pos.x += Font.GlyphAdvances[0];// + Style->CharSpacing;
+        return Pos;
+    }
+
+    if (Token->Error)
+        Color = RED_900;
+
+    for (c8 *Char = Token->Start; Char < Token->End; Char++) {
+        u32  Index     = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        rv2  Offset    = Font.GlyphOffsets[Index];
+        rect GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font.GlyphRects[Index].Dim));
+
+        DrawGlyph(Renderer, FontId, Index, GlyphRect.Pos, Color);
+
+        Pos.x += Font.GlyphAdvances[Index];
+    }
+
+    return Pos;
+}
+
 internal void DrawScannedBuffer(editor_context *c, c8 *Stream) {
-    ui_ctx   *Ctx      = c->uiCtx;
     ui_style *Style    = c->uiStyle;
     ui_input *Input    = c->uiInput;
     renderer *Renderer = c->Renderer;
 
-    font *Font = &Renderer->Fonts[Style->MonoFont];
-
-    rv2 Pos = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
-    r32 TempX = Pos.x;
-
-    token Token = {0};
-
-    u32 Index      =  0;
-    rv2 Offset     = {0};
-    rect GlyphRect = {0};
-
-    colorb Color = GREY_50;
+    rv2    Pos   = rv2_(0, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
+    token  Token = {0};
+    
+    colorb SyntaxColors[] = {
+        [TOKEN_TYPE_OPERATOR]  = GREY_600,
+        [TOKEN_TYPE_DELIMITER] = GREY_600,
+        [TOKEN_TYPE_KEYWORD]   = BLUE_600,
+        [TOKEN_TYPE_STR]       = GREEN_600,
+        [TOKEN_TYPE_INT]       = ORANGE_600,
+        [TOKEN_TYPE_FLOAT]     = RED_500,
+        [TOKEN_TYPE_NAME]      = GREY_50
+    };
 
     Stream = NextToken(Stream, &Token);
     while (Token.Type != TOKEN_TYPE_EOF) {
-
-        if (Token.Type == TOKEN_TYPE_EOF)
-            Color = ORANGE_600;
-        if (Token.Type == TOKEN_TYPE_OPERATOR)
-            Color = GREY_600;
-        if (Token.Type == TOKEN_TYPE_DELIMITER)
-            Color = GREY_600;
-        if (Token.Type == TOKEN_TYPE_KEYWORD)
-            Color = BLUE_600;
-        if (Token.Type == TOKEN_TYPE_STR)
-            Color = GREEN_600;
-        if (Token.Type == TOKEN_TYPE_INT)
-            Color = RED_600;
-        if (Token.Type == TOKEN_TYPE_FLOAT)
-            Color = RED_600;
-        if (Token.Type == TOKEN_TYPE_NAME)
-            Color = BLUE_600;
-
-        for (c8 *Char = Token.Start; Char < Token.End; Char++) {
-            Index  = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
-            Offset = Font->GlyphOffsets[Index];
-            GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
-
-            DrawGlyph(Renderer, Style->MonoFont, Index, GlyphRect.Pos, Color);
-            Pos.x += Font->GlyphAdvances[Index];
-        }
+        Pos    = DrawToken(&Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
         Stream = NextToken(Stream, &Token);
     }
 }
