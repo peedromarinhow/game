@@ -28,6 +28,8 @@ typedef double r64;
 typedef r32 f32;
 typedef r64 f64;
 
+typedef u16 id;
+
 #define ArrayCount(a) (sizeof(a) / sizeof((a)[0]))
 
 #define Kilobytes(Value) ((Value)* 1024)
