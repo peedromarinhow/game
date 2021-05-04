@@ -20,499 +20,20 @@ global platform_api GlobalPlatformApi;
 #include "colors.h"
 #include "app.h"
 
-u8 CHAR_TO_DIGIT[128] = {
-    ['0'] = 0,
-    ['1'] = 1,
-    ['2'] = 2,
-    ['3'] = 3,
-    ['4'] = 4,
-    ['5'] = 5,
-    ['6'] = 6,
-    ['7'] = 7,
-    ['8'] = 8,
-    ['9'] = 9,
-    ['a'] = 10,
-    ['A'] = 10,
-    ['b'] = 11,
-    ['B'] = 11,
-    ['c'] = 12,
-    ['C'] = 12,
-    ['d'] = 13,
-    ['D'] = 13,
-    ['e'] = 14,
-    ['E'] = 14,
-    ['f'] = 15,
-    ['F'] = 15,
-};
-
-typedef enum _token_type {
-    TOKEN_TYPE_EOF,
-    TOKEN_TYPE_OPERATOR,
-    TOKEN_TYPE_DELIMITER,
-    TOKEN_TYPE_KEYWORD,
-    TOKEN_TYPE_STR,
-    TOKEN_TYPE_INT,
-    TOKEN_TYPE_FLOAT,
-    TOKEN_TYPE_NAME,
-    TOKEN_TYPE_COMMENT
-} token_type;
-
-typedef enum _token_mode {
-    TOKEN_MODE_NONE,
-    TOKEN_MODE_HEX,
-    TOKEN_MODE_OCT,
-    TOKEN_MODE_BIN,
-    TOKEN_MODE_CHAR
-} token_mode;
-
-typedef struct _token {
-    token_type Type;
-    token_mode Mode;
-
-    u32 Error;
-
-    cursor Start;
-    cursor End;
-
-    union {
-        u64 iVal;
-        f64 fVal;
-        c8 *sVal;
-        c8 *Name;
-    };
-    u32 NameLen;
-} token;
-
-internal cursor ScanInt(buffer *Buffer, cursor Cursor, token *Token) {
-    Token->Start = Cursor;
-    u64 Base = 10;
-    if (GetBufferChar(Buffer, Cursor) == '0') {
-        Cursor++;
-        if (tolower(GetBufferChar(Buffer, Cursor)) == 'x') {
-            Cursor++;
-            Token->Mode = TOKEN_MODE_HEX;
-            Base = 16;
-        }
-        else
-        if (tolower(GetBufferChar(Buffer, Cursor)) == 'b') {
-            Cursor++;
-            Token->Mode = TOKEN_MODE_BIN;
-            Base = 2;
-        }
-        else
-        if (isdigit(GetBufferChar(Buffer, Cursor))) {
-            Token->Mode = TOKEN_MODE_OCT;
-            Base = 8;
-        }
-    }
-    u64 Val = 0;
-    while (1) {
-        u64 Digit = CHAR_TO_DIGIT[GetBufferChar(Buffer, Cursor)];
-        if (Digit == 0 && GetBufferChar(Buffer, Cursor) != '0') {
-            break;
-        }
-        if (Digit > Base) {
-            //todo: switch color to some error color or use those squiggly undelines idk
-            Token->Error = 1;
-        }
-        if (Val > (UINT64_MAX - Digit)/Base) {
-            //note: see above todo
-            Token->Error = 1;
-            while (isdigit(GetBufferChar(Buffer, Cursor)))
-                Cursor++;
-            Val = 0;
-        }
-        Val = Val * Base + Digit;
-        Cursor++;
-    }
-    Token->End  = Cursor;
-    Token->iVal = Val;
-    Token->Type = TOKEN_TYPE_INT;
-
-    return Cursor;
-}
-
-internal cursor ScanFloat(buffer *Buffer, cursor Cursor, token *Token) {
-    cursor Start = Cursor;
-    Token->Start = Start;
-    while (isdigit(GetBufferChar(Buffer, Cursor))) {
-        Cursor++;
-    }
-    if (GetBufferChar(Buffer, Cursor) == '.') {
-        Cursor++;
-    }
-    Cursor++;
-    while (isdigit(GetBufferChar(Buffer, Cursor))) {
-        Cursor++;
-    }
-    if (tolower(GetBufferChar(Buffer, Cursor)) == 'e') {
-        Cursor++;
-        if (GetBufferChar(Buffer, Cursor) == '+' || GetBufferChar(Buffer, Cursor) == '-') {
-            Cursor++;
-        }
-        if (!isdigit(GetBufferChar(Buffer, Cursor))) {
-            Token->Error = 1;
-        }
-        while (isdigit(GetBufferChar(Buffer, Cursor))) {
-            Cursor++;
-        }
-    }
-    // c8 *End = Cursor;
-    f64 Val = 0;//strtod(Start, NULL); todo
-    if (Val == HUGE_VAL || Val == -HUGE_VAL) {
-        Token->Error = 1;
-    }
-    Token->End  = Cursor;
-    Token->fVal = Val;
-    Token->Type = TOKEN_TYPE_FLOAT;
-
-    return Cursor;
-}
-
-char ESCAPE_TO_CHAR[128] = {
-    ['n'] = '\n',
-    ['r'] = '\r',
-    ['t'] = '\t',
-    ['v'] = '\v',
-    ['b'] = '\b',
-    ['a'] = '\a',
-    ['0'] =   0,
-};
-
-internal cursor ScanStr(buffer *Buffer, cursor Cursor, token *Token) {
-    Assert(GetBufferChar(Buffer, Cursor) == '"');
-    Token->Start = Cursor;
-    Cursor++;
-    char *Str = NULL;
-    while (GetBufferChar(Buffer, Cursor) && GetBufferChar(Buffer, Cursor) != '"') {
-        char Val = GetBufferChar(Buffer, Cursor);
-        if (Val == '\n') {
-            Token->Error = 1;
-        }
-        else
-        if (Val == '\\') {
-            Cursor++;
-            Val = ESCAPE_TO_CHAR[GetBufferChar(Buffer, Cursor)];
-            if (Val == 0 && GetBufferChar(Buffer, Cursor) != '0') {
-                Token->Error = 1;
-            }
-        }
-        Cursor++;
-    }
-    if (GetBufferChar(Buffer, Cursor)) {
-        Assert(GetBufferChar(Buffer, Cursor) == '"');
-        Cursor++;
-    }
-    else {
-        Token->Error = 1;
-    }
-    Token->End  = Cursor;
-    Token->sVal = Str;
-    Token->Type = TOKEN_TYPE_STR;
-
-    return Cursor;
-}
-
-internal cursor ScanChar(buffer *Buffer, cursor Cursor, token *Token) {
-    Token->Start = Cursor;
-    Cursor++;
-    c8 Val = 0;
-    if (GetBufferChar(Buffer, Cursor) == '\'') {
-        //
-        Cursor++;
-    }
-    else
-    if (GetBufferChar(Buffer, Cursor) == '\n') {
-        //
-    }
-    else
-    if (GetBufferChar(Buffer, Cursor) == '\\') {
-        Cursor++;
-        Val = ESCAPE_TO_CHAR[GetBufferChar(Buffer, Cursor)];
-        if (Val == 0 && GetBufferChar(Buffer, Cursor) != '0') {
-            //
-        }
-        Cursor++;
-    }
-    else {
-        Val = GetBufferChar(Buffer, Cursor);
-        Cursor++;
-    }
-    
-    if (GetBufferChar(Buffer, Cursor) != '\'') {
-        //
-    }
-    else {
-        Cursor++;
-    }
-    Token->End  = Cursor;
-    Token->iVal = Val;
-    Token->Type = TOKEN_TYPE_INT;
-    Token->Mode = TOKEN_MODE_CHAR;
-
-    return Cursor;
-}
-
-#define CASE1(c, c1, k)             \
-    case c: {                       \
-        Token->Type = GetBufferChar(Buffer, Cursor)++;    \
-        if (GetBufferChar(Buffer, Cursor) == c1) {        \
-            Token->Type = k;        \
-            Cursor++;               \
-        }                           \
-        break;                      \
-    }
-
-#define CASE2(c, c1, k, c2, k1)     \
-    case c: {                       \
-        Token->Type = GetBufferChar(Buffer, Cursor)++;    \
-        if (GetBufferChar(Buffer, Cursor) == c1) {        \
-            Token->Type = k;        \
-            Cursor++;               \
-        }                           \
-        else                        \
-        if (GetBufferChar(Buffer, Cursor) == c2) {        \
-            Token->Type = k1;       \
-            Cursor++;               \
-        }                           \
-        break;                      \
-    }
-
-internal c8 *GetSubStr(c8 *Start, c8 *End) {
-    u32 Len = (i32)(End - Start);
-    c8 *Str = GlobalPlatformApi.AllocateMemory(Len + 1);
-    CopyMemory(Str, Start, Len);
-    Str[Len] = 0;
-    return Str;
-}
-
-b32 IsKeyword(c8 *Name, u32 NameLen) {
-    b32 Result = 0;
-    // c8 Temp = Name[NameLen];
-    // Name[NameLen] = 0;
-    // if (strcmp(Name, "return"))
-    //     Result = 1;
-    // Name[NameLen] = Temp;
-    return Result;
-}
-
-internal cursor NextToken(buffer *Buffer, cursor Cursor, token *Token) {
-TOP:
-    Token->Start = Cursor;
-    Token->Mode  = 0;
-    switch (GetBufferChar(Buffer, Cursor)) {
-        case '\r': case '\v': {
-            while (GetBufferChar(Buffer, Cursor) == '\r' || GetBufferChar(Buffer, Cursor) == '\v') {
-                Cursor++;
-            }
-            goto TOP;
-            break;
-        }
-        case '\'': {
-            Cursor = ScanChar(Buffer, Cursor, Token);
-            break;
-        }
-        case '"': {
-            Cursor = ScanStr(Buffer, Cursor, Token);
-            break;
-        }
-        case '/': {
-            Cursor++;
-            if (GetBufferChar(Buffer, Cursor) == '/') {
-                while (GetBufferChar(Buffer, Cursor) != '\n')
-                    Cursor++;
-                Token->Type = TOKEN_TYPE_COMMENT;
-            }
-            else
-            if (GetBufferChar(Buffer, Cursor) == '*') {
-                while (GetBufferChar(Buffer, Cursor)     != '*' &&
-                       GetBufferChar(Buffer, Cursor + 1) != '/')
-                    Cursor++;
-                Token->Type = TOKEN_TYPE_COMMENT;
-            }
-            break;
-        }
-        case '.': {
-            if (isdigit(GetBufferChar(Buffer, Cursor) + 1)) {
-                Cursor = ScanFloat(Buffer, Cursor, Token);
-            }
-            else {
-                Cursor++;
-                Token->Type = TOKEN_TYPE_OPERATOR;
-            }
-
-            break;
-        }
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9': {
-            while (isdigit(GetBufferChar(Buffer, Cursor))) {
-                Cursor++;
-            }
-            c8 c = GetBufferChar(Buffer, Cursor);
-            Cursor = Token->Start;
-            if (c == '.' || tolower(c) == 'e') {
-                Cursor = ScanFloat(Buffer, Cursor, Token);
-            }
-            else {
-                Cursor = ScanInt(Buffer, Cursor, Token);
-            }
-            break;
-        }
-        case 'a': case 'b': case 'c': case 'd': case 'e':
-        case 'f': case 'g': case 'h': case 'i': case 'j':
-        case 'k': case 'l': case 'm': case 'n': case 'o':
-        case 'p': case 'q': case 'r': case 's': case 't':
-        case 'u': case 'v': case 'w': case 'x': case 'y':
-        case 'z':
-        case 'A': case 'B': case 'C': case 'D': case 'E':
-        case 'F': case 'G': case 'H': case 'I': case 'J':
-        case 'K': case 'L': case 'M': case 'N': case 'O':
-        case 'P': case 'Q': case 'R': case 'S': case 'T':
-        case 'U': case 'V': case 'W': case 'X': case 'Y':
-        case 'Z':
-        case '_': {
-            // c8 *Start = Cursor++;
-            while (isalnum(GetBufferChar(Buffer, Cursor)) || GetBufferChar(Buffer, Cursor) == '_') {
-                Cursor++;
-            }
-            Token->Name    = "provisory name";
-            Token->NameLen = 15;
-            Token->Type    = IsKeyword(Token->Name, Token->NameLen) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
-            break;
-        }
-        case '|':
-        case '^':
-        case '*':
-        case '%':
-        case '=':
-        case '!':
-        case '+':
-        case '-':
-        case '<':
-        case '>':
-        case '?':
-        case ':':
-        case ',': {
-            Token->Type = TOKEN_TYPE_OPERATOR;
-            Cursor++;
-            break;
-        }
-        case '(':
-        case ')':
-        case '[':
-        case ']':
-        case '{':
-        case '}':
-        case ';': {
-            Token->Type = TOKEN_TYPE_DELIMITER;
-            Cursor++;
-            break;
-        }
-        /*case '<': {
-            Token->Type = GetBufferChar(Buffer, Cursor)++;
-            if (GetBufferChar(Buffer, Cursor) == '<') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LSHIFT;
-                Cursor++;
-                if (GetBufferChar(Buffer, Cursor) == '=') {
-                    Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LSHIFT_ASSIGN;
-                    Cursor++;
-                }
-            }
-            else
-            if (GetBufferChar(Buffer, Cursor) == '=') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_LTEQ;
-                Cursor++;
-            }
-            break;
-        }
-        case '>': {
-            Token->Type = GetBufferChar(Buffer, Cursor)++;
-            if (GetBufferChar(Buffer, Cursor) == '>') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_RSHIFT;
-                Cursor++;
-                if (GetBufferChar(Buffer, Cursor) == '=') {
-                    Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_RSHIFT_ASSIGN;
-                    Cursor++;
-                }
-            }
-            else
-            if (GetBufferChar(Buffer, Cursor) == '=') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_GTEQ;
-                Cursor++;
-            }
-            break;
-        }
-        CASE1('&', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_AND_ASSIGN)
-        CASE1('|', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_OR_ASSIGN)
-        CASE1('^', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_XOR_ASSIGN)
-        CASE1('*', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_MUL_ASSIGN)
-        CASE1('/', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_DIV_ASSIGN)
-        CASE1('%', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_MOD_ASSIGN)
-        CASE1('=', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_EQ)
-        CASE1('!', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_NOTEQ)
-        CASE2('+', '=', TOKEN_TYPE_OPERATOR TOKEN_TYPE_ADD_ASSIGN, '+', TOKEN_TYPE_OPERATOR TOKEN_TYPE_INC)
-        case '-': {
-            Token->Type = GetBufferChar(Buffer, Cursor)++;
-            if (GetBufferChar(Buffer, Cursor) == '=') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_MIN_ASSIGN;
-                Cursor++;
-                if (GetBufferChar(Buffer, Cursor) == '-') {
-                    Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_DEC;
-                    Cursor++;
-                }
-            }
-            else
-            if (GetBufferChar(Buffer, Cursor) == '>') {
-                Token->Type = TOKEN_TYPE_OPERATOR;//TOKEN_TYPE_ARR;
-                Cursor++;
-            }
-            break;
-        }*/
-        default: {
-            Token->Type = GetBufferChar(Buffer, Cursor++);
-            break;
-        }
-    }
-    Token->End = Cursor;
-
-    return Cursor;
-}
-
-internal rv2 DrawToken(editor_context *c, ui_input *Input, buffer *Buffer, token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos) {
+internal rv2 DrawToken(editor_context *c, ui_input *Input, buffer *Buffer, token *Token, renderer *Renderer, id FontId, colorb Color, rv2 Pos, r32 InitialX) {
     font Font = Renderer->Fonts[FontId];
-
-    if (Token->Type == '\n') {
-        Pos.y -= Font.LineGap;// + Style->LineSpacing;
-        Pos.x  = 10;//note: hack!
-        return Pos;
-    }
-    else
-    if (Token->Type == ' ') {
-        Pos.x += Font.GlyphAdvances[0];// + Style->CharSpacing;
-        return Pos;
-    }
 
     if (Token->Error)
         Color = RED_900;
 
     for (cursor Cursor = Token->Start; Cursor < Token->End; Cursor++) {
-        c8 Char = GetBufferChar(Buffer, Cursor);
-        u32  Index     = (Char - 32 >= 0)? Char - 32 : '?' - 32;
+        c8   Char      = GetBufferChar(Buffer, Cursor);
+        u32  Index     =(Char - 32 >= 0)? Char - 32 : '?' - 32;
         rv2  Offset    = Font.GlyphOffsets[Index];
         rect GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font.GlyphRects[Index].Dim));
 
         if (Cursor == Buffer->Point)
             c->CurrentCaretPos = rv2_(Pos.x +  Offset.x, Pos.y + Font.Descender);
-
-        DrawGlyph(Renderer, FontId, Index, GlyphRect.Pos, Color);
 
         if (Input->mLeft) {
             if (IsInsideRect(Input->mPos, GlyphRect)) {
@@ -522,7 +43,21 @@ internal rv2 DrawToken(editor_context *c, ui_input *Input, buffer *Buffer, token
             }
         }
 
+        DrawGlyph(Renderer, FontId, Index, GlyphRect.Pos, Color);
+
         Pos.x += Font.GlyphAdvances[Index];
+
+        if (Char == '\n') {
+            Pos.y -= Font.LineGap;// + Style->LineSpacing;
+            Pos.x  = InitialX;
+            // continue;
+        }
+        else
+        if (Char == ' ') {
+            Pos.x -= Font.GlyphAdvances[Index];
+            Pos.x += Font.GlyphAdvances[0];// + Style->CharSpacing;
+            // continue;
+        }
     }
 
     return Pos;
@@ -533,18 +68,19 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
     ui_input *Input    = c->uiInput;
     renderer *Renderer = c->Renderer;
 
-    rv2    Pos   = rv2_(10 /*note: hack!*/, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
+    rv2    Pos   = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
     token  Token = {0};
     
     colorb SyntaxColors[] = {
-        [TOKEN_TYPE_OPERATOR]  = GREY_600,
-        [TOKEN_TYPE_DELIMITER] = GREY_600,
-        [TOKEN_TYPE_KEYWORD]   = BLUE_600,
-        [TOKEN_TYPE_STR]       = GREEN_600,
-        [TOKEN_TYPE_INT]       = ORANGE_600,
-        [TOKEN_TYPE_FLOAT]     = RED_500,
-        [TOKEN_TYPE_NAME]      = GREY_50,
-        [TOKEN_TYPE_COMMENT]   = GREEN_200
+        [TOKEN_TYPE_OPERATOR]   = GREY_600,
+        [TOKEN_TYPE_DELIMITER]  = GREY_600,
+        [TOKEN_TYPE_KEYWORD]    = BLUE_600,
+        [TOKEN_TYPE_STR]        = GREEN_600,
+        [TOKEN_TYPE_INT]        = ORANGE_600,
+        [TOKEN_TYPE_FLOAT]      = RED_500,
+        [TOKEN_TYPE_NAME]       = GREY_50,
+        [TOKEN_TYPE_COMMENT]    = GREEN_200,
+        [TOKEN_TYPE_WHITESPACE] = (colorb){0x0}
     };
 
     r32  Ascender = c->Renderer->Fonts[c->uiStyle->MonoFont].Ascender;
@@ -555,7 +91,7 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
 
     cursor Cursor = NextToken(Buffer, 0, &Token);
     while (Token.Type != TOKEN_TYPE_EOF) {
-        Pos    = DrawToken(c, Input, Buffer, &Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos);
+        Pos    = DrawToken(c, Input, Buffer, &Token, Renderer, Style->MonoFont, SyntaxColors[Token.Type], Pos, Style->Padding.x);
         Cursor = NextToken(Buffer, Cursor, &Token);
     }
 }
@@ -579,10 +115,10 @@ internal void DrawBottomBar(editor_context *c) {
     uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), c->Filename);
     x += MeasureText(Renderer, c->Filename, Style->MainFont, rv2_(0, 0)).w + Style->Padding.x*2;
     c8 TextBuffer[32];
-    sprintf_s(TextBuffer, 32, "%u, %u", c->nCurrentBufferLine, c->nCurrentBufferColumn);
+    sprintf_s(TextBuffer, 32, "%u, %u, %u", c->nCurrentBufferLine, c->nCurrentBufferColumn, Buffer->Point);
     uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
-    x = Renderer->TargetClipRect.w - MeasureText(Renderer, "0.000000", Style->MainFont, rv2_(0, 0)).w - Style->Padding.x*2;
-    sprintf_s(TextBuffer, 32, "%f", c->dtFrame);
+    x = Renderer->TargetClipRect.w - MeasureText(Renderer, "00.000000", Style->MainFont, rv2_(0, 0)).w - Style->Padding.x*2;
+    sprintf_s(TextBuffer, 32, "%f", 1.f/c->dtFrame);
     uiButton(Ctx, Style, Input, Renderer, rv2_(x, 0), TextBuffer);
 }
 

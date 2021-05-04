@@ -2,16 +2,41 @@
 #include "maths.h"
 #include "platform.h"
 #include "memory.h"
-#include "opengl.h"
+
 #include "app.h"
 
-#include "graphics.h"
-#include "fonts.h"
+typedef struct _platform_api {
+    platform_allocate_memory_callback      *AllocateMemory;
+    platform_free_memory_callback          *FreeMemory;
+    platform_load_file_callback            *LoadFile;
+    platform_free_file_callback            *FreeFile;
+    platform_load_file_to_arena_callback   *LoadFileToArena;
+    platform_free_file_from_arena_callback *FreeFileFromArena;
+    platform_write_file_callback           *WriteFile;
+    platform_get_dir_filenames             *GetDirFilenames;
+    platform_report_error_callback         *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
+} platform_api;
+
+global platform_api GlobalPlatformApi;
+
+internal void SetApi(platform *p) {
+    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
+    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
+    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
+    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
+    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
+    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
+    GlobalPlatformApi.GetDirFilenames   = p->GetDirFilenames;
+    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
+    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+}
 
 typedef struct _app_state {
-    rv2 PlayerPos;
-    rv2 PlayerVel;
-    font RobotoMono;
+    rv2       PlayerPos;
+    rv2       PlayerVel;
+    renderer *Renderer;
 } app_state;
 
 //note:
@@ -24,43 +49,23 @@ inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
 external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
+    SetApi(p);
 
-
+    LoadFont(State->Renderer, &GlobalPlatformApi, "roboto.ttf", 400, 24);
     State->PlayerPos = rv2_(100, 50);
-
-    AllocateMemory    = p->AllocateMemoryCallback;
-    FreeMemory        = p->FreeMemoryCallback;
-    LoadFile          = p->LoadFileCallback;
-    FreeFile          = p->FreeFileCallback;
-    LoadFileToArena   = p->LoadFileToArenaCallback;
-    FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_        = p->WriteFileCallback;
-    ReportError       = p->ReportErrorCallback;
-    ReportErrorAndDie = p->ReportErrorAndDieCallback;
-
-    State->RobotoMono = LoadFont("roboto_mono.ttf", 400, 50);
 }
 
 external APP_RELOAD(Reload) {
     app_state *State = (app_state *)p->Memory.Contents;
-
-    AllocateMemory    = p->AllocateMemoryCallback;
-    FreeMemory        = p->FreeMemoryCallback;
-    LoadFile          = p->LoadFileCallback;
-    FreeFile          = p->FreeFileCallback;
-    LoadFileToArena   = p->LoadFileToArenaCallback;
-    FreeFileFromArena = p->FreeFileFromArenaCallback;
-    WriteFile_        = p->WriteFileCallback;
-    ReportError       = p->ReportErrorCallback;
-    ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    SetApi(p);
 }
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gBegin(rv2_(0, 0), p->WindowDimensions, HexToColor(0x000000FF));
-    rectf32 Screen = {p->WindowDimensions.x/2, p->WindowDimensions.y/2.f,
-                      p->WindowDimensions.x,   p->WindowDimensions.x/2.f};
+    gBegin(rv2_(0, 0), p->WindowDim, HexToColor(0x000000FF));
+    rectf32 Screen = {p->WindowDim.x/2, p->WindowDim.y/2.f,
+                      p->WindowDim.x,   p->WindowDim.x/2.f};
     gDrawRectFromCenter(rv2_(Screen.x, Screen.y),
                         rv2_(Screen.w, Screen.h),
                         HexToColor(0x404550FF));
@@ -169,10 +174,10 @@ if (p->kDown)
     // gDrawRectFromCenter(p->MousePos, rv2_(100, 100), Color);
 
     // texture a = State->Temp;
-    // gDrawTexture(a, rv2_(p->WindowDimensions.w/2, p->WindowDimensions.h/2), rv2_(a.w, a.h));
+    // gDrawTexture(a, rv2_(p->WindowDim.w/2, p->WindowDim.h/2), rv2_(a.w, a.h));
 
     // State->AnimationTime    = 0;
-    // State->AnimationRectPos = rv2_(p->WindowDimensions.w/2, p->WindowDimensions.h/2);
+    // State->AnimationRectPos = rv2_(p->WindowDim.w/2, p->WindowDim.h/2);
 
     // file Font = p->LoadFile(&Arena, "d:/code/platform-layer/data/im_fell_french_canon.ttf");
     // c8   TempBitmap[512*512];
@@ -184,7 +189,7 @@ if (p->kDown)
     // p->WriteFile_((void *)TempBitmap, 512*512, "d:/code/platform-layer/data/im_fell_french_canon.bmp");
     // p->FreeFile(&Arena, Font);
 
-    // DawText(p->WindowDimensions.w/2, 100, "LOREM IPSVM");
+    // DawText(p->WindowDim.w/2, 100, "LOREM IPSVM");
     // if (State->AnimationTime <= 2) {
     //     State->AnimationTime      += p->dtForFrame;
     //     State->AnimationRectPos.y -= f(State->AnimationTime, 2, 300);
@@ -201,11 +206,11 @@ if (p->kDown)
     // State->Image.Pixels = (u32 *)((u8 *)Bitmap.Data + Header->BitmapOffset);;
     // glGenTextures(1, &State->Image.Handle);
 
-    glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
+    glViewport(0, 0, p->WindowDim.w, p->WindowDim.h);
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    r32 a = 2.0f/p->WindowDimensions.w;
-    r32 b = 2.0f/p->WindowDimensions.h;
+    r32 a = 2.0f/p->WindowDim.w;
+    r32 b = 2.0f/p->WindowDim.h;
     r32 Proj[] = {
          a,  0,  0,  0,
          0, -b,  0,  0,
@@ -245,7 +250,7 @@ if (p->kDown)
     //     glVertex2f(-P, P);
     // glEnd();
 
-    glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
+    glViewport(0, 0, p->WindowDim.w, p->WindowDim.h);
 
     glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -256,8 +261,8 @@ if (p->kDown)
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowDimensions.w;
-    // r32 b = 2.0f/p->WindowDimensions.h;
+    // r32 a = 2.0f/p->WindowDim.w;
+    // r32 b = 2.0f/p->WindowDim.h;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -290,13 +295,13 @@ if (p->kDown)
     glEnable(GL_TEXTURE_2D);
     glBegin(GL_QUADS); {
         glVertex2f(0, 0);
-        glVertex2f(p->WindowDimensions.w, 0);
-        glVertex2f(p->WindowDimensions.w, p->WindowDimensions.h);
-        glVertex2f(0, p->WindowDimensions.h);
+        glVertex2f(p->WindowDim.w, 0);
+        glVertex2f(p->WindowDim.w, p->WindowDim.h);
+        glVertex2f(0, p->WindowDim.h);
     } glEnd();
-    // DrawRectangleFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos);
+    // DrawRectangleFromCenter((rv2){p->WindowDim.w/2.0f, p->WindowDim.h/2.0f}, p->Mouse.Pos);
 
-    // glViewport(0, 0, p->WindowDimensions.w, p->WindowDimensions.h);
+    // glViewport(0, 0, p->WindowDim.w, p->WindowDim.h);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -307,8 +312,8 @@ if (p->kDown)
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowDimensions.w;
-    // r32 b = 2.0f/p->WindowDimensions.h;
+    // r32 a = 2.0f/p->WindowDim.w;
+    // r32 b = 2.0f/p->WindowDim.h;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -317,12 +322,12 @@ if (p->kDown)
     // };
     // glLoadMatrixf(Proj);
 
-    // DrawRectangleFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos);
-    // DrawTexture(State->Map, (rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, (rv2){p->WindowDimensions.w, p->WindowDimensions.h});
-    // DrawRectangleStrokeFromCenter((rv2){p->WindowDimensions.w/2.0f, p->WindowDimensions.h/2.0f}, p->Mouse.Pos, 10);
+    // DrawRectangleFromCenter((rv2){p->WindowDim.w/2.0f, p->WindowDim.h/2.0f}, p->Mouse.Pos);
+    // DrawTexture(State->Map, (rv2){p->WindowDim.w/2.0f, p->WindowDim.h/2.0f}, (rv2){p->WindowDim.w, p->WindowDim.h});
+    // DrawRectangleStrokeFromCenter((rv2){p->WindowDim.w/2.0f, p->WindowDim.h/2.0f}, p->Mouse.Pos, 10);
     // DrawFilledCircle((rv2){100, 100}, 100, 100);
 
-    // glViewport(0, 0, p->WindowDimensions.Width, p->WindowDimensions.Height);
+    // glViewport(0, 0, p->WindowDim.Width, p->WindowDim.Height);
 
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     // glClear(GL_COLOR_BUFFER_BIT);
@@ -333,8 +338,8 @@ if (p->kDown)
     // glMatrixMode(GL_PROJECTION);
     // glLoadIdentity();
 
-    // r32 a = 2.0f/p->WindowDimensions.Width;
-    // r32 b = 2.0f/p->WindowDimensions.Height;
+    // r32 a = 2.0f/p->WindowDim.Width;
+    // r32 b = 2.0f/p->WindowDim.Height;
     // r32 Proj[] = {
     //      a,  0,  0,  0,
     //      0, -b,  0,  0,
@@ -358,7 +363,7 @@ if (p->kDown)
 
     // State->PlayerPos = p->Mouse.Pos;
     // State->MouseWheel += p->Mouse.dWheel / 6.0f;
-    glViewport(0, 0, p->WindowDimensions.Width, p->WindowDimensions.Height);
+    glViewport(0, 0, p->WindowDim.Width, p->WindowDim.Height);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -369,8 +374,8 @@ if (p->kDown)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    r32 a = 2.0f/p->WindowDimensions.x;
-    r32 b = 2.0f/p->WindowDimensions.y;
+    r32 a = 2.0f/p->WindowDim.x;
+    r32 b = 2.0f/p->WindowDim.y;
     r32 Proj[] = {
          a,  0,  0,  0,
          0, -b,  0,  0,
@@ -440,8 +445,8 @@ if (p->kDown)
 
     } glEnd();
 
-    a = p->WindowDimensions.x;
-    b = p->WindowDimensions.y;
+    a = p->WindowDim.x;
+    b = p->WindowDim.y;
     r32 ComplexProj[] = {
       b/a,   0,  0,  0,
         0,   1,  0,  0,
