@@ -1,9 +1,11 @@
+#define CPP
+//note:
+//  this is cpp for operator overloading (for linear algebra)
+
 #include "lingo.h"
 #include "maths.h"
 #include "platform.h"
 #include "memory.h"
-
-#include "app.h"
 
 typedef struct _platform_api {
     platform_allocate_memory_callback      *AllocateMemory;
@@ -18,52 +20,65 @@ typedef struct _platform_api {
     platform_report_error_and_die_callback *ReportErrorAndDie;
 } platform_api;
 
-global platform_api GlobalPlatformApi;
+inline platform_api SetApi(platform *p) {
+    platform_api Result = {0};
 
-internal void SetApi(platform *p) {
-    GlobalPlatformApi.AllocateMemory    = p->AllocateMemoryCallback;
-    GlobalPlatformApi.FreeMemory        = p->FreeMemoryCallback;
-    GlobalPlatformApi.LoadFile          = p->LoadFileCallback;
-    GlobalPlatformApi.FreeFile          = p->FreeFileCallback;
-    GlobalPlatformApi.LoadFileToArena   = p->LoadFileToArenaCallback;
-    GlobalPlatformApi.FreeFileFromArena = p->FreeFileFromArenaCallback;
-    GlobalPlatformApi.WriteFile         = p->WriteFileCallback;
-    GlobalPlatformApi.GetDirFilenames   = p->GetDirFilenames;
-    GlobalPlatformApi.ReportError       = p->ReportErrorCallback;
-    GlobalPlatformApi.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+    Result.AllocateMemory    = p->AllocateMemoryCallback;
+    Result.FreeMemory        = p->FreeMemoryCallback;
+    Result.LoadFile          = p->LoadFileCallback;
+    Result.FreeFile          = p->FreeFileCallback;
+    Result.LoadFileToArena   = p->LoadFileToArenaCallback;
+    Result.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    Result.WriteFile         = p->WriteFileCallback;
+    Result.GetDirFilenames   = p->GetDirFilenames;
+    Result.ReportError       = p->ReportErrorCallback;
+    Result.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    return Result;
 }
+
+#include "app.hpp"
+#include "colors.hpp"
 
 typedef struct _app_state {
-    rv2       PlayerPos;
-    rv2       PlayerVel;
-    renderer *Renderer;
+    renderer Renderer;
+    rect     Screen;
+    rect     Player;
 } app_state;
-
-//note:
-// coordinates in engine range from 0-20 (x)
-// and 0-10 (y)
-inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
-    return rv2_(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
-}
 
 external APP_INIT(Init) {
     Assert(sizeof(app_state) <= p->Memory.Size);
     app_state *State = (app_state *)p->Memory.Contents;
     SetApi(p);
 
-    LoadFont(State->Renderer, &GlobalPlatformApi, "roboto.ttf", 400, 24);
-    State->PlayerPos = rv2_(100, 50);
-}
-
-external APP_RELOAD(Reload) {
-    app_state *State = (app_state *)p->Memory.Contents;
-    SetApi(p);
+    State->Screen = State->Screen = rect_(p->WindowDim.x/2, p->WindowDim.y/2,
+                                          p->WindowDim.x,   p->WindowDim.x/2);
+    State->Player = rect_(GetVecComps(p->mPos), State->Screen.h/20, State->Screen.h/20);
 }
 
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    gBegin(rv2_(0, 0), p->WindowDim, HexToColor(0x000000FF));
+    State->Screen = rect_(p->WindowDim.x/2, p->WindowDim.y/2,
+                          p->WindowDim.x,   p->WindowDim.x/2);
+    
+    State->Screen.x -= State->Screen.w/2;
+    State->Screen.y -= State->Screen.h/2;
+
+    State->Player = rect_(GetVecComps(p->mPos), State->Screen.h/20, State->Screen.h/20);
+
+    DrawPushClip(&State->Renderer, State->Screen);
+
+    colorb a;
+    a.rgba = 0x202020FF;
+    colorb b;
+    b.rgba = 0x808080FF;
+    
+    DrawRect(&State->Renderer, State->Screen, a);
+    DrawRect(&State->Renderer, State->Player, b);
+
+    DrawPopClip(&State->Renderer);
+#if 0
     rectf32 Screen = {p->WindowDim.x/2, p->WindowDim.y/2.f,
                       p->WindowDim.x,   p->WindowDim.x/2.f};
     gDrawRectFromCenter(rv2_(Screen.x, Screen.y),
@@ -119,6 +134,14 @@ external APP_UPDATE(Update) {
     TextRectPos.w = EngineCoordToScreenCoord(TextPos, Screen).x + TextDim.w/2.f;
     TextRectPos.h = EngineCoordToScreenCoord(TextPos, Screen).y - TextDim.h/2.f;
     gDrawRectFromCenter(TextRectPos, TextDim, HexToColor(0xAA4045FF));
+#endif
+
+    Render(&State->Renderer, p->WindowDim, HexToColor(0x000000FF));
+}
+
+external APP_RELOAD(Reload) {
+    app_state *State = (app_state *)p->Memory.Contents;
+    SetApi(p);
 }
 
 external APP_DEINIT(Deinit) {
@@ -126,6 +149,13 @@ external APP_DEINIT(Deinit) {
 }
 
 #if 0
+
+//note:
+// coordinates in engine range from 0-20 (x)
+// and 0-10 (y)
+inline rv2 EngineCoordToScreenCoord(rv2 Coord, rectf32 Screen) {
+    return rv2_(Coord.x * Screen.w/200.0f, -Coord.y * Screen.h/100.0f + Screen.y + Screen.h/2.0f);
+}
     if (p->WindowResized)
         State->Pos = rv2_(200, 200);
 

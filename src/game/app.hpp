@@ -4,9 +4,12 @@
 #include "lingo.h"
 #include "platform.h"
 
+#undef  external
+#define external extern "C" __declspec(dllexport)
+
 #ifndef RENDERER_H
 ///////////////////////////////////////////////////////////
-// RENDERER
+//// RENDERER
 #define RENDERER_H
 //todo:
 //  0 - Make this a standalone renderer.
@@ -87,7 +90,6 @@ typedef struct _render_piece {
 
 typedef struct _renderer {
     rect  TargetClipRect;
-    colorb ClearColor;
 
     render_piece Pieces[1024];
     u32          UsedPieces;
@@ -166,12 +168,11 @@ internal void PushPiece(renderer *Renderer, render_piece Piece) {
         Renderer->UsedPieces++;
 }
 
-internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
+internal void Render(renderer *Renderer, iv2 TargetDim, color ClearColor) {
     Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
-    Renderer->ClearColor         = ClearColor;
 
     rect ClipRect = Renderer->TargetClipRect;
-    Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
+    Clear(Renderer->TargetClipRect.Dim, ClearColor);
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
         render_piece Piece = Renderer->Pieces[PieceIndex];
@@ -210,7 +211,7 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
     if (!FontFile.Data)
          FontFile = p->LoadFile("c:/windows/fonts/arial.ttf");
     stbtt_fontinfo  FontInfo;
-    stbtt_InitFont(&FontInfo, FontFile.Data, stbtt_GetFontOffsetForIndex(FontFile.Data, 0));
+    stbtt_InitFont(&FontInfo, (const unsigned char *)FontFile.Data, stbtt_GetFontOffsetForIndex((const unsigned char *)FontFile.Data, 0));
     p->FreeFile(FontFile);
 
     f32 ScaleFactor          = stbtt_ScaleForPixelHeight(&FontInfo, Size);
@@ -228,22 +229,20 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 
     LineGap = (LineGap == 0)? Ascender + -Descender : LineGap;
 
-    font Font = {
-        .Id      = Renderer->UsedFonts,
-        .NoChars = NoChars,
+    font Font = {0};
 
-        .Height    = (i32)(Ascender + Descender),
-        .Ascender  = (i32)(Ascender),
-        .Descender = (i32)(Descender),
-        .LineGap   = (i32)(LineGap),
-
-        .GlyphAdvances = p->AllocateMemory(NoChars * sizeof(i32)),
-        .GlyphOffsets  = p->AllocateMemory(NoChars * sizeof(rv2)),
-        .GlyphRects    = p->AllocateMemory(NoChars * sizeof(rect)),
-    };
+    Font.Id      = Renderer->UsedFonts;
+    Font.NoChars = NoChars;
+    Font.Height    = (i32)(Ascender + Descender);
+    Font.Ascender  = (i32)(Ascender);
+    Font.Descender = (i32)(Descender);
+    Font.LineGap   = (i32)(LineGap);
+    Font.GlyphAdvances = (i32  *)p->AllocateMemory(NoChars * sizeof(i32));
+    Font.GlyphOffsets  = (rv2  *)p->AllocateMemory(NoChars * sizeof(rv2));
+    Font.GlyphRects    = (rect *)p->AllocateMemory(NoChars * sizeof(rect));
 
     i32 w, h, OffX, OffY, Advance;
-    image *GlyphImages = p->AllocateMemory(NoChars * sizeof(image));
+    image *GlyphImages = (image *)p->AllocateMemory(NoChars * sizeof(image));
     for (u32 i = 0; i < NoChars; i++) {
         u32 Codepoint = i + 32;
         GlyphImages[i].Data = stbtt_GetCodepointBitmap(&FontInfo, ScaleFactor, ScaleFactor, Codepoint, &w, &h, &OffX, &OffY);
@@ -258,11 +257,10 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
 
     f32 GuessSize = Sqrt(RequiredAreaForAtlas) * 1.3f;
     i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
-    image Atlas = {
-        .w    = ImageSize,
-        .h    = ImageSize,
-        .Data = p->AllocateMemory(ImageSize * ImageSize * sizeof(u32))
-    };
+    image Atlas = {0};
+    Atlas.w    = ImageSize;
+    Atlas.h    = ImageSize;
+    Atlas.Data = p->AllocateMemory(ImageSize * ImageSize * sizeof(u32));
 
     i32 OffsetX = Padding;
     i32 OffsetY = Padding;
@@ -290,19 +288,11 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
                 break;
         }
 
-        if (Codepoint == ' ') {
-            Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-            Font.GlyphRects[i].h = Font.Ascender;
-        }
-        if (Codepoint == '\t') {
-            Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-            Font.GlyphRects[i].h = Font.Ascender;
-        }
-        if (Codepoint == '\r') {
-            Font.GlyphRects[i].w = Font.GlyphAdvances[i];
-            Font.GlyphRects[i].h = Font.Ascender;
-        }
-        if (Codepoint == '\n') {
+        if (Codepoint == ' '  ||
+            Codepoint == '\t' ||
+            Codepoint == '\r' ||
+            Codepoint == '\n')
+        {
             Font.GlyphRects[i].w = Font.GlyphAdvances[i];
             Font.GlyphRects[i].h = Font.Ascender;
         }
@@ -417,7 +407,9 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
 }
 
 internal rect MeasureText(renderer *Renderer, c8 *Text, id Font, rv2 Pos) {
-    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, Pos, (colorb){0});
+    colorb c;
+    c.rgba = 0;
+    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, Pos, c);
 }
 
 internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Color) {

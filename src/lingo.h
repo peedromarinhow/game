@@ -3,8 +3,7 @@
 
 #include <stdint.h>
 
-#define finginline __forceinline         //note: overkill, useless in debug build, but f'ing inline, please
-#define external   __declspec(dllexport) //note: this is not universal across compilers
+#define external __declspec(dllexport) //note: this is not universal across compilers
 #define internal static
 #define global   static
 #define persist  static

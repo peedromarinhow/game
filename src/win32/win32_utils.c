@@ -246,7 +246,7 @@ inline u64 Win32GetCounterFrequency() {
     return Result.QuadPart;
 }
 
-finginline r32 Win32GetFrameTime(win32_timer *t, f32 TargetSecondsPerFrame) {
+inline r32 Win32GetFrameTime(win32_timer *t, f32 TargetSecondsPerFrame) {
     t->FrameEnd      = Win32GetTime();
     t->FrameDuration = (t->FrameEnd - t->FrameBegin);
     t->FrameBegin    = Win32GetTime();

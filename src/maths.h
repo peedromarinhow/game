@@ -24,8 +24,12 @@ typedef union _iv2 {
     };
     i32 Comps[2];
 } iv2;
-finginline iv2 iv2_(i32 x, i32 y) {
+inline iv2 iv2_(i32 x, i32 y) {
+#ifndef CPP
     return (iv2){x, y};
+#else
+    return {x, y};
+#endif
 }
 
 typedef union _rv2 {
@@ -39,27 +43,38 @@ typedef union _rv2 {
     };
     r32 Comps[2];
 } rv2;
-finginline rv2 rv2_(r32 x, r32 y) {
+inline rv2 rv2_(r32 x, r32 y) {
+#ifndef CPP
     return (rv2){x, y};
+#else
+    return {x, y};
+#endif
 }
 #define GetVecComps(Vec) (Vec).x, (Vec).y
 
-finginline r32 rv2_Inner(rv2 a, rv2 b) {
+inline r32 rv2_Inner(rv2 a, rv2 b) {
     return a.x*b.x + a.y*b.y;
 }
 
-finginline r32 rv2_LenSq(rv2 a) {
+inline r32 rv2_LenSq(rv2 a) {
     return rv2_Inner(a, a);
 }
 
 typedef struct _color {
     r32 r, g, b, a;
 } color;
-finginline color HexToColor(u32 Hex) {
+inline color HexToColor(u32 Hex) {
+#ifndef CPP
     return (color){((Hex >> 24) & 0xFF)/255.f,
                    ((Hex >> 16) & 0xFF)/255.f,
                    ((Hex >>  8) & 0xFF)/255.f,
                    ((Hex >>  0) & 0xFF)/255.f};
+#else
+    return {((Hex >> 24) & 0xFF)/255.f,
+            ((Hex >> 16) & 0xFF)/255.f,
+            ((Hex >>  8) & 0xFF)/255.f,
+            ((Hex >>  0) & 0xFF)/255.f};
+#endif
 }
 
 typedef union _colorb {
@@ -133,7 +148,7 @@ typedef struct _rect {
     };
 } rect;
 
-finginline rect rect_Union(rect a, rect b) {
+inline rect rect_Union(rect a, rect b) {
     rect Result;
 
     r32 xMin = Min(a.x,       b.x);
@@ -149,11 +164,15 @@ finginline rect rect_Union(rect a, rect b) {
     return Result;
 }
 
-finginline rect rect_(r32 x, r32 y, r32 w, r32 h) {
+inline rect rect_(r32 x, r32 y, r32 w, r32 h) {
+#ifndef CPP
     return (rect){x, y, w, h};
+#else
+    return {x, y, w, h};
+#endif
 }
 
-internal finginline b32 IsInsideRect(rv2 Pos, rect c) {
+internal inline b32 IsInsideRect(rv2 Pos, rect c) {
     if (Pos.x > c.x + c.w || Pos.x < c.x ||
         Pos.y > c.y + c.h || Pos.y < c.y)
     {
@@ -162,7 +181,7 @@ internal finginline b32 IsInsideRect(rv2 Pos, rect c) {
     return 1;
 }
 
-internal finginline b32 AreRectsClipping(rect c, rect r) {
+internal inline b32 AreRectsClipping(rect c, rect r) {
     if (r.x > c.x + c.w || r.x + r.w < c.x ||
         r.y > c.y + c.h || r.y + r.h < c.y)
     {

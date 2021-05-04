@@ -12,6 +12,6 @@ if not exist build_game mkdir build_game
 
 pushd build_game
 del *.pdb > NUL 2> NUL
-cl.exe %BuildOptions% %CompileFlags% ../src/game/app.c         -Fmapp.map /LD    /link %CommonLinkerFlags% /PDB:"app_%random%.pdb"
+cl.exe %BuildOptions% %CompileFlags% ../src/game/app.cpp       -Fmapp.map /LD    /link %CommonLinkerFlags% /PDB:"app_%random%.pdb"
 cl.exe %BuildOptions% %CompileFlags% ../src/win32/win32_main.c -Fmwin32_main.map /link %PlatformLinkFlags% /PDB:"main.pdb"
 popd
