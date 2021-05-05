@@ -32,18 +32,24 @@ internal rv2 DrawToken(renderer *Renderer, token Token, buffer *Buffer, id Font,
         rv2  Offset    =  RenderFont.GlyphOffsets[Index];
         rect GlyphRect =  rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(RenderFont.GlyphRects[Index].Dim));
 
-        DrawGlyph(Renderer, Font, Index, GlyphRect.Pos, Color);
-
-        Pos.x += RenderFont.GlyphAdvances[Index];
         if (Char == '\n') {
             Pos.y -= RenderFont.LineGap;
             Pos.x  = InitialX;
+            continue;
+        }
+        else
+        if (Char == '\r') {
+            continue;
         }
         else
         if (Char == ' ') {
-            Pos.x -= RenderFont.GlyphAdvances[Index];
             Pos.x += RenderFont.GlyphAdvances[0];
+            continue;
         }
+
+        DrawGlyph(Renderer, Font, Index, GlyphRect.Pos, Color);
+
+        Pos.x += RenderFont.GlyphAdvances[Index];
     }
 
     return Pos;
@@ -54,7 +60,7 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
     // ui_input *Input    = c->uiInput;
     renderer *Renderer = c->Renderer;
 
-    rv2   Pos   = rv2_(Style->Padding.x, Renderer->TargetClipRect.h - (Style->Padding.y*2 + Renderer->Fonts[Style->MainFont].Height));
+    rv2   Pos   = rv2_(10, Renderer->TargetClipRect.h - (20 + Renderer->Fonts[0].Height));
     token Token = {0};
     
     colorb SyntaxColors[] = {
@@ -65,20 +71,19 @@ internal void DrawScannedBuffer(editor_context *c, buffer *Buffer) {
         [TOKEN_TYPE_INT]        = ORANGE_600,
         [TOKEN_TYPE_FLOAT]      = RED_500,
         [TOKEN_TYPE_NAME]       = GREY_50,
-        [TOKEN_TYPE_COMMENT]    = GREEN_200,
-        [TOKEN_TYPE_WHITESPACE] =(colorb){0x0}
+        [TOKEN_TYPE_COMMENT]    = GREEN_200
     };
 
-    r32  Ascender = c->Renderer->Fonts[/*c->uiStyle->MonoFont*/].Ascender;
-    rect Line  = rect_(/*c->uiStyle->Padding.x*/, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - /*c->uiStyle->Padding.x*/, Ascender);
-    rect Caret = rect_(c->CurrentCaretPos.x, c->CurrentCaretPos.y, 2, Ascender);
-    DrawRect(c->Renderer, Line,  GREY_800);
-    DrawRect(c->Renderer, Caret, GREY_50);
+    // r32  Ascender = c->Renderer->Fonts[/*c->uiStyle->MonoFont*/].Ascender;
+    // rect Line  = rect_(/*c->uiStyle->Padding.x*/, c->CurrentCaretPos.y, c->Renderer->TargetClipRect.w/2 - /*c->uiStyle->Padding.x*/, Ascender);
+    // rect Caret = rect_(c->CurrentCaretPos.x, c->CurrentCaretPos.y, 2, Ascender);
+    // DrawRect(c->Renderer, Line,  GREY_800);
+    // DrawRect(c->Renderer, Caret, GREY_50);
 
-    cursor Cursor = NextToken(Buffer, 0, &Token);
+    cursor Cursor = NextToken(&GlobalPlatformApi, Buffer, 0, &Token);
     while (Token.Type != TOKEN_TYPE_EOF) {
-        Pos    = DrawToken(Renderer, Token, Buffer, /*Style->MonoFont*/, Color, Pos, /*Style->Padding.x*/);
-        Cursor = NextToken(Buffer, Cursor, &Token);
+        Pos    = DrawToken(Renderer, Token, Buffer, /*Style->MonoFont*/ 0, SyntaxColors[Token.Type], Pos, 10/*Style->Padding.x*/);
+        Cursor = NextToken(&GlobalPlatformApi, Buffer, Cursor, &Token);
     }
 }
 
@@ -155,15 +160,16 @@ external APP_INIT(Init) {
     app_state *State = (app_state *)p->Memory.Contents;
 
     SetApi(p);
-    SetKeymap();
 
-    State->Context.Renderer = &State->Renderer;
+    LoadFont(&State->Renderer, &GlobalPlatformApi, "roboto_mono.ttf", 400, 32);
 
     State->Arena = InitializeArena(p->Memory.Size     - sizeof(app_state),
                              (u8 *)p->Memory.Contents + sizeof(app_state));
-    State->Context.Buffers = PushToArena(&State->Arena, sizeof(buffer *)*2);
+    State->Context.Renderer = &State->Renderer;
+    State->Context.Buffers = PushToArena(&State->Arena, sizeof(buffer *));
     State->Context.Buffers[0] = CreateBuffer(8);
-    State->Context.CurrentCaretPos = rv2_(0, -100); //note: hack! (?: this may actually be reasonable)
+
+    LoadBuffer(State->Context.Buffers[0], "a.c");
 
 #if 0
     // State->Context.uiCtx   = PushToArena(&State->Arena, sizeof(ui_ctx));
@@ -192,11 +198,11 @@ external APP_INIT(Init) {
 external APP_UPDATE(Update) {
     app_state *State = (app_state *)p->Memory.Contents;
 
-    UpdateEditorContextInput(&State->Context, p);
+    // UpdateEditorContextInput(&State->Context, p);
     DrawScannedBuffer(&State->Context, State->Context.Buffers[State->Context.CurrentBuffer]);
-    DrawBottomBar(&State->Context);
-    if (Keymap[State->Context.LastKeyComb].Proc)
-        Keymap[State->Context.LastKeyComb].Proc(&State->Context);
+    // DrawBottomBar(&State->Context);
+    // if (Keymap[State->Context.LastKeyComb].Proc)
+    //     Keymap[State->Context.LastKeyComb].Proc(&State->Context);
     Render(&State->Renderer, p->WindowDim, GREY_900);
 }
 

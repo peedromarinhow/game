@@ -162,6 +162,14 @@ inline c8 GetBufferChar(buffer *Buffer, cursor Cursor) {
     return Buffer->Data[GetCursorIndex(Buffer, Cursor)];
 }
 
+inline void GetBufferStr(platform_api *p, buffer *Buffer, cursor Start, cursor End, c8 *Result) {
+    u32 Size = ((End - Start) >= 0)? End - Start : 0;
+    for (cursor Cursor = 0; Cursor < Size; Cursor++) {
+        Result[Cursor] = GetBufferChar(Buffer, Cursor + Start);
+    }
+    Result[Size] = 0;
+}
+
 inline void SetBufferChar(buffer *Buffer, cursor Cursor, c8 Char) {
     AssertCursorInvariants(Buffer, Cursor);
     Buffer->Data[GetCursorIndex(Buffer, Cursor)] = Char;
@@ -381,6 +389,87 @@ inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
 
 
 
+#if 0//#ifndef STRETCHY_BUFFER_H
+///////////////////////////////////////////////////////////
+//// STRETCHY_BUFFER_H
+#define STRETCHY_BUFFER_H
+#include "lingo.h"
+//note: will this ever be used?
+//note:
+//  Stretchy buffers.
+//  Invented by Sean Barret?
+//  Interface:
+//    i32 *Buffer = NULL;
+//    BufferPush(Buffer, 42);
+//    BufferPush(Buffer, 21);
+//    for (i32 i = 0, i < BufferLen(Buffer), i++) {...}
+//
+
+typedef struct _buffer_header {
+    u32 Len;
+    u32 Capacity;
+    c8 *Buffer;
+} buffer_header;
+
+// annotation
+#define BUFF(x) x
+
+/* internal functions
+    */
+#define _BufferHeader(Buffer) ((buffer_header *)((c8 *)Buffer - offsetof(buffer_header, Buffer)))
+#define _BufferFits  (Buffer, n)    (GetBuffeLen(Buffer) + (n) <= GetBufferCapacity(Buffer))
+#define _BufferFit   (Buffer, n, p)(_BufferFits(Buffer, n) ? 0 : ((Buffer) = _GrowBuffer(p, (Buffer), GetBuffeLen(Buffer) + (n), sizeof(*(Buffer)))))
+
+/* public functions
+    */
+#define GetBuffeLen (Buffer     ) ((Buffer) ? _BufferHeader(Buffer)->Len      : 0)
+#define GetBufferCapacity(Buffer) ((Buffer) ? _BufferHeader(Buffer)->Capacity : 0)
+#define GetBufferEnd(Buffer     ) ((Buffer) +  GetBuffeLen (Buffer))
+#define FreeBuffer  (Buffer, p  ) ((Buffer) ? (p->FreeMemory(_BufferHeader(Buffer)), (Buffer) = NULL) : 0)
+#define PrintfBuffer(Buffer, ...) ((Buffer) = _PrintfBuffer((Buffer), __VA_ARGS__))
+#define ClearBuffer (Buffer     ) ((Buffer) ? _BufferHeader (Buffer)->Len = 0 : 0)
+#define PushToBuffer(Buffer, ...) (_BufferFit((Buffer), 1), (Buffer)[_BufferHeader(Buffer)->Len++] = (__VA_ARGS__))
+
+internal void *_GrowBuffer(platform_api *p, const c8 *Buffer, u32 NewLen, u32 ElementSize) {
+    Assert(GetBufferCapacity(Buffer) <= (SIZE_MAX - 1)/2);
+    u32 NewCapacity = Max(1 + 2 * GetBufferCapacity(Buffer), NewLen);
+    Assert(NewCapacity >= NewLen);
+    Assert(NewCapacity <= (SIZE_MAX - offsetof(buffer_header, Buffer))/ElementSize);
+    u32 NewSize = offsetof(buffer_header, Buffer) + NewCapacity * ElementSize;
+
+    buffer_header *NewHeader;
+    if (Buffer) {
+        p->FreeMemory(_BufferHeader(Buffer));
+        NewHeader = p->AllocateMemory(NewSize);
+    }
+    else {
+        NewHeader      = p->AllocateMemory(NewSize);
+        NewHeader->Len = 0;
+    }
+    NewHeader->Capacity = NewCapacity;
+    return NewHeader->Buffer;
+}
+
+internal c8 *_PrintfBuffer(c8 *Buffer, const c8 *Format, ...) {
+    va_list Args;
+    va_start(Args, Format);
+    u32 n = vsnprintf(NULL, 0, Format, Args);
+    va_end(Args);
+    if (GetBuffeLen(Buffer) == 0) {
+        n++;
+    }
+    _BufferFit(Buffer, n + GetBuffeLen(Buffer));
+    c8 *Dest = GetBuffeLen(Buffer) == 0 ? Buffer : Buffer + GetBuffeLen(Buffer) - 1;
+    va_start(Args, Format);
+    vsnprintf(Dest, Buffer + GetBufferCapacity(Buffer) - Dest, Format, Args);
+    va_end(Args);
+    _BufferHeader(Buffer)->Len += n;
+    return Buffer;
+}
+#endif//STRETCHY_BUFFER_H
+
+
+
 #ifndef LEXER_H
 ///////////////////////////////////////////////////////////
 // LEXER
@@ -410,6 +499,55 @@ const global u8 CHAR_TO_DIGIT[128] = {
     ['F'] = 15,
 };
 
+const global c8 ESCAPE_TO_CHAR[128] = {
+    ['n'] = '\n',
+    ['r'] = '\r',
+    ['t'] = '\t',
+    ['v'] = '\v',
+    ['b'] = '\b',
+    ['a'] = '\a',
+    ['0'] =   0,
+};
+
+//note: how?
+
+global c8 *StructKeyword = "struct";
+global c8 *UnionKeyword  = "union";
+global c8 *EnumKeyword   = "enum";
+global c8 *IfKeyword     = "if";
+global c8 *ElseKeyword   = "else";
+global c8 *WhileKeyword  = "while";
+global c8 *ForKeyword    = "for";
+global c8 *FirstKeyword = StructKeyword;
+global c8 *LastKeyword  = ForKeyword;
+
+typedef struct _lex_name_table {
+    c8 *Names[128];
+    u32 UsedNames;
+} lex_name_table;
+
+global lex_name_table Names;
+
+internal void PushName(c8 *Name) {
+    if (Names.UsedNames < 128) {
+        if (ArrayCount(Name) < 64)
+            Names[Names.UsedNames] = Name;
+    }
+    else {
+        Names.UsedNames = 0;
+    }
+}
+
+internal void SetKeywords() {
+    PushName(StructKeyword);
+    PushName(UnionKeyword);
+    PushName(EnumKeyword);
+    PushName(IfKeyword);
+    PushName(ElseKeyword);
+    PushName(WhileKeyword);
+    PushName(ForKeyword);
+}
+
 typedef enum _token_type {
     TOKEN_TYPE_EOF,
     TOKEN_TYPE_OPERATOR,
@@ -419,8 +557,7 @@ typedef enum _token_type {
     TOKEN_TYPE_INT,
     TOKEN_TYPE_FLOAT,
     TOKEN_TYPE_NAME,
-    TOKEN_TYPE_COMMENT,
-    TOKEN_TYPE_WHITESPACE
+    TOKEN_TYPE_COMMENT
 } token_type;
 
 typedef enum _token_mode {
@@ -444,9 +581,8 @@ typedef struct _token {
         u64 iVal;
         f64 fVal;
         c8 *sVal;
-        c8 *Name;
+        c8  Name[256];
     };
-    u32 NameLen;
 } token;
 
 internal cursor ScanInt(buffer *Buffer, cursor Cursor, token *Token) {
@@ -534,16 +670,6 @@ internal cursor ScanFloat(buffer *Buffer, cursor Cursor, token *Token) {
 
     return Cursor;
 }
-
-const global c8 ESCAPE_TO_CHAR[128] = {
-    ['n'] = '\n',
-    ['r'] = '\r',
-    ['t'] = '\t',
-    ['v'] = '\v',
-    ['b'] = '\b',
-    ['a'] = '\a',
-    ['0'] =   0,
-};
 
 internal cursor ScanStr(buffer *Buffer, cursor Cursor, token *Token) {
     Assert(GetBufferChar(Buffer, Cursor) == '"');
@@ -652,18 +778,17 @@ internal c8 *GetSubStr(c8 *Start, c8 *End) {
     return Str;
 }
 
-b32 IsKeyword(c8 *Name, u32 NameLen) {
+b32 IsKeyword(c8 *Name) {
+    //todo: push all names to a global table and compare indicies
     b32 Result = 0;
-    // c8 Temp = Name[NameLen];
-    // Name[NameLen] = 0;
-    // if (strcmp(Name, "return"))
-    //     Result = 1;
-    // Name[NameLen] = Temp;
+    if (FirstKeyword < Name && Name < LastKeyword)
+        Result = 1;
     return Result;
 }
 
-internal cursor NextToken(buffer *Buffer, cursor Cursor, token *Token) {
+internal cursor NextToken(platform_api *p, buffer *Buffer, cursor Cursor, token *Token) {
 TOP:
+    p->FreeMemory(Token->Name);
     Token->Start = Cursor;
     Token->Mode  = 0;
     switch (GetBufferChar(Buffer, Cursor)) {
@@ -674,12 +799,6 @@ TOP:
             goto TOP;
             break;
         }
-        case ' ': case '\n':
-            while (GetBufferChar(Buffer, Cursor) == ' ' || GetBufferChar(Buffer, Cursor) == '\n') {
-                Cursor++;
-            }
-            Token->Type = TOKEN_TYPE_WHITESPACE;
-            break;
         case '\'': {
             Cursor = ScanChar(Buffer, Cursor, Token);
             break;
@@ -697,10 +816,17 @@ TOP:
             }
             else
             if (GetBufferChar(Buffer, Cursor) == '*') {
-                while (GetBufferChar(Buffer, Cursor)     != '*' &&
-                       GetBufferChar(Buffer, Cursor + 1) != '/')
+                Cursor++;
+                while (GetBufferChar(Buffer, Cursor) != '*')
                     Cursor++;
-                Token->Type = TOKEN_TYPE_COMMENT;
+                if (GetBufferChar(Buffer, Cursor) == '*') {
+                    Cursor++;
+                    if (GetBufferChar(Buffer, Cursor) == '/')
+                        Token->Type = TOKEN_TYPE_COMMENT;
+                }
+                else {
+                    Token->Error = 1;
+                }
             }
             break;
         }
@@ -751,13 +877,12 @@ TOP:
         case 'U': case 'V': case 'W': case 'X': case 'Y':
         case 'Z':
         case '_': {
-            // c8 *Start = Cursor++;
             while (isalnum(GetBufferChar(Buffer, Cursor)) || GetBufferChar(Buffer, Cursor) == '_') {
                 Cursor++;
             }
-            Token->Name    = "provisory name";
-            Token->NameLen = 15;
-            Token->Type    = IsKeyword(Token->Name, Token->NameLen) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
+            GetBufferStr(p, Buffer, Token->Start, Cursor, Token->Name);
+            PushName(Token->Name);
+            Token->Type = IsKeyword(Token->Name)? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_NAME;
             break;
         }
         case '|':
@@ -786,6 +911,14 @@ TOP:
         case ';': {
             Token->Type = TOKEN_TYPE_DELIMITER;
             Cursor++;
+            break;
+        }
+        case '#': {
+            Cursor++;
+            while (isalnum(GetBufferChar(Buffer, Cursor)) || GetBufferChar(Buffer, Cursor) == '_') {
+                Cursor++;
+            }
+            Token->Type = TOKEN_TYPE_KEYWORD;
             break;
         }
         default: {
@@ -850,7 +983,7 @@ typedef struct _editor_context {
     u32 CurrentBufferLine;
     u32 CurrentBufferColumn;
 
-    rv2 CurrentCaretPos;
+    // rv2 CurrentCaretPos;
 } editor_context;
 
 #define CMD_PROC(Name) void cmd_proc_##Name(editor_context *c)
@@ -950,12 +1083,12 @@ CMD_PROC(InsertNewLine) {
 
 CMD_PROC(SaveFile) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
-    SaveBuffer(Buffer, c->Filename);
+    // SaveBuffer(Buffer, c->Filename);
 }
 
 CMD_PROC(OpenFile) {
     buffer *Buffer = c->Buffers[c->CurrentBuffer];
-    LoadBuffer(Buffer, c->Filename);
+    // LoadBuffer(Buffer, c->Filename);
 }
 
 typedef struct _command {
@@ -989,7 +1122,7 @@ typedef enum _key {
 #define Alt(Key)   KeyComb(Key, 0, 1, 0)
 #define Shift(Key) KeyComb(Key, 0, 0, 1)
 
-internal void UpdateEditorContextInput(editor_context *c, platform *p) {
+/*internal void UpdateEditorContextInput(editor_context *c, platform *p) {
     c->uiInput->mPos = p->mPos;
     c->uiInput->mLeft = p->mLeft;
     c->dtFrame = p->dtForFrame;
@@ -1027,8 +1160,6 @@ internal void UpdateEditorContextInput(editor_context *c, platform *p) {
     }
     c->LastChar    = p->Char;
     c->LastKeyComb = Key;
-}
-
+}*/
 #endif//COMMANDS_H
-
 #endif//APP_H
