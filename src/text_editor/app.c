@@ -4,30 +4,57 @@
 
 #include "colors.h"
 
-#define ui_NO_COLORS 1;
+//note: inspired by github.com/rxi/microui
 
 //todo:
 //  focus / hover setting
 //  id hashing
 //  general input (including keyboard)
 
+enum layout_type {
+    ui_LAYOUT_ABSOLUTE,
+    ui_LAYOUT_RELATIVE
+};
+
+typedef struct _ui_layout {
+    rect Body;
+    i32 ItemWidth;
+    rv2 Pos;
+    rv2 Dim;
+    rv2 Max;
+} ui_layout;
+
 typedef struct _ui_style {
-    id     Font;
-    i32    Padding;
-    colorb Colors[ui_NO_COLORS];
+    id  Font;
+    i32 Padding;
+    colorb Colors[16];
 } ui_style;
 
 typedef struct _ui_context {
-    renderer *Renderer;
-    ui_style  Style;
+    ui_style Style;
     id Hover;
     id Focus;
     id LastId;
+    id Current;
+    i16 NoItems;
+    u32 MouseDown;
+    rv2 MousePos;
+    ui_layout Layout;
 } ui_context;
 
-enum ui_text_opt {
-    ui_TEXT_ALIGN_CENTER = 0b1,
-    ui_TEXT_ALIGN_RIGHT  = 0b10
+enum ui_opt {
+    ui_OPT_TEXT_ALIGN_CENTER = 0b1,
+    ui_OPT_TEXT_ALIGN_RIGHT  = 0b10,
+    ui_OPT_NO_INTERACTION    = 0b100,
+    ui_OPT_HOLDFOCUS         = 0b1000
+};
+
+enum ui_color {
+    ui_COLOR_TEXT,
+    ui_COLOR_BACK,
+    ui_COLOR_BUTTON,
+    ui_COLOR_BUTTON_HOVER, 
+    ui_COLOR_BUTTON_FOCUS
 };
 
 enum ui_mouse_buttons {
@@ -35,12 +62,64 @@ enum ui_mouse_buttons {
     ui_MOUSE_BUTTON_RIGHT = 0b10
 };
 
-internal void ui_DrawRect(renderer *Renderer, ui_context *Ctx, id Me, rect Rect, id ColorId, u32 Opts) {
-    if (Me == Ctx->Focus)
-        ColorId += 2;
+internal id ui_GetId(ui_context *Ctx) {
+    id Result = Ctx->Current;
+    Ctx->LastId = Result;
+    if (Ctx->Current < Ctx->NoItems)
+        Ctx->Current++;
+    return Result;
+}
+
+internal colorb ui_GetColor(ui_context *Ctx, id ColorId) {
+    return Ctx->Style.Colors[ColorId];
+}
+
+internal rect ui_GetRect(ui_context *Ctx) {
+    ui_layout *Layout = &Ctx->Layout;
+    ui_style  *Style  = &Ctx->Style;
+    rect Result;
+
+    Result.x = Layout->Pos.x;
+    Result.y = Layout->Pos.y;
+
+    Result.w = Layout->ItemWidth;
+    Result.h = Layout->Dim.h;
+
+    Layout->Pos.x += Result.w + Style->Padding;
+
+    Result.x += Layout->Body.x;
+    Result.y += Layout->Body.y;
+
+    Layout->Max.x = Max(Layout->Max.x, Result.x + Result.w);
+    Layout->Max.y = Max(Layout->Max.y, Result.y + Result.h);
+
+    return Result;
+}
+
+internal void ui_UpdateControls(ui_context *Ctx, id Id, rect Rect, u32 Opts) {
+    if (Opts & ui_OPT_NO_INTERACTION)
+        return;
+    b32 MouseIsOver = IsInsideRect(Ctx->MousePos, Rect);
+    if (MouseIsOver)
+        Ctx->Hover = Id;
     else
-    if (Me == Ctx->Hover)
-        ColorId += 1;
+        Ctx->Hover = 0;
+    if (Ctx->Hover == Id) {
+        if (Ctx->MouseDown)
+            Ctx->Focus = Id;
+    }
+    if (Ctx->Focus == Id) {
+        if (Ctx->MouseDown && !MouseIsOver)
+            Ctx->Focus = 0;
+    }
+}
+
+internal void ui_DrawRect(renderer *Renderer, ui_context *Ctx, id Id, rect Rect, id ColorId, u32 Opts) {
+    if (Id == Ctx->Focus)
+        ColorId = ui_COLOR_BUTTON_FOCUS;
+    else
+    if (Id == Ctx->Hover)
+        ColorId = ui_COLOR_BUTTON_HOVER;
     DrawRect(Renderer, Rect, ui_GetColor(Ctx, ColorId));
 }
 
@@ -48,25 +127,30 @@ internal void ui_DrawText(renderer *Renderer, ui_context *Ctx, c8 *Text, rect Re
     rv2 Dim = MeasureText(Renderer, Text, Ctx->Style.Font);
     rv2 Pos;
     Pos.y = Rect.y + (Rect.h - Dim.h) / 2;
-    if (Opts & ui_TEXT_ALIGN_CENTER)
+    if (Opts & ui_OPT_TEXT_ALIGN_CENTER)
         Pos.x = Rect.x + (Rect.w - Dim.w) / 2;
     else
-    if (Opts & ui_TEXT_ALIGN_RIGHT)
+    if (Opts & ui_OPT_TEXT_ALIGN_RIGHT)
         Pos.x = (Rect.x + Rect.w) - Dim.w - Ctx->Style.Padding;
     else
         Pos.x = Rect.x + Ctx->Style.Padding;
     DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
 }
 
-internal void ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
+internal b32 ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
     b32 Result = 0;
-    id  Me     = 0;
-    rect Rect = rect_();
-    if (Ctx->MouseButton == ui_MOUSE_BUTTON_LEFT && Ctx->Focus == Me)
+    
+    id Id = ui_GetId(Ctx);
+    rect Rect = ui_GetRect(Ctx);
+
+    ui_UpdateControls(Ctx, Id, Rect, 0);
+
+    if (Ctx->MouseDown && Ctx->Focus == Id)
         Result = 1;
-    ui_DrawRect(Renderer, Ctx, Rect, Opts);
+
+    ui_DrawRect(Renderer, Ctx, Id, Rect, ui_COLOR_BUTTON, Opts);
     if (Text)
-        ui_DrawText(Renderer, Ctx, Text, Rect, Opts);
+        ui_DrawText(Renderer, Ctx, Text, Rect, ui_COLOR_TEXT, Opts | ui_OPT_TEXT_ALIGN_CENTER);
     return Result;
 }
 
@@ -74,6 +158,7 @@ typedef struct _app_state {
     platform_api Api;
     memory_arena Arena;
     renderer     Renderer;
+    ui_context ui_Context;
 } app_state;
 
 external APP_INIT(Init) {
@@ -85,6 +170,11 @@ external APP_INIT(Init) {
     platform_api *Api      = &s->Api;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
+
+    s->ui_Context.Hover   =  0;
+    s->ui_Context.Focus   =  0;
+    s->ui_Context.LastId  =  0;
+    s->ui_Context.Current = -1;
 
     LoadFont(Renderer, Api, "roboto.ttf", 0, 24);
 
@@ -99,17 +189,31 @@ external APP_UPDATE(Update) {
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    rect Rect = rect_(0, 0, GetVecComps(p->mPos));
+    s->ui_Context.MouseDown = p->mLeft;
+    s->ui_Context.MousePos = p->mPos;
 
-    ui_context ui_Context = {0};
+    s->ui_Context.Style.Padding = 4;
+    s->ui_Context.Style.Font    = 0;
+    s->ui_Context.Style.Colors[ui_COLOR_TEXT]         = GREY_100;
+    s->ui_Context.Style.Colors[ui_COLOR_BACK]         = GREY_900;
+    s->ui_Context.Style.Colors[ui_COLOR_BUTTON]       = GREY_700;
+    s->ui_Context.Style.Colors[ui_COLOR_BUTTON_HOVER] = GREEN_600;
+    s->ui_Context.Style.Colors[ui_COLOR_BUTTON_FOCUS] = GREY_800;
 
-    ui_Context.Style.Padding = 10;
-    ui_Context.Style.Font    =  0;
+    s->ui_Context.Layout.Body = rect_(0, 0, 200, 40);
+    s->ui_Context.Layout.Max  = rv2_(-0x1000000, -0x1000000);
+    s->ui_Context.Layout.Pos  = s->ui_Context.Layout.Body.Pos;
+    s->ui_Context.Layout.Dim  = s->ui_Context.Layout.Body.Dim;
+    s->ui_Context.Layout.ItemWidth = 120;
 
-    DrawRect(Renderer, Rect, GREEN_800);
-    ui_DrawText(Renderer, &ui_Context, "Hello World", Rect, 0);
+    if (ui_Button(Renderer, &s->ui_Context, "Hello World 1", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), YELLOW_800);
+    if (ui_Button(Renderer, &s->ui_Context, "Hello World 2", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), RED_800);
+    if (ui_Button(Renderer, &s->ui_Context, "Hello World 3", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), ORANGE_800);
 
-    Render(Renderer, p->WindowDim, GREY_900);
+    Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
 }
 
 external APP_RELOAD(Reload) {
