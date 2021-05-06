@@ -408,8 +408,8 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
     return Result;
 }
 
-internal rect MeasureText(renderer *Renderer, c8 *Text, id Font, rv2 Pos) {
-    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, Pos, (colorb){0});
+internal rv2 MeasureText(renderer *Renderer, c8 *Text, id Font) {
+    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, rv2_(0, 0), (colorb){0}).Dim;
 }
 
 internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Color) {

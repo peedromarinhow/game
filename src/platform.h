@@ -170,4 +170,34 @@ typedef APP_UPDATE(app_update_callback);
 typedef APP_DEINIT(app_deinit_callback);
         APP_DEINIT(AppDeinitStub) {};
 
+typedef struct _platform_api {
+    platform_allocate_memory_callback      *AllocateMemory;
+    platform_free_memory_callback          *FreeMemory;
+    platform_load_file_callback            *LoadFile;
+    platform_free_file_callback            *FreeFile;
+    platform_load_file_to_arena_callback   *LoadFileToArena;
+    platform_free_file_from_arena_callback *FreeFileFromArena;
+    platform_write_file_callback           *WriteFile;
+    platform_get_dir_filenames             *GetDirFilenames;
+    platform_report_error_callback         *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
+} platform_api;
+
+inline platform_api SetPlatformApi(platform *p) {
+    platform_api Result = {0};
+
+    Result.AllocateMemory    = p->AllocateMemoryCallback;
+    Result.FreeMemory        = p->FreeMemoryCallback;
+    Result.LoadFile          = p->LoadFileCallback;
+    Result.FreeFile          = p->FreeFileCallback;
+    Result.LoadFileToArena   = p->LoadFileToArenaCallback;
+    Result.FreeFileFromArena = p->FreeFileFromArenaCallback;
+    Result.WriteFile         = p->WriteFileCallback;
+    Result.GetDirFilenames   = p->GetDirFilenames;
+    Result.ReportError       = p->ReportErrorCallback;
+    Result.ReportErrorAndDie = p->ReportErrorAndDieCallback;
+
+    return Result;
+}
+
 #endif//PLATFORM_H

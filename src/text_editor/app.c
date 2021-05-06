@@ -1,7 +1,126 @@
 #include "lingo.h"
 #include "platform.h"
-#include "maths.h"
+#include "renderer.h"
 
+#include "colors.h"
+
+#define ui_NO_COLORS 1;
+
+//todo:
+//  focus / hover setting
+//  id hashing
+//  general input (including keyboard)
+
+typedef struct _ui_style {
+    id     Font;
+    i32    Padding;
+    colorb Colors[ui_NO_COLORS];
+} ui_style;
+
+typedef struct _ui_context {
+    renderer *Renderer;
+    ui_style  Style;
+    id Hover;
+    id Focus;
+    id LastId;
+} ui_context;
+
+enum ui_text_opt {
+    ui_TEXT_ALIGN_CENTER = 0b1,
+    ui_TEXT_ALIGN_RIGHT  = 0b10
+};
+
+enum ui_mouse_buttons {
+    ui_MOUSE_BUTTON_LEFT  = 0b1,
+    ui_MOUSE_BUTTON_RIGHT = 0b10
+};
+
+internal void ui_DrawRect(renderer *Renderer, ui_context *Ctx, id Me, rect Rect, id ColorId, u32 Opts) {
+    if (Me == Ctx->Focus)
+        ColorId += 2;
+    else
+    if (Me == Ctx->Hover)
+        ColorId += 1;
+    DrawRect(Renderer, Rect, ui_GetColor(Ctx, ColorId));
+}
+
+internal void ui_DrawText(renderer *Renderer, ui_context *Ctx, c8 *Text, rect Rect, id ColorId, u32 Opts) {
+    rv2 Dim = MeasureText(Renderer, Text, Ctx->Style.Font);
+    rv2 Pos;
+    Pos.y = Rect.y + (Rect.h - Dim.h) / 2;
+    if (Opts & ui_TEXT_ALIGN_CENTER)
+        Pos.x = Rect.x + (Rect.w - Dim.w) / 2;
+    else
+    if (Opts & ui_TEXT_ALIGN_RIGHT)
+        Pos.x = (Rect.x + Rect.w) - Dim.w - Ctx->Style.Padding;
+    else
+        Pos.x = Rect.x + Ctx->Style.Padding;
+    DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
+}
+
+internal void ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
+    b32 Result = 0;
+    id  Me     = 0;
+    rect Rect = rect_();
+    if (Ctx->MouseButton == ui_MOUSE_BUTTON_LEFT && Ctx->Focus == Me)
+        Result = 1;
+    ui_DrawRect(Renderer, Ctx, Rect, Opts);
+    if (Text)
+        ui_DrawText(Renderer, Ctx, Text, Rect, Opts);
+    return Result;
+}
+
+typedef struct _app_state {
+    platform_api Api;
+    memory_arena Arena;
+    renderer     Renderer;
+} app_state;
+
+external APP_INIT(Init) {
+    app_state *s = (app_state *)p->Memory.Contents;
+
+    s->Api   = SetPlatformApi(p);
+    s->Arena = InitializeArena(p->Memory.Size - sizeof(app_state), (u8 *)p->Memory.Contents + sizeof(app_state));
+
+    platform_api *Api      = &s->Api;
+    memory_arena *Arena    = &s->Arena;
+    renderer     *Renderer = &s->Renderer;
+
+    LoadFont(Renderer, Api, "roboto.ttf", 0, 24);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+external APP_UPDATE(Update) {
+    app_state *s = (app_state *)p->Memory.Contents;
+
+    platform_api *Api      = &s->Api;
+    memory_arena *Arena    = &s->Arena;
+    renderer     *Renderer = &s->Renderer;
+
+    rect Rect = rect_(0, 0, GetVecComps(p->mPos));
+
+    ui_context ui_Context = {0};
+
+    ui_Context.Style.Padding = 10;
+    ui_Context.Style.Font    =  0;
+
+    DrawRect(Renderer, Rect, GREEN_800);
+    ui_DrawText(Renderer, &ui_Context, "Hello World", Rect, 0);
+
+    Render(Renderer, p->WindowDim, GREY_900);
+}
+
+external APP_RELOAD(Reload) {
+    app_state *s = (app_state *)p->Memory.Contents;
+}
+
+external APP_DEINIT(Deinit) {
+    app_state *s = (app_state *)p->Memory.Contents;
+}
+
+#if 0
 typedef struct _platform_api {
     platform_allocate_memory_callback      *AllocateMemory;
     platform_free_memory_callback          *FreeMemory;
@@ -216,3 +335,4 @@ external APP_RELOAD(Reload) {
 external APP_DEINIT(Deinit) {
     app_state *State = (app_state *)p->Memory.Contents;
 }
+#endif
