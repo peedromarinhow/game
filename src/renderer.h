@@ -391,6 +391,7 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
             Pos.x += Font->GlyphAdvances[Index];// + Style->CharSpacing;
             continue;
         }
+    
         if (Op == TEXT_OP_MEASURE) {
             Result = rect_Union(GlyphRect, Result);
         }

@@ -66,6 +66,7 @@
 #define INDIGO_400  (colorb){0x5C6BC0FF}
 #define INDIGO_500  (colorb){0x3F51B5FF}
 #define INDIGO_600  (colorb){0x3949ABFF}
+// #define INDIGO_700(a) (colorb){0x303F9F+a}
 #define INDIGO_700  (colorb){0x303F9FFF}
 #define INDIGO_800  (colorb){0x283593FF}
 #define INDIGO_900  (colorb){0x1A237EFF}
