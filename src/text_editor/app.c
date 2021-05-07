@@ -7,7 +7,6 @@
 //note: inspired by github.com/rxi/microui
 
 //todo:
-//  focus / hover setting
 //  id hashing
 //  general input (including keyboard)
 
@@ -37,9 +36,13 @@ typedef struct _ui_context {
     id LastId;
     id Current;
     i16 NoItems;
-    u32 MouseDown;
+    b32 MouseDown;
+    u32 MouseWich;
+    b32 KeyDown;
+    u32 KeyWich;
     rv2 MousePos;
     ui_layout Layout;
+    c8 TextInput[32];
 } ui_context;
 
 enum ui_opt {
@@ -47,6 +50,11 @@ enum ui_opt {
     ui_OPT_TEXT_ALIGN_RIGHT  = 0b10,
     ui_OPT_NO_INTERACTION    = 0b100,
     ui_OPT_HOLDFOCUS         = 0b1000
+};
+
+enum ui_result {
+    ui_RESULT_CHANGE = 0b1,
+    ui_RESULT_SUBMIT = 0b10
 };
 
 enum ui_color {
@@ -60,6 +68,11 @@ enum ui_color {
 enum ui_mouse_buttons {
     ui_MOUSE_BUTTON_LEFT  = 0b1,
     ui_MOUSE_BUTTON_RIGHT = 0b10
+};
+
+enum ui_key {
+    ui_KEY_BACKSPACE = 0b1,
+    ui_KEY_RETURN    = 0b10
 };
 
 internal id ui_GetId(ui_context *Ctx) {
@@ -97,20 +110,24 @@ internal rect ui_GetRect(ui_context *Ctx) {
 }
 
 internal void ui_UpdateControls(ui_context *Ctx, id Id, rect Rect, u32 Opts) {
+    //todo: figure out how to snap focus and how to hold focus
     if (Opts & ui_OPT_NO_INTERACTION)
         return;
+
     b32 MouseIsOver = IsInsideRect(Ctx->MousePos, Rect);
     if (MouseIsOver)
         Ctx->Hover = Id;
     else
         Ctx->Hover = 0;
+
+    if (Ctx->Focus == Id) {
+        if (!MouseIsOver)
+            Ctx->Focus = 0;
+    }
+
     if (Ctx->Hover == Id) {
         if (Ctx->MouseDown)
             Ctx->Focus = Id;
-    }
-    if (Ctx->Focus == Id) {
-        if (Ctx->MouseDown && !MouseIsOver)
-            Ctx->Focus = 0;
     }
 }
 
@@ -134,7 +151,10 @@ internal void ui_DrawText(renderer *Renderer, ui_context *Ctx, c8 *Text, rect Re
         Pos.x = (Rect.x + Rect.w) - Dim.w - Ctx->Style.Padding;
     else
         Pos.x = Rect.x + Ctx->Style.Padding;
-    DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
+
+    if (Dim.w + Ctx->Style.Padding * 2 < Rect.w)
+        DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
+    //todo: handle text overflow i.e: long_text_button -> long_te..
 }
 
 internal b32 ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
@@ -151,6 +171,59 @@ internal b32 ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) 
     ui_DrawRect(Renderer, Ctx, Id, Rect, ui_COLOR_BUTTON, Opts);
     if (Text)
         ui_DrawText(Renderer, Ctx, Text, Rect, ui_COLOR_TEXT, Opts | ui_OPT_TEXT_ALIGN_CENTER);
+    return Result;
+}
+
+internal void ui_TextInput(ui_context *Ctx, c8 *Text) {
+    u32 Len  = ArrayCount(Ctx->TextInput);
+    u32 Size = ArrayCount(Text) + 1;
+    Assert(Len + Size <= sizeof(Ctx->TextInput));
+    CopyMemory(Ctx->TextInput + Len, Text, Size);
+}
+
+internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffLen, u32 Opts) {
+    b32 Result = 0;
+
+    id Id = ui_GetId(Ctx);
+    rect Rect = ui_GetRect(Ctx);
+
+    ui_UpdateControls(Ctx, Id, Rect, Opts | ui_OPT_HOLDFOCUS);
+
+    if (Ctx->Focus == Id) {
+        u32 Len = ArrayCount(Buff);
+        u32 n = Min(BuffLen - Len - 1, ArrayCount(Ctx->TextInput));
+        if (n > 0) {
+            CopyMemory(Buff + Len, Ctx->TextInput, n);
+            Len += n;
+            Buff[Len] = '\0';
+            Result |= ui_RESULT_CHANGE;
+        }
+        if (Ctx->KeyWich & ui_KEY_BACKSPACE && Len > 0) {
+            while ((Buff[--Len] & 0xC0) == 0x80 && Len > 0);
+            Buff[Len] = '\0';
+            Result |= ui_RESULT_CHANGE;
+        }
+        if (Ctx->KeyWich & ui_KEY_RETURN) {
+            // Ctx->Focus = 0;
+            Result |= ui_RESULT_SUBMIT;
+        }
+    }
+
+    ui_DrawRect(Renderer, Ctx, Id, Rect, ui_COLOR_BUTTON, Opts);
+    if (Ctx->Focus == Id) {
+        ui_style *Style = &Ctx->Style;
+        colorb Color = Style->Colors[ui_COLOR_TEXT];
+        id  Font = Style->Font;
+        rv2 Dim = MeasureText(Renderer, Buff, Font);
+        rv2 Pos = rv2_(Rect.x + Min(Rect.w - Style->Padding - Dim.w - 1, Style->Padding),
+                       Rect.y + (Rect.h - Dim.h) / 2);
+        DrawText(Renderer, Buff, Font, Pos, Color);
+        DrawRect(Renderer, rect_(Pos.x + Dim.w, Pos.y, 1, Dim.h), Color);
+    }
+    else {
+        ui_DrawText(Renderer, Ctx, Buff, Rect, ui_COLOR_TEXT, Opts);
+    }
+
     return Result;
 }
 
@@ -189,10 +262,13 @@ external APP_UPDATE(Update) {
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    s->ui_Context.MouseDown = p->mLeft;
-    s->ui_Context.MousePos = p->mPos;
+    s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
+    s->ui_Context.MouseWich = p->mLeft? ui_MOUSE_BUTTON_LEFT : 0;
+    s->ui_Context.KeyDown = p->kBack || p->kReturn;
+    s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
+    s->ui_Context.MousePos  = p->mPos;
 
-    s->ui_Context.Style.Padding = 4;
+    s->ui_Context.Style.Padding = 5;
     s->ui_Context.Style.Font    = 0;
     s->ui_Context.Style.Colors[ui_COLOR_TEXT]         = GREY_100;
     s->ui_Context.Style.Colors[ui_COLOR_BACK]         = GREY_900;
@@ -200,18 +276,29 @@ external APP_UPDATE(Update) {
     s->ui_Context.Style.Colors[ui_COLOR_BUTTON_HOVER] = GREEN_600;
     s->ui_Context.Style.Colors[ui_COLOR_BUTTON_FOCUS] = GREY_800;
 
-    s->ui_Context.Layout.Body = rect_(0, 0, 200, 40);
+    s->ui_Context.Layout.Body = rect_(0, 0, 200, s->Renderer.Fonts->Height   +
+                                                 s->ui_Context.Style.Padding * 2);
     s->ui_Context.Layout.Max  = rv2_(-0x1000000, -0x1000000);
     s->ui_Context.Layout.Pos  = s->ui_Context.Layout.Body.Pos;
     s->ui_Context.Layout.Dim  = s->ui_Context.Layout.Body.Dim;
     s->ui_Context.Layout.ItemWidth = 120;
 
-    if (ui_Button(Renderer, &s->ui_Context, "Hello World 1", 0))
+    if (ui_Button(Renderer, &s->ui_Context, "Hello", 0))
         DrawRect(Renderer, rect_(0, 100, 10, 10), YELLOW_800);
-    if (ui_Button(Renderer, &s->ui_Context, "Hello World 2", 0))
+    if (ui_Button(Renderer, &s->ui_Context, "World", 0))
         DrawRect(Renderer, rect_(0, 100, 10, 10), RED_800);
-    if (ui_Button(Renderer, &s->ui_Context, "Hello World 3", 0))
+    if (ui_Button(Renderer, &s->ui_Context, "/////", 0))
         DrawRect(Renderer, rect_(0, 100, 10, 10), ORANGE_800);
+    if (ui_Button(Renderer, &s->ui_Context, "Hello", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), YELLOW_800);
+    if (ui_Button(Renderer, &s->ui_Context, "World", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), RED_800);
+    if (ui_Button(Renderer, &s->ui_Context, "/////", 0))
+        DrawRect(Renderer, rect_(0, 100, 10, 10), ORANGE_800);
+    
+    c8 Buff[32];
+
+    ui_TextBox(Renderer, &s->ui_Context, Buff, 32, 0);
 
     Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
 }

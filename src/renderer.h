@@ -403,7 +403,7 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
 
     
     Result.Pos = Pos;
-    Result.h  += Font->Descender; //times number of lines
+    Result.h   = Font->Height; //times number of lines
 
     return Result;
 }
