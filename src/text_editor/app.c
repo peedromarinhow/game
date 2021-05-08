@@ -2,6 +2,8 @@
 #include "platform.h"
 #include "renderer.h"
 
+#include "fonts.h"
+
 #include "colors.h"
 
 //note: inspired by github.com/rxi/microui
@@ -59,11 +61,23 @@ enum ui_result {
 };
 
 enum ui_color {
-    ui_COLOR_TEXT,
     ui_COLOR_BACK,
+    ui_COLOR_BASE,
+    ui_COLOR_TEXT,
+    ui_COLOR_TEXT_INCATIVE,
+    ui_COLOR_TEXT_FOCUS,
     ui_COLOR_BUTTON,
     ui_COLOR_BUTTON_HOVER, 
     ui_COLOR_BUTTON_FOCUS
+};
+
+enum ui_min_dims {
+    ui_MIN_BUTTON_WIDTH  = 64,
+    ui_MIN_BUTTON_HEIGHT = 36,
+    ui_MIN_TEXTBOX_WIDTH  = 280,
+    ui_MIN_TEXTBOX_HEIGHT = 48,
+    ui_MIN_SNACKBAR_WIDTH  = 344,
+    ui_MIN_SNACKBAR_HEIGHT = 48
 };
 
 enum ui_mouse_buttons {
@@ -90,17 +104,17 @@ internal colorb ui_GetColor(ui_context *Ctx, id ColorId) {
 
 internal void ui_NextRow(ui_context *Ctx) {
     ui_layout *Layout = &Ctx->Layout;
-    Layout->Pos.y -= Layout->ItemHeight;
+    Layout->Pos.y -= Layout->ItemHeight + Ctx->Style.Padding;
     Layout->Pos.x  = Layout->Body.x;
 }
 
-internal rect ui_GetRect(ui_context *Ctx) {
+internal rect ui_NextRect(ui_context *Ctx, i32 Width, i32 Height) {
     ui_layout *Layout = &Ctx->Layout;
     ui_style  *Style  = &Ctx->Style;
     rect Result;
 
-    Result.w = Layout->ItemWidth;
-    Result.h = Layout->ItemHeight;
+    Result.w = Layout->ItemWidth  = Width;
+    Result.h = Layout->ItemHeight = Height;
 
     Result.x = Layout->Pos.x;
     Result.y = Layout->Pos.y + Layout->Dim.h - Layout->ItemHeight;
@@ -158,14 +172,13 @@ internal void ui_DrawText(renderer *Renderer, ui_context *Ctx, c8 *Text, rect Re
     else
         Pos.x = Rect.x + Ctx->Style.Padding;
 
-    if (Dim.w + Ctx->Style.Padding * 2 < Rect.w)
-        DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
-    //todo: handle text overflow i.e: long_text_button -> long_te..
+    // if (Dim.w + Ctx->Style.Padding * 2 < Rect.w)
+    //todo: handle text overflow i.e: long_text -> long_te..
+    DrawText(Renderer, Text, Ctx->Style.Font, Pos, ui_GetColor(Ctx, ColorId));
 }
 
 internal void ui_Label(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
-    rect Rect = ui_GetRect(Ctx);
-    Rect.h = 36; //note: fixed
+    rect Rect = ui_NextRect(Ctx, ui_MIN_BUTTON_WIDTH, ui_MIN_BUTTON_HEIGHT);
     ui_DrawText(Renderer, Ctx, Text, Rect, ui_COLOR_TEXT, Opts);
 }
 
@@ -173,9 +186,7 @@ internal b32 ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) 
     b32 Result = 0;
     
     id Id = ui_GetId(Ctx);
-    rect Rect = ui_GetRect(Ctx);
-
-    Rect.h = 36; //note: fixed
+    rect Rect = ui_NextRect(Ctx, ui_MIN_BUTTON_WIDTH, ui_MIN_BUTTON_HEIGHT);
 
     ui_UpdateControls(Ctx, Id, Rect, 0);
 
@@ -199,7 +210,7 @@ internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffL
     b32 Result = 0;
 
     id Id = ui_GetId(Ctx);
-    rect Rect = ui_GetRect(Ctx);
+    rect Rect = ui_NextRect(Ctx, ui_MIN_TEXTBOX_WIDTH, ui_MIN_TEXTBOX_HEIGHT);
 
     ui_UpdateControls(Ctx, Id, Rect, Opts | ui_OPT_HOLDFOCUS);
 
@@ -231,14 +242,24 @@ internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffL
         rv2 Dim = MeasureText(Renderer, Buff, Font);
         rv2 Pos = rv2_(Rect.x + Min(Rect.w - Style->Padding - Dim.w - 1, Style->Padding),
                        Rect.y + (Rect.h - Dim.h) / 2);
-        DrawText(Renderer, "temp", Font, Pos, Color);
+        DrawText(Renderer, Buff, Font, Pos, Color);
         DrawRect(Renderer, rect_(Pos.x + Dim.w, Pos.y, 1, Dim.h), Color);
     }
     else {
-        ui_DrawText(Renderer, Ctx, "temp", Rect, ui_COLOR_TEXT, Opts);
+        ui_DrawText(Renderer, Ctx, "Temp", Rect, ui_COLOR_TEXT, Opts);
     }
 
     return Result;
+}
+
+internal void ui_Snackbar(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
+    b32 Result = 0;
+
+    rect Rect = rect_((Renderer->TargetClipRect.w - ui_MIN_SNACKBAR_WIDTH)/2, Ctx->Style.Padding, ui_MIN_SNACKBAR_WIDTH, ui_MIN_SNACKBAR_HEIGHT);
+
+    DrawRect(Renderer, Rect, Ctx->Style.Colors[ui_COLOR_BUTTON]);
+    if (Text)
+        ui_DrawText(Renderer, Ctx, Text, Rect, ui_COLOR_TEXT, Opts);
 }
 
 typedef struct _app_state {
@@ -246,6 +267,8 @@ typedef struct _app_state {
     memory_arena Arena;
     renderer     Renderer;
     ui_context ui_Context;
+
+    texture FreetypeAtlas;
 } app_state;
 
 external APP_INIT(Init) {
@@ -265,6 +288,13 @@ external APP_INIT(Init) {
 
     LoadFont(Renderer, Api, "roboto.ttf", 0, 14);
 
+    FT_Library ft;
+    FT_Init_FreeType(&ft);
+
+    s->FreetypeAtlas = LoadFontFreetype(Api, &ft, "roboto.ttf");
+
+    FT_Done_FreeType(ft);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
@@ -282,7 +312,7 @@ external APP_UPDATE(Update) {
     s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
     s->ui_Context.MousePos = p->mPos;
 
-    s->ui_Context.Style.Padding = 6;
+    s->ui_Context.Style.Padding = 16;
     s->ui_Context.Style.Font    = 0;
     s->ui_Context.Style.Colors[ui_COLOR_TEXT]         = GREY_100;
     s->ui_Context.Style.Colors[ui_COLOR_BACK]         = GREY_900;
@@ -307,15 +337,41 @@ external APP_UPDATE(Update) {
 
     ui_Label(Renderer, &s->ui_Context, "Button 2", 0);
     if (ui_Button(Renderer, &s->ui_Context, "BUTTON", 0))
-        DrawRect(Renderer, rect_(0, 100, 10, 10), ORANGE_800);
+        ui_Snackbar(Renderer, &s->ui_Context, "SOME TEXT", 0);
 
     ui_NextRow(&s->ui_Context);
 
     c8 Buff[32];
-
     ui_TextBox(Renderer, &s->ui_Context, Buff, 32, 0);
 
     Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
+
+    texture Texture = s->FreetypeAtlas;
+    rect Rect = rect_(0, 0, Texture.w, Texture.h);
+    rv2 Pos = rv2_(0, 0);
+
+    glBindTexture(GL_TEXTURE_2D, Texture.Id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glEnable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS); {
+        rv2 TextureDim  = rv2_(Texture.w, Texture.h);
+
+        glTexCoord2f(Rect.x / TextureDim.w, Rect.y / TextureDim.h);
+        glVertex2f(Pos.x, Pos.y + Rect.h);
+
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, Rect.y /TextureDim.h);
+        glVertex2f(Pos.x + Rect.w, Pos.y + Rect.h);
+        
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
+        glVertex2f(Pos.x + Rect.w, Pos.y);
+
+        glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
+        glVertex2f(Pos.x, Pos.y);
+    } glEnd();
+    glDisable(GL_TEXTURE_2D);
 }
 
 external APP_RELOAD(Reload) {
