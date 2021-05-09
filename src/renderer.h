@@ -77,6 +77,8 @@ typedef struct _render_piece {
     };
 } render_piece;
 
+#include "fonts.h"
+
 typedef struct _renderer {
     rect  TargetClipRect;
     colorb ClearColor;
@@ -87,8 +89,8 @@ typedef struct _renderer {
     rect Clips[8];
     u32  UsedClips;
 
-    font Fonts[3];
-    u32  UsedFonts;
+    font_ Fonts[3];
+    u32   UsedFonts;
 } renderer;
 
 ///////////////////////////////////////////////////////////
@@ -188,7 +190,7 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
-            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].GlyphRects[Glyph.Index],
+            RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].Rects[Glyph.Index],
                               Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
         }
     }
@@ -196,7 +198,7 @@ internal void Render(renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
 }
 
 ///////////////////////////////////////////////////////////
-
+/*
 internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoChars, r32 Size) {
     file FontFile = p->LoadFile(Filename);
     if (!FontFile.Data)
@@ -317,7 +319,7 @@ internal id LoadFont(renderer *Renderer, platform_api *p, c8 *Filename, u32 NoCh
     Renderer->UsedFonts++;
 
     return Renderer->Fonts[Renderer->UsedFonts - 1].Id;
-}
+}*/
 
 ///////////////////////////////////////////////////////////
 
@@ -358,7 +360,7 @@ internal void DrawGlyph(renderer *Renderer, id FontId, u32 Index, rv2 Pos, color
 
     Piece.Type         = PIECE_GLYPH;
     Piece.Rect.Pos     = Pos;
-    Piece.Rect.Dim     = Renderer->Fonts[FontId].GlyphRects[Index].Dim;
+    Piece.Rect.Dim     = Renderer->Fonts[FontId].Rects[Index].Dim;
     Piece.Color        = Color;
     Piece.Glyph.FontId = FontId;
     Piece.Glyph.Index  = Index;
@@ -373,8 +375,8 @@ typedef enum _text_op {
     TEXT_OP_DRAW
 } text_op;
 
-internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
-    font *Font = &Renderer->Fonts[FontId];
+/*internal rect DoTextOp_(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
+    font_ *Font = &Renderer->Fonts[FontId];
 
     u32 Index;
     rv2 Offset;
@@ -388,7 +390,7 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
         Offset = Font->GlyphOffsets[Index];
         GlyphRect = rect_(Pos.x + Offset.x, Pos.y - Offset.y, GetVecComps(Font->GlyphRects[Index].Dim));
         if (*Char == ' ') {
-            Pos.x += Font->GlyphAdvances[Index];// + Style->CharSpacing;
+            Pos.x += Font->GlyphAdvances[Index].x;// + Style->CharSpacing;
             continue;
         }
     
@@ -399,21 +401,59 @@ internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 
         if (Op == TEXT_OP_DRAW) {
             DrawGlyph(Renderer, 0, Index, GlyphRect.Pos, Color);
         }
-        Pos.x += Font->GlyphAdvances[Index];
+        Pos.x += Font->GlyphAdvances[Index].x;
     }
 
-    
     Result.Pos = Pos;
     Result.h   = Font->Height; //times number of lines
 
     return Result;
 }
 
+internal rv2 MeasureText_(renderer *Renderer, c8 *Text, id Font) {
+    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, rv2_(0, 0), (colorb){0}).Dim;
+}
+
+internal void DrawText_(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Color) {
+    DoTextOp(TEXT_OP_DRAW, Renderer, Text, Font, Pos, Color);
+}*/
+
+internal rect DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
+    font_ *Font = &Renderer->Fonts[FontId];
+
+    for (c8 *Char = Text; *Char; Char++) {
+        // rv2 Advance = Font->Advances[*Char];
+        // rv2 Bearing = Font->Bearings[*Char];
+
+        Pos.x += 0;
+
+        if (Op == TEXT_OP_MEASURE) {
+
+        }
+        else
+        if (Op == TEXT_OP_DRAW) {
+
+        }
+    }
+}
+
 internal rv2 MeasureText(renderer *Renderer, c8 *Text, id Font) {
     return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, Font, rv2_(0, 0), (colorb){0}).Dim;
 }
 
-internal void DrawText(renderer *Renderer, c8 *Text, id Font, rv2 Pos, colorb Color) {
-    DoTextOp(TEXT_OP_DRAW, Renderer, Text, Font, Pos, Color);
+internal void DrawText(renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
+    font_ *Font = &Renderer->Fonts[FontId];
+
+    for (c8 *Char = Text; *Char; Char++) {
+        rv2  Advance = Font->Advances[*Char];
+        rv2  Bearing = Font->Bearings[*Char];
+        // rect Rect    = Font->Rects[*Char];
+
+        rv2 GlyphPos = rv2_(Pos.x - Bearing.x, Pos.y);
+
+        DrawGlyph(Renderer, 0, (*Char - 32 >= 0)? *Char - 32 : '?' - 32, GlyphPos, Color);
+
+        Pos.x += (i32)Advance.x >> 6; //note: what the fuck?
+    }
 }
 #endif//RENDERER_H

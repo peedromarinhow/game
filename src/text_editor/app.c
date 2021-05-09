@@ -2,8 +2,6 @@
 #include "platform.h"
 #include "renderer.h"
 
-#include "fonts.h"
-
 #include "colors.h"
 
 //note: inspired by github.com/rxi/microui
@@ -268,7 +266,7 @@ typedef struct _app_state {
     renderer     Renderer;
     ui_context ui_Context;
 
-    texture FreetypeAtlas;
+    font_ RobotoMono;
 } app_state;
 
 external APP_INIT(Init) {
@@ -286,12 +284,12 @@ external APP_INIT(Init) {
     s->ui_Context.LastId  =  0;
     s->ui_Context.Current = -1;
 
-    LoadFont(Renderer, Api, "roboto.ttf", 0, 14);
-
     FT_Library ft;
     FT_Init_FreeType(&ft);
 
-    s->FreetypeAtlas = LoadFontFreetype(Api, &ft, "roboto.ttf");
+    // LoadFont(Renderer, Api, "roboto.ttf", 0, 14);
+
+    Renderer->Fonts[0] = LoadFontFreetype(Api, &ft, "roboto_mono.ttf");
 
     FT_Done_FreeType(ft);
 
@@ -306,7 +304,7 @@ external APP_UPDATE(Update) {
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
+    /*s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
     s->ui_Context.MouseWich = p->mLeft? ui_MOUSE_BUTTON_LEFT : 0;
     s->ui_Context.KeyDown = p->kBack || p->kReturn;
     s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
@@ -344,9 +342,7 @@ external APP_UPDATE(Update) {
     c8 Buff[32];
     ui_TextBox(Renderer, &s->ui_Context, Buff, 32, 0);
 
-    Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
-
-    texture Texture = s->FreetypeAtlas;
+    texture Texture = s->RobotoMono.Atlas;
     rect Rect = rect_(0, 0, Texture.w, Texture.h);
     rv2 Pos = rv2_(0, 0);
 
@@ -371,7 +367,12 @@ external APP_UPDATE(Update) {
         glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
         glVertex2f(Pos.x, Pos.y);
     } glEnd();
-    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_TEXTURE_2D);*/
+
+    DrawText(Renderer, "HgjIZW", 0, rv2_(100, 100), ORANGE_500);
+
+    // Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
+    Render(Renderer, p->WindowDim, GREY_900);
 }
 
 external APP_RELOAD(Reload) {
