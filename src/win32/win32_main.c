@@ -94,16 +94,26 @@ int CALLBACK WinMain(HINSTANCE Instance,
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
         /* functions provided by platform */
-        Platform.AllocateMemoryCallback    = Win32AllocateMemory;
-        Platform.FreeMemoryCallback        = Win32FreeMemory;
-        Platform.LoadFileCallback          = Win32LoadFile;
-        Platform.FreeFileCallback          = Win32FreeFile;
-        Platform.LoadFileToArenaCallback   = Win32LoadFileToArena;
-        Platform.FreeFileFromArenaCallback = Win32FreeFileFromArena;
-        Platform.WriteFileCallback         = Win32WriteFile;
-        Platform.GetDirFilenames           = Win32GetDirFilenames;
-        Platform.ReportErrorCallback       = Win32ReportError;
-        Platform.ReportErrorAndDieCallback = Win32ReportErrorAndDie;
+        Platform.Api.AllocateMemory    = Win32AllocateMemory;
+        Platform.Api.FreeMemory        = Win32FreeMemory;
+        Platform.Api.LoadFile          = Win32LoadFile;
+        Platform.Api.FreeFile          = Win32FreeFile;
+        Platform.Api.LoadFileToArena   = Win32LoadFileToArena;
+        Platform.Api.FreeFileFromArena = Win32FreeFileFromArena;
+        Platform.Api.WriteFile         = Win32WriteFile;
+        Platform.Api.GetDirFilenames   = Win32GetDirFilenames;
+        Platform.Api.ReportError       = Win32ReportError;
+        Platform.Api.ReportErrorAndDie = Win32ReportErrorAndDie;
+
+        GL_BLEND;
+        
+        Platform.gApi.Clear             = Win32Clear;
+        Platform.gApi.Clip              = Win32Clip;
+        Platform.gApi.RasterRect        = Win32RasterRect;
+        Platform.gApi.RasterTextureRect = Win32RasterTextureRect;
+        Platform.gApi.Enable            = Win32Enable;
+        Platform.gApi.Disable           = Win32Disable;
+        Platform.gApi.GenAndBindAndLoadTexture = Win32GenAndBindAndLoadTexture;
 
         Platform.WindowDim = Win32GetWindowDim(Window);
         Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);

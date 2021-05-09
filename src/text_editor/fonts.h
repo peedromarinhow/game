@@ -10,25 +10,12 @@
 #include "libs/ft2build.h"
 #include FT_FREETYPE_H
 
-typedef struct _font_ {
-    u32 NoChars;
-    i32 Height;
-    i32 Ascender;
-    i32 Descender;
-    i32 LineGap;
-    rv2  *Advances;
-    rv2  *Bearings;
-    rect *Rects;
-    texture Atlas;
-} font_;
-
-internal font_ LoadFontFreetype(platform_api *p, FT_Library *FreeTypeLib, c8 *Filename) {
+internal font LoadFont(platform_api *p, FT_Library *FreeTypeLib, c8 *Filename, i32 Height) {
     FT_Face Face = {0};
-    font_   Font = {0};
+    font    Font = {0};
     if (FT_New_Face(*FreeTypeLib, Filename, 0, &Face))
         return Font;
-    
-    i32 Height  = 64;
+
     u32 NoChars = Face->num_glyphs;
     i32 Padding = 2;
     f32 RequiredAreaForAtlas = 0;
@@ -47,10 +34,6 @@ internal font_ LoadFontFreetype(platform_api *p, FT_Library *FreeTypeLib, c8 *Fi
     for (u32 Char = 0; Char < NoChars; Char++) {
         if (FT_Load_Char(Face, Char + 32, FT_LOAD_RENDER))
             continue;
-
-        Font.Advances[Char] = rv2_(Face->glyph->advance.x,   Face->glyph->advance.y);
-        Font.Bearings[Char] = rv2_(Face->glyph->bitmap_left, Face->glyph->bitmap_top);
-
         RequiredAreaForAtlas += (Face->glyph->bitmap.width + 2 * Padding) *
                                 (Face->glyph->bitmap.rows  + 2 * Padding);
     }
@@ -70,17 +53,23 @@ internal font_ LoadFontFreetype(platform_api *p, FT_Library *FreeTypeLib, c8 *Fi
         if (FT_Load_Char(Face, Char + 32, FT_LOAD_RENDER))
             continue;
 
-        for (u32 y = 0; y < Face->glyph->bitmap.rows; y++) {
-            for (u32 x = 0; x < Face->glyph->bitmap.width; x++) {
+        i32 w = Face->glyph->bitmap.width;
+        i32 h = Face->glyph->bitmap.rows;
+
+        for (i32 y = 0; y < h; y++) {
+            for (i32 x = 0; x < w; x++) {
                 ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
-                    (((u8 *)Face->glyph->bitmap.buffer)[y*Face->glyph->bitmap.width + x]);
+                    (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
             }
         }
 
-        Font.Rects[Char] = rect_(OffsetX, OffsetY, Face->glyph->bitmap.width, Face->glyph->bitmap.rows);
-        OffsetX += (Face->glyph->bitmap.width + 2 * Padding);
+        Font.Advances[Char] = Face->glyph->advance.x;
+        Font.Bearings[Char] = rv2_(Face->glyph->bitmap_left, Face->glyph->bitmap_top);
 
-        if (OffsetX >= (i32)(AtlasImage.w - Face->glyph->bitmap.width - Padding)) {
+        Font.Rects[Char] = rect_(OffsetX, OffsetY, w, h);
+        OffsetX += (w + 2 * Padding);
+
+        if (OffsetX >= (i32)(AtlasImage.w - w - Padding)) {
             OffsetX = Padding;
             OffsetY += (Height + 2 * Padding);
             if (OffsetY > (AtlasImage.h - Height - Padding))

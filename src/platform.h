@@ -95,6 +95,64 @@ typedef struct _event_state {
     b32 EndedHappening;
 } event_state;
 
+typedef struct _platform_api {
+    platform_allocate_memory_callback      *AllocateMemory;
+    platform_free_memory_callback          *FreeMemory;
+    platform_load_file_callback            *LoadFile;
+    platform_free_file_callback            *FreeFile;
+    platform_load_file_to_arena_callback   *LoadFileToArena;
+    platform_free_file_from_arena_callback *FreeFileFromArena;
+    platform_write_file_callback           *WriteFile;
+    platform_get_dir_filenames             *GetDirFilenames;
+    platform_report_error_callback         *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
+} platform_api;
+
+typedef struct _image {
+    void *Data;
+    i32 w;
+    i32 h;
+    i32 Format;
+} image;
+
+typedef struct _texture {
+    u32 Id;
+    i32 w;
+    i32 h;
+    i32 Format;
+} texture;
+
+#define PLATFORM_GRAPHICS_CLEAR(Name) void Name(rv2 TargetDim, color Color)
+typedef PLATFORM_GRAPHICS_CLEAR(platform_graphics_clear_callback);
+
+#define PLATFORM_GRAPHICS_CLIP(Name) void Name(rect ClipRect)
+typedef PLATFORM_GRAPHICS_CLIP(platform_graphics_clip_callback);
+
+#define PLATFORM_GRAPHICS_RASTER_RECT(Name) void Name(rect Rect, color Color)
+typedef PLATFORM_GRAPHICS_RASTER_RECT(platform_graphics_raster_rect_callback);
+
+#define PLATFORM_GRAPHICS_RASTER_TEXTURE_RECT(Name) void Name(rv2 Pos, rect Rect, texture Texture, color Tint)
+typedef PLATFORM_GRAPHICS_RASTER_TEXTURE_RECT(platform_graphics_raster_texture_rect_callback);
+
+#define PLATFORM_GRAPHICS_ENABLE(Name) void Name(u32 Opt)
+typedef PLATFORM_GRAPHICS_ENABLE(platform_graphics_enable_callback);
+
+#define PLATFORM_GRAPHICS_DISABLE(Name) void Name(u32 Opt)
+typedef PLATFORM_GRAPHICS_DISABLE(platform_graphics_disable_callback);
+
+#define PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(Name) void Name(image *Image, texture *Texture)
+typedef PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(platform_graphics_gen_and_bind_and_load_texture_callback);
+
+typedef struct _platform_graphics_api {
+    platform_graphics_clear_callback               *Clear;
+    platform_graphics_clip_callback                *Clip;
+    platform_graphics_raster_rect_callback         *RasterRect;
+    platform_graphics_raster_texture_rect_callback *RasterTextureRect;
+    platform_graphics_enable_callback              *Enable;
+    platform_graphics_disable_callback             *Disable;
+    platform_graphics_gen_and_bind_and_load_texture_callback *GenAndBindAndLoadTexture;
+} platform_graphics_api;
+
 //note: this is how the platform and the app communicate with each other.
 #define KEYBOARD_MAX_KEYS 17
 #define MOUSE_MAX_BUTTONS  3
@@ -142,16 +200,8 @@ typedef struct _platform {
     app_memory Memory;
 
     /* functions */
-    platform_allocate_memory_callback      *AllocateMemoryCallback;
-    platform_free_memory_callback          *FreeMemoryCallback;
-    platform_load_file_callback            *LoadFileCallback;
-    platform_free_file_callback            *FreeFileCallback;
-    platform_load_file_to_arena_callback   *LoadFileToArenaCallback;
-    platform_free_file_from_arena_callback *FreeFileFromArenaCallback;
-    platform_write_file_callback           *WriteFileCallback;
-    platform_get_dir_filenames             *GetDirFilenames;
-    platform_report_error_callback         *ReportErrorCallback;
-    platform_report_error_and_die_callback *ReportErrorAndDieCallback;
+    platform_api           Api;
+    platform_graphics_api gApi;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *p)
@@ -169,35 +219,5 @@ typedef APP_UPDATE(app_update_callback);
 #define APP_DEINIT(Name) void Name(platform *p)
 typedef APP_DEINIT(app_deinit_callback);
         APP_DEINIT(AppDeinitStub) {};
-
-typedef struct _platform_api {
-    platform_allocate_memory_callback      *AllocateMemory;
-    platform_free_memory_callback          *FreeMemory;
-    platform_load_file_callback            *LoadFile;
-    platform_free_file_callback            *FreeFile;
-    platform_load_file_to_arena_callback   *LoadFileToArena;
-    platform_free_file_from_arena_callback *FreeFileFromArena;
-    platform_write_file_callback           *WriteFile;
-    platform_get_dir_filenames             *GetDirFilenames;
-    platform_report_error_callback         *ReportError;
-    platform_report_error_and_die_callback *ReportErrorAndDie;
-} platform_api;
-
-inline platform_api SetPlatformApi(platform *p) {
-    platform_api Result = {0};
-
-    Result.AllocateMemory    = p->AllocateMemoryCallback;
-    Result.FreeMemory        = p->FreeMemoryCallback;
-    Result.LoadFile          = p->LoadFileCallback;
-    Result.FreeFile          = p->FreeFileCallback;
-    Result.LoadFileToArena   = p->LoadFileToArenaCallback;
-    Result.FreeFileFromArena = p->FreeFileFromArenaCallback;
-    Result.WriteFile         = p->WriteFileCallback;
-    Result.GetDirFilenames   = p->GetDirFilenames;
-    Result.ReportError       = p->ReportErrorCallback;
-    Result.ReportErrorAndDie = p->ReportErrorAndDieCallback;
-
-    return Result;
-}
 
 #endif//PLATFORM_H

@@ -3,9 +3,9 @@
 set application_name= app
 set BuildOptions= -DBUILD_INTERNAL=1 -DBUILD_SLOW=1 -DBUILD_WIN32=1
 set CompileFlags= -nologo -FC -FS -Zi -MTd -Gm- -GR- -EHa- -Od -Oi -Ob1 -WX -W4 -wd4201 -wd4100 -wd4189 -wd4701 -wd4244 -wd4245 -wd4505 -I ../src/ -I D:/freetype-2.10.4/include
-set CommonLinkerFlags= -incremental:no -opt:ref opengl32.lib
+set CommonLinkerFlags= -incremental:no -opt:ref
 set AppLinkerFlags= %CommonLinkerFlags% D:\code\platform-layer\src\libs\freetype.lib
-set PlatformLinkFlags= %CommonLinkerFlags% gdi32.lib user32.lib winmm.lib
+set PlatformLinkFlags= %CommonLinkerFlags% opengl32.lib gdi32.lib user32.lib winmm.lib
 
 call "D:\ProgramData\VisualStudio\VC\Auxiliary\Build\vcvarsall.bat" x86 > NUL 2> NUL
 

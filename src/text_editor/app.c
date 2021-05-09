@@ -1,7 +1,6 @@
 #include "lingo.h"
 #include "platform.h"
 #include "renderer.h"
-
 #include "colors.h"
 
 //note: inspired by github.com/rxi/microui
@@ -201,7 +200,7 @@ internal void ui_TextInput(ui_context *Ctx, c8 *Text) {
     u32 Len  = ArrayCount(Ctx->TextInput);
     u32 Size = ArrayCount(Text) + 1;
     Assert(Len + Size <= sizeof(Ctx->TextInput));
-    CopyMemory(Ctx->TextInput + Len, Text, Size);
+    // Cop]yMemory(Ctx->TextInput + Len, Text, Size);
 }
 
 internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffLen, u32 Opts) {
@@ -216,7 +215,7 @@ internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffL
         u32 Len = ArrayCount(Buff);
         u32 n = Min(BuffLen - Len - 1, ArrayCount(Ctx->TextInput));
         if (n > 0) {
-            CopyMemory(Buff + Len, Ctx->TextInput, n);
+            // CopyMemory(Buff + Len, Ctx->TextInput, n);
             Len += n;
             Buff[Len] = '\0';
             Result |= ui_RESULT_CHANGE;
@@ -261,21 +260,18 @@ internal void ui_Snackbar(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opt
 }
 
 typedef struct _app_state {
-    platform_api Api;
     memory_arena Arena;
     renderer     Renderer;
     ui_context ui_Context;
-
-    font_ RobotoMono;
 } app_state;
 
 external APP_INIT(Init) {
     app_state *s = (app_state *)p->Memory.Contents;
 
-    s->Api   = SetPlatformApi(p);
     s->Arena = InitializeArena(p->Memory.Size - sizeof(app_state), (u8 *)p->Memory.Contents + sizeof(app_state));
 
-    platform_api *Api      = &s->Api;
+    platform_api           *Api = &p->Api;
+    platform_graphics_api *gApi = &p->gApi;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
@@ -287,24 +283,21 @@ external APP_INIT(Init) {
     FT_Library ft;
     FT_Init_FreeType(&ft);
 
-    // LoadFont(Renderer, Api, "roboto.ttf", 0, 14);
-
-    Renderer->Fonts[0] = LoadFontFreetype(Api, &ft, "roboto_mono.ttf");
+    Renderer->Fonts[0] = LoadFont(gApi, Api, &ft, "roboto.ttf", 14);
 
     FT_Done_FreeType(ft);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    gApi->Enable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 external APP_UPDATE(Update) {
     app_state *s = (app_state *)p->Memory.Contents;
 
-    platform_api *Api      = &s->Api;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    /*s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
+    s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
     s->ui_Context.MouseWich = p->mLeft? ui_MOUSE_BUTTON_LEFT : 0;
     s->ui_Context.KeyDown = p->kBack || p->kReturn;
     s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
@@ -342,37 +335,8 @@ external APP_UPDATE(Update) {
     c8 Buff[32];
     ui_TextBox(Renderer, &s->ui_Context, Buff, 32, 0);
 
-    texture Texture = s->RobotoMono.Atlas;
-    rect Rect = rect_(0, 0, Texture.w, Texture.h);
-    rv2 Pos = rv2_(0, 0);
-
-    glBindTexture(GL_TEXTURE_2D, Texture.Id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS); {
-        rv2 TextureDim  = rv2_(Texture.w, Texture.h);
-
-        glTexCoord2f(Rect.x / TextureDim.w, Rect.y / TextureDim.h);
-        glVertex2f(Pos.x, Pos.y + Rect.h);
-
-        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, Rect.y /TextureDim.h);
-        glVertex2f(Pos.x + Rect.w, Pos.y + Rect.h);
-        
-        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
-        glVertex2f(Pos.x + Rect.w, Pos.y);
-
-        glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
-        glVertex2f(Pos.x, Pos.y);
-    } glEnd();
-    glDisable(GL_TEXTURE_2D);*/
-
-    DrawText(Renderer, "HgjIZW", 0, rv2_(100, 100), ORANGE_500);
-
-    // Render(Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
-    Render(Renderer, p->WindowDim, GREY_900);
+    Render(&p->gApi, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
+    // DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
 }
 
 external APP_RELOAD(Reload) {
