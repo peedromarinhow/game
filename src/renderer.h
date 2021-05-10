@@ -158,7 +158,9 @@ internal void Render(platform_graphics_api *gApi, renderer *Renderer, iv2 Target
 ///////////////////////////////////////////////////////////
 
 //todo:
-//  1 - reduce memory usabe by not loading unecessary glyphs
+//  1 - make this a standalone font generator and load custom font file in app
+//     (similar to handmade's asset builder)
+//note: can quality be improved?
 
 internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_arena *Arena, c8 *Filename, i32 Height) {
     FT_Library FreeTypeLib;
@@ -180,10 +182,10 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     Font.Ascender  = Face->ascender;
     Font.Descender = Face->descender;
     Font.LineGap   = 0;
-    Font.Codepoints = PushToArena(Arena, NoChars * sizeof(u32));//Api->AllocateMemory(NoChars * sizeof(u32));
-    Font.Advances   = PushToArena(Arena, NoChars * sizeof(rv2));//Api->AllocateMemory(NoChars * sizeof(rv2));
-    Font.Bearings   = PushToArena(Arena, NoChars * sizeof(rv2));//Api->AllocateMemory(NoChars * sizeof(rv2));
-    Font.Rects      = PushToArena(Arena, NoChars * sizeof(rect));//Api->AllocateMemory(NoChars * sizeof(rect));
+    Font.Codepoints = PushToArena(Arena, NoChars * sizeof(u32));
+    Font.Advances   = PushToArena(Arena, NoChars * sizeof(rv2));
+    Font.Bearings   = PushToArena(Arena, NoChars * sizeof(rv2));
+    Font.Rects      = PushToArena(Arena, NoChars * sizeof(rect));
 
     for (u32 Char = 0; Char < NoChars; Char++) {
         if (FT_Load_Char(Face, Char + 32, FT_LOAD_RENDER))
@@ -197,7 +199,6 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     image AtlasImage = {
         .w    = ImageSize,
         .h    = ImageSize,
-        // .Data = Api->AllocateMemory(ImageSize * ImageSize)
         .Data = Api->AllocateMemory(ImageSize * ImageSize * sizeof(u32))
     };
 
@@ -216,13 +217,13 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
 
         for (i32 y = 0; y < h; y++) {
             for (i32 x = 0; x < w; x++) {
-                // ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
-                //     (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
                 ((u32 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
                     ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 24 ) |
                     ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 16 ) |
                     ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 8  ) |
                     ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 0  );
+                // ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
+                //     (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
             }
         }
 
@@ -243,7 +244,15 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     Font.Atlas.w = AtlasImage.w;
     Font.Atlas.h = AtlasImage.h;
 
+    Api->WriteFile(&Font, sizeof(font), "test.save_font", 1);
+    Api->WriteFile(Font.Codepoints, NoChars * sizeof(u32),  "test.save_font", 1);
+    Api->WriteFile(Font.Advances,   NoChars * sizeof(rv2),  "test.save_font", 1);
+    Api->WriteFile(Font.Bearings,   NoChars * sizeof(rv2),  "test.save_font", 1);
+    Api->WriteFile(Font.Rects,      NoChars * sizeof(rect), "test.save_font", 1);
+    Api->WriteFile(AtlasImage.Data, sizeof(ImageSize * ImageSize * sizeof(u32)), "test.save_font", 1);
+
     gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
+    Api->FreeMemory(AtlasImage.Data);
     
     FT_Done_Face(Face);
     FT_Done_FreeType(FreeTypeLib);
