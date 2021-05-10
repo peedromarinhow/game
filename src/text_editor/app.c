@@ -181,9 +181,12 @@ internal void ui_Label(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) 
 
 internal b32 ui_Button(renderer* Renderer, ui_context *Ctx, c8 *Text, u32 Opts) {
     b32 Result = 0;
+
+    r32 Width = MeasureText(Renderer, Text, 0).w;
+    Width = Width + 2*Ctx->Style.Padding < ui_MIN_BUTTON_WIDTH? ui_MIN_BUTTON_WIDTH : Width + 2*Ctx->Style.Padding;
     
     id Id = ui_GetId(Ctx);
-    rect Rect = ui_NextRect(Ctx, ui_MIN_BUTTON_WIDTH, ui_MIN_BUTTON_HEIGHT);
+    rect Rect = ui_NextRect(Ctx, Width, ui_MIN_BUTTON_HEIGHT);
 
     ui_UpdateControls(Ctx, Id, Rect, 0);
 
@@ -232,19 +235,19 @@ internal b32 ui_TextBox(renderer *Renderer, ui_context *Ctx, c8 *Buff, u32 BuffL
     }
 
     ui_DrawRect(Renderer, Ctx, Id, rect_(Rect.x, Rect.y, Rect.w, 2), ui_COLOR_BUTTON, Opts);
-    if (Ctx->Focus == Id) {
-        ui_style *Style = &Ctx->Style;
-        colorb Color = Style->Colors[ui_COLOR_TEXT];
-        id  Font = Style->Font;
-        rv2 Dim = MeasureText(Renderer, Buff, Font);
-        rv2 Pos = rv2_(Rect.x + Min(Rect.w - Style->Padding - Dim.w - 1, Style->Padding),
-                       Rect.y + (Rect.h - Dim.h) / 2);
-        DrawText(Renderer, Buff, Font, Pos, Color);
-        DrawRect(Renderer, rect_(Pos.x + Dim.w, Pos.y, 1, Dim.h), Color);
-    }
-    else {
+    // if (Ctx->Focus == Id) {
+    //     ui_style *Style = &Ctx->Style;
+    //     colorb Color = Style->Colors[ui_COLOR_TEXT];
+    //     id  Font = Style->Font;
+    //     rv2 Dim = MeasureText(Renderer, Buff, Font);
+    //     rv2 Pos = rv2_(Rect.x + Min(Rect.w - Style->Padding - Dim.w - 1, Style->Padding),
+    //                    Rect.y + (Rect.h - Dim.h) / 2);
+    //     DrawText(Renderer, Buff, Font, Pos, Color);
+    //     DrawRect(Renderer, rect_(Pos.x + Dim.w, Pos.y, 1, Dim.h), Color);
+    // }
+    // else {
         ui_DrawText(Renderer, Ctx, "Temp", Rect, ui_COLOR_TEXT, Opts);
-    }
+    // }
 
     return Result;
 }
@@ -280,15 +283,10 @@ external APP_INIT(Init) {
     s->ui_Context.LastId  =  0;
     s->ui_Context.Current = -1;
 
-    FT_Library ft;
-    FT_Init_FreeType(&ft);
-
-    Renderer->Fonts[0] = LoadFont(gApi, Api, &ft, "roboto.ttf", 14);
-
-    FT_Done_FreeType(ft);
+    Renderer->Fonts[0] = LoadFont(gApi, Api, Arena, "roboto.ttf", 16);
 
     gApi->Enable(GL_BLEND);
-    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    gApi->BlendFunc();
 }
 
 external APP_UPDATE(Update) {
@@ -320,20 +318,20 @@ external APP_UPDATE(Update) {
     
     // DrawRect(Renderer, s->ui_Context.Layout.Body, GREY_800);
 
-    ui_Label(Renderer, &s->ui_Context, "Button 1", 0);
-    if (ui_Button(Renderer, &s->ui_Context, "BUTTON", 0))
-        DrawRect(Renderer, rect_(0, 100, 10, 10), YELLOW_800);
-
+    ui_Label(Renderer, &s->ui_Context, "δένδρον", 0);
+    if (ui_Button(Renderer, &s->ui_Context, "GREEK", 0))
+        ui_Snackbar(Renderer, &s->ui_Context, "ANCIENT GREEK, THAT IS.", 0);
     ui_NextRow(&s->ui_Context);
 
-    ui_Label(Renderer, &s->ui_Context, "Button 2", 0);
-    if (ui_Button(Renderer, &s->ui_Context, "BUTTON", 0))
-        ui_Snackbar(Renderer, &s->ui_Context, "SOME TEXT", 0);
+    ui_Label(Renderer, &s->ui_Context, "árvore", 0);
+    if (ui_Button(Renderer, &s->ui_Context, "PORTUGUESE", 0))
+        ui_Snackbar(Renderer, &s->ui_Context, "OR SPANISH.", 0);
 
     ui_NextRow(&s->ui_Context);
-
-    c8 Buff[32];
-    ui_TextBox(Renderer, &s->ui_Context, Buff, 32, 0);
+    ui_Label(Renderer, &s->ui_Context, "дерево", 0);
+    if (ui_Button(Renderer, &s->ui_Context, "RUSSIAN", 0))
+        ui_Snackbar(Renderer, &s->ui_Context, "SIMILIAR TO GREEK ISN'T IT?", 0);
+    ui_NextRow(&s->ui_Context);
 
     Render(&p->gApi, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
     // DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);

@@ -96,6 +96,10 @@ PLATFORM_GRAPHICS_DISABLE(Win32Disable) {
 PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(Win32GenAndBindAndLoadTexture) {
     glGenTextures(1, &Texture->Id);
     glBindTexture(GL_TEXTURE_2D, Texture->Id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, Texture->w, Texture->h,
-                 0, GL_RED, GL_UNSIGNED_BYTE, Image->Data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Texture->w, Texture->h,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, Image->Data);
+}
+
+PLATFORM_GRAPHICS_BLEND_FUNC(Win32BlendFunc) {
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

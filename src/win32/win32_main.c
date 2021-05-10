@@ -114,6 +114,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.gApi.Enable            = Win32Enable;
         Platform.gApi.Disable           = Win32Disable;
         Platform.gApi.GenAndBindAndLoadTexture = Win32GenAndBindAndLoadTexture;
+        Platform.gApi.BlendFunc         = Win32BlendFunc;
 
         Platform.WindowDim = Win32GetWindowDim(Window);
         Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);

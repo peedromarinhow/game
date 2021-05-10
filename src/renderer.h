@@ -30,6 +30,7 @@ typedef struct _font {
     i32 Ascender;
     i32 Descender;
     i32 LineGap;
+    u32  *Codepoints;
     r32  *Advances;
     rv2  *Bearings;
     rect *Rects;
@@ -74,36 +75,42 @@ typedef struct _renderer {
     u32  UsedFonts;
 } renderer;
 
-///////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
 
-// internal void DEBUG_DrawFontAtlas(texture Texture) {
-//     rect Rect = rect_(0, 0, Texture.w, Texture.h);
-//     rv2 Pos = rv2_(0, 0);
-//     glBindTexture(GL_TEXTURE_2D, Texture.Id);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//     glEnable(GL_TEXTURE_2D);
-//     glBegin(GL_QUADS); {
-//         rv2 TextureDim  = rv2_(Texture.w, Texture.h);
+#include "windows.h"
+#include "gl/gl.h"
 
-//         glTexCoord2f(Rect.x / TextureDim.w, Rect.y / TextureDim.h);
-//         glVertex2f(Pos.x, Pos.y + Rect.h);
+#undef DrawText
+#undef OpenFile
 
-//         glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, Rect.y /TextureDim.h);
-//         glVertex2f(Pos.x + Rect.w, Pos.y + Rect.h);
+internal void DEBUG_DrawFontAtlas(texture Texture) {
+    rect Rect = rect_(0, 0, Texture.w, Texture.h);
+    rv2 Pos = rv2_(400, -400);
+    glBindTexture(GL_TEXTURE_2D, Texture.Id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glEnable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS); {
+        rv2 TextureDim  = rv2_(Texture.w, Texture.h);
+
+        glTexCoord2f(Rect.x / TextureDim.w, Rect.y / TextureDim.h);
+        glVertex2f(Pos.x, Pos.y + Rect.h);
+
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, Rect.y /TextureDim.h);
+        glVertex2f(Pos.x + Rect.w, Pos.y + Rect.h);
         
-//         glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
-//         glVertex2f(Pos.x + Rect.w, Pos.y);
+        glTexCoord2f((Rect.x + Rect.w) / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
+        glVertex2f(Pos.x + Rect.w, Pos.y);
 
-//         glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
-//         glVertex2f(Pos.x, Pos.y);
-//     } glEnd();
-//     glDisable(GL_TEXTURE_2D);
-// }
+        glTexCoord2f(Rect.x / TextureDim.w, (Rect.y + Rect.h) / TextureDim.h);
+        glVertex2f(Pos.x, Pos.y);
+    } glEnd();
+    glDisable(GL_TEXTURE_2D);
+}
 
-///////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
 
 internal void PushPiece(renderer *Renderer, render_piece Piece) {
     Renderer->Pieces[Renderer->UsedPieces] = Piece;
@@ -150,10 +157,16 @@ internal void Render(platform_graphics_api *gApi, renderer *Renderer, iv2 Target
 
 ///////////////////////////////////////////////////////////
 
-internal font LoadFont(platform_graphics_api *g, platform_api *p, FT_Library *FreeTypeLib, c8 *Filename, i32 Height) {
+//todo:
+//  1 - reduce memory usabe by not loading unecessary glyphs
+
+internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_arena *Arena, c8 *Filename, i32 Height) {
+    FT_Library FreeTypeLib;
+    FT_Init_FreeType(&FreeTypeLib);
+
     FT_Face Face = {0};
     font    Font = {0};
-    if (FT_New_Face(*FreeTypeLib, Filename, 0, &Face))
+    if (FT_New_Face(FreeTypeLib, Filename, 0, &Face))
         return Font;
 
     u32 NoChars = Face->num_glyphs;
@@ -167,9 +180,10 @@ internal font LoadFont(platform_graphics_api *g, platform_api *p, FT_Library *Fr
     Font.Ascender  = Face->ascender;
     Font.Descender = Face->descender;
     Font.LineGap   = 0;
-    Font.Advances = p->AllocateMemory(NoChars * sizeof(rv2));
-    Font.Bearings = p->AllocateMemory(NoChars * sizeof(rv2));
-    Font.Rects    = p->AllocateMemory(NoChars * sizeof(rect));
+    Font.Codepoints = PushToArena(Arena, NoChars * sizeof(u32));//Api->AllocateMemory(NoChars * sizeof(u32));
+    Font.Advances   = PushToArena(Arena, NoChars * sizeof(rv2));//Api->AllocateMemory(NoChars * sizeof(rv2));
+    Font.Bearings   = PushToArena(Arena, NoChars * sizeof(rv2));//Api->AllocateMemory(NoChars * sizeof(rv2));
+    Font.Rects      = PushToArena(Arena, NoChars * sizeof(rect));//Api->AllocateMemory(NoChars * sizeof(rect));
 
     for (u32 Char = 0; Char < NoChars; Char++) {
         if (FT_Load_Char(Face, Char + 32, FT_LOAD_RENDER))
@@ -183,14 +197,18 @@ internal font LoadFont(platform_graphics_api *g, platform_api *p, FT_Library *Fr
     image AtlasImage = {
         .w    = ImageSize,
         .h    = ImageSize,
-        .Data = p->AllocateMemory(ImageSize * ImageSize)
+        // .Data = Api->AllocateMemory(ImageSize * ImageSize)
+        .Data = Api->AllocateMemory(ImageSize * ImageSize * sizeof(u32))
     };
 
     i32 OffsetX = Padding;
     i32 OffsetY = Padding;
 
     for (u32 Char = 0; Char < NoChars; Char++) {
-        if (FT_Load_Char(Face, Char + 32, FT_LOAD_RENDER))
+        u32 Index = Char + 32;//FT_Get_Char_Index(Face, Char);
+        if (FT_Get_Char_Index(Face, Index) == 0)
+            continue;
+        if (FT_Load_Char(Face, Index, FT_LOAD_RENDER))
             continue;
 
         i32 w = Face->glyph->bitmap.width;
@@ -198,14 +216,111 @@ internal font LoadFont(platform_graphics_api *g, platform_api *p, FT_Library *Fr
 
         for (i32 y = 0; y < h; y++) {
             for (i32 x = 0; x < w; x++) {
-                ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
-                    (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
+                // ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
+                //     (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
+                ((u32 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 24 ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 16 ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 8  ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 0  );
             }
         }
 
+        Font.Codepoints[Index] = Index;
+        Font.Advances[Index] = Face->glyph->advance.x >> 6;
+        Font.Bearings[Index] = rv2_(Face->glyph->bitmap_left, Face->glyph->bitmap_top);
+        Font.Rects[Index] = rect_(OffsetX, OffsetY, w, h);
+        OffsetX += (w + 2 * Padding);
+
+        if (OffsetX >= (i32)(AtlasImage.w - w - Padding)) {
+            OffsetX = Padding;
+            OffsetY += (Height + 2 * Padding);
+            if (OffsetY > (AtlasImage.h - Height - Padding))
+                break;
+        }
+    }
+
+    Font.Atlas.w = AtlasImage.w;
+    Font.Atlas.h = AtlasImage.h;
+
+    gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
+    
+    FT_Done_Face(Face);
+    FT_Done_FreeType(FreeTypeLib);
+    
+    return Font;
+}
+
+/*internal font LoadIconsFont(platform_graphics_api *gApi, platform_api *Api, c8 *Filename) {
+    FT_Library FreeTypeLib;
+    FT_Init_FreeType(&FreeTypeLib);
+
+    FT_Face Face = {0};
+    font    Font = {0};
+    if (FT_New_Face(FreeTypeLib, Filename, 0, &Face))
+        return Font;
+
+    i32 Height  = 16;
+    u32 NoChars = Face->num_glyphs;
+    i32 Padding = 2;
+    f32 RequiredAreaForAtlas = 0;
+
+    // for (i32 Char = 0; Char < Face->num_glyphs; Char++) {
+    //     if (FT_Get_Char_Index(Face, Char + 0xE000) == 0)
+    //         continue;
+    //     NoChars++;
+    // }
+    
+    FT_Set_Pixel_Sizes(Face, 0, Height);
+
+    RequiredAreaForAtlas = NoChars * Height*Height;
+    Font.NoChars = NoChars*2;
+    Font.Height    = Height;
+    Font.Ascender  = Face->ascender;
+    Font.Descender = Face->descender;
+    Font.LineGap   = 0;
+    Font.Codepoints = Api->AllocateMemory(NoChars * sizeof(u32));
+    Font.Advances   = Api->AllocateMemory(NoChars * sizeof(rv2));
+    Font.Bearings   = Api->AllocateMemory(NoChars * sizeof(rv2));
+    Font.Rects      = Api->AllocateMemory(NoChars * sizeof(rect));
+
+    f32 GuessSize = Sqrt(RequiredAreaForAtlas);
+    i32 ImageSize = (i32)powf(2, ceilf(logf((f32)GuessSize)/logf(2)));
+    image AtlasImage = {
+        .w    = ImageSize,
+        .h    = ImageSize,
+        // .Data = Api->AllocateMemory(ImageSize * ImageSize)
+        .Data = Api->AllocateMemory(ImageSize * ImageSize * sizeof(u32))
+    };
+
+    i32 OffsetX = Padding;
+    i32 OffsetY = Padding;
+
+    for (u32 Char = 0; Char < NoChars; Char++) {
+        u32 Index = Char + 0xE000;
+        if (FT_Get_Char_Index(Face, Index) == 0)
+            continue;
+        if (FT_Load_Char(Face, Index, FT_LOAD_RENDER))
+            continue;
+
+        i32 w = Face->glyph->bitmap.width;
+        i32 h = Face->glyph->bitmap.rows;
+
+        for (i32 y = 0; y < h; y++) {
+            for (i32 x = 0; x < w; x++) {
+                // ((u8 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
+                //     (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]);
+                ((u32 *)AtlasImage.Data)[(OffsetY + y) * AtlasImage.w + (OffsetX + x)] =
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 24 ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 16 ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 8  ) |
+                    ( (((u8 *)Face->glyph->bitmap.buffer)[y * w + x]) << 0  );
+            }
+        }
+
+        Font.Codepoints[Char] = Char;
         Font.Advances[Char] = Face->glyph->advance.x;
         Font.Bearings[Char] = rv2_(Face->glyph->bitmap_left, Face->glyph->bitmap_top);
-
         Font.Rects[Char] = rect_(OffsetX, OffsetY, w, h);
         OffsetX += (w + 2 * Padding);
 
@@ -220,12 +335,13 @@ internal font LoadFont(platform_graphics_api *g, platform_api *p, FT_Library *Fr
     Font.Atlas.w = AtlasImage.w;
     Font.Atlas.h = AtlasImage.h;
 
-    g->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
+    gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
     
     FT_Done_Face(Face);
+    FT_Done_FreeType(FreeTypeLib);
     
     return Font;
-}
+}*/
 
 ///////////////////////////////////////////////////////////
 
@@ -281,17 +397,142 @@ typedef enum _text_op {
     TEXT_OP_DRAW
 } text_op;
 
-internal rv2 DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
-    rv2 Result = {-100000, -100000};
+//note: stolen from raylib
+int GetNextCodepoint(const c8 *text, u32 *bytesProcessed)
+{
+/*
+    UTF8 specs from https://www.ietf.org/rfc/rfc3629.txt
 
+    Char. number range  |        UTF-8 octet sequence
+      (hexadecimal)    |              (binary)
+    --------------------+---------------------------------------------
+    0000 0000-0000 007F | 0xxxxxxx
+    0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+    0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+    0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+*/
+    // NOTE: on decode errors we return as soon as possible
+
+    int code = 0x3f;   // Codepoint (defaults to '?')
+    int octet = (unsigned char)(text[0]); // The first UTF8 octet
+    *bytesProcessed = 1;
+
+    if (octet <= 0x7f)
+    {
+        // Only one octet (ASCII range x00-7F)
+        code = text[0];
+    }
+    else if ((octet & 0xe0) == 0xc0)
+    {
+        // Two octets
+        // [0]xC2-DF    [1]UTF8-tail(x80-BF)
+        unsigned char octet1 = text[1];
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if ((octet >= 0xc2) && (octet <= 0xdf))
+        {
+            code = ((octet & 0x1f) << 6) | (octet1 & 0x3f);
+            *bytesProcessed = 2;
+        }
+    }
+    else if ((octet & 0xf0) == 0xe0)
+    {
+        // Three octets
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; } // Unexpected sequence
+
+        /*
+            [0]xE0    [1]xA0-BF       [2]UTF8-tail(x80-BF)
+            [0]xE1-EC [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+            [0]xED    [1]x80-9F       [2]UTF8-tail(x80-BF)
+            [0]xEE-EF [1]UTF8-tail    [2]UTF8-tail(x80-BF)
+        */
+
+        if (((octet == 0xe0) && !((octet1 >= 0xa0) && (octet1 <= 0xbf))) ||
+            ((octet == 0xed) && !((octet1 >= 0x80) && (octet1 <= 0x9f)))) { *bytesProcessed = 2; return code; }
+
+        if ((octet >= 0xe0) && (0 <= 0xef))
+        {
+            code = ((octet & 0xf) << 12) | ((octet1 & 0x3f) << 6) | (octet2 & 0x3f);
+            *bytesProcessed = 3;
+        }
+    }
+    else if ((octet & 0xf8) == 0xf0)
+    {
+        // Four octets
+        if (octet > 0xf4) return code;
+
+        unsigned char octet1 = text[1];
+        unsigned char octet2 = '\0';
+        unsigned char octet3 = '\0';
+
+        if ((octet1 == '\0') || ((octet1 >> 6) != 2)) { *bytesProcessed = 2; return code; }  // Unexpected sequence
+
+        octet2 = text[2];
+
+        if ((octet2 == '\0') || ((octet2 >> 6) != 2)) { *bytesProcessed = 3; return code; }  // Unexpected sequence
+
+        octet3 = text[3];
+
+        if ((octet3 == '\0') || ((octet3 >> 6) != 2)) { *bytesProcessed = 4; return code; }  // Unexpected sequence
+
+        /*
+            [0]xF0       [1]x90-BF       [2]UTF8-tail  [3]UTF8-tail
+            [0]xF1-F3    [1]UTF8-tail    [2]UTF8-tail  [3]UTF8-tail
+            [0]xF4       [1]x80-8F       [2]UTF8-tail  [3]UTF8-tail
+        */
+
+        if (((octet == 0xf0) && !((octet1 >= 0x90) && (octet1 <= 0xbf))) ||
+            ((octet == 0xf4) && !((octet1 >= 0x80) && (octet1 <= 0x8f)))) { *bytesProcessed = 2; return code; } // Unexpected sequence
+
+        if (octet >= 0xf0)
+        {
+            code = ((octet & 0x7) << 18) | ((octet1 & 0x3f) << 12) | ((octet2 & 0x3f) << 6) | (octet3 & 0x3f);
+            *bytesProcessed = 4;
+        }
+    }
+
+    if (code > 0x10ffff) code = 0x3f;     // Codepoints after U+10ffff are invalid
+
+    return code;
+}
+
+internal u32 GetGlyphIndex(font *Font, u32 Codepoint) {
+    u32 Index = '?';
+
+    for (u32 i = 0; i < Font->NoChars; i++) {
+        if (Font->Codepoints[i] == Codepoint) {
+            Index = i;
+            break;
+        }
+    }
+
+    return Index;
+}
+
+internal rv2 DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color, r32 Height) {
+    rv2   Result = {-100000, -100000};
     font *Font = &Renderer->Fonts[FontId];
+    r32   ScaleFactor = Height/Font->Height;
 
     for (c8 *Char = Text; *Char; Char++) {
-        u32 Index = (*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        u32 NoCodepointBytes = 0;
+        u32 Codepoint = GetNextCodepoint(Char, &NoCodepointBytes);
+        u32 Index = GetGlyphIndex(Font, Codepoint);//(*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        if (Codepoint == 0x3f) NoCodepointBytes = 1;
 
-        r32  Advance = Font->Advances[Index];
-        rv2  Bearing = Font->Bearings[Index];
-        rect Rect    = Font->Rects[Index];
+        r32 Advance = Font->Advances[Index];
+        rv2 Bearing = rv2_(Font->Bearings[Index].x * ScaleFactor,
+                           Font->Bearings[Index].y * ScaleFactor);
+        rect Rect = rect_(Font->Rects[Index].x * ScaleFactor, Font->Rects[Index].y * ScaleFactor,
+                          Font->Rects[Index].w * ScaleFactor, Font->Rects[Index].h * ScaleFactor);
 
         rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y));
 
@@ -301,20 +542,22 @@ internal rv2 DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 P
         }
         else
         if (Op == TEXT_OP_DRAW) {
-            DrawGlyph(Renderer, 0, Index, GlyphPos, Color);
+            DrawGlyph(Renderer, FontId, Index, GlyphPos, Color/*, ScaleFactor*/);
         }
 
-        Pos.x += (i32)Advance >> 6; //note: what the fuck?
+        Pos.x += (i32)Advance * ScaleFactor;
+
+        Char += (NoCodepointBytes - 1);
     }
 
     return Result;
 }
 
 internal rv2 MeasureText(renderer *Renderer, c8 *Text, id FontId) {
-    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, FontId, rv2_(0, 0), (colorb){0});
+    return DoTextOp(TEXT_OP_MEASURE, Renderer, Text, FontId, rv2_(0, 0), (colorb){0}, 16);
 }
 
 internal void DrawText(renderer *Renderer, c8 *Text, id FontId, rv2 Pos, colorb Color) {
-    DoTextOp(TEXT_OP_DRAW, Renderer, Text, FontId, Pos, Color);
+    DoTextOp(TEXT_OP_DRAW, Renderer, Text, FontId, Pos, Color, 16);
 }
 #endif//RENDERER_H

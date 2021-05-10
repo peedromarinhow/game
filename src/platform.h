@@ -143,14 +143,18 @@ typedef PLATFORM_GRAPHICS_DISABLE(platform_graphics_disable_callback);
 #define PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(Name) void Name(image *Image, texture *Texture)
 typedef PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(platform_graphics_gen_and_bind_and_load_texture_callback);
 
+#define PLATFORM_GRAPHICS_BLEND_FUNC(Name) void Name(void)
+typedef PLATFORM_GRAPHICS_BLEND_FUNC(platform_graphics_blend_func_callback);
+
 typedef struct _platform_graphics_api {
-    platform_graphics_clear_callback               *Clear;
-    platform_graphics_clip_callback                *Clip;
-    platform_graphics_raster_rect_callback         *RasterRect;
+    platform_graphics_clear_callback *Clear;
+    platform_graphics_clip_callback *Clip;
+    platform_graphics_raster_rect_callback *RasterRect;
     platform_graphics_raster_texture_rect_callback *RasterTextureRect;
-    platform_graphics_enable_callback              *Enable;
-    platform_graphics_disable_callback             *Disable;
+    platform_graphics_enable_callback *Enable;
+    platform_graphics_disable_callback *Disable;
     platform_graphics_gen_and_bind_and_load_texture_callback *GenAndBindAndLoadTexture;
+    platform_graphics_blend_func_callback *BlendFunc;
 } platform_graphics_api;
 
 //note: this is how the platform and the app communicate with each other.
