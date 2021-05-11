@@ -3,6 +3,8 @@
 
 #include "lingo.h"
 #include "platform.h"
+#include "colors.h"
+#include "renderer.h"
 
 typedef struct _cursor {
     u32 GapStart;
@@ -14,9 +16,9 @@ typedef struct _gbuff {
     c8 *Data;
     u32 Size;
 
-    c8 *GapStart;
-    c8 *GapEnd;
-    c8 *Point;
+    u32 GapStart;
+    u32 GapEnd;
+    u32 Point;
 } gbuff;
 
 inline u32 gbuff_GetGapSize(gbuff *Buff) {
@@ -28,10 +30,19 @@ inline u32 gbuff_GetLen(gbuff *Buff) {
 }
 
 inline u32 gbuff_GetCursorIndex(gbuff *Buff, u32 Cursor) {
+    u32 Result = 0;
     if (Cursor < Buff->GapStart)
-        return Cursor;
+        Result = Cursor;
     else
-        return Cursor + gbuff_GetGapSize(Buff);
+        Result = Cursor + gbuff_GetGapSize(Buff);
+
+    if (Result > gbuff_GetLen(Buff))
+        return 0;
+     return Result;
+}
+
+inline c8 gbuff_GetCursorChar(gbuff *Buff, u32 Cursor) {
+    return Buff->Data[gbuff_GetCursorIndex(Buff, Cursor)];
 }
 
 internal gbuff gbuff_Create(platform_api *Api, u32 InitialGapSize) {
@@ -46,55 +57,55 @@ internal gbuff gbuff_Create(platform_api *Api, u32 InitialGapSize) {
     return Result;
 }
 
-internal void gbuff_Free(platform_api *Api, gbuff *Buffer) {
-    Api->FreeMemory(Buffer->Data);
+internal void gbuff_Free(platform_api *Api, gbuff *Buff) {
+    Api->FreeMemory(Buff->Data);
 }
 
-internal u32 gbuff_MovePosFoward(gbuff *Buffer, u32 Pos) {
-    if (Pos != Buffer->End)
+internal u32 gbuff_MovePosFoward(gbuff *Buff, u32 Pos) {
+    if (Pos != Buff->Size)
         Pos++;
-    if (Pos == Buffer->GapStart)
-        Pos =  Buffer->GapEnd;
+    if (Pos == Buff->GapStart)
+        Pos =  Buff->GapEnd;
     return Pos;
 }
 
-internal void gbuff_ShiftGapToCursor(gbuff *Buffer, u32 Cursor) {
-    u32 GapSize = gbuff_GetGapSize(Buffer);
-    if (Cursor < Buffer->GapStart) {
-        u32 GapDelta = Buffer->GapStart - Cursor;
-        Buffer->GapStart -= GapDelta;
-        Buffer->GapEnd   -= GapDelta;
-        MoveMemory(Buffer->Data + Buffer->GapEnd, Buffer->Data + Buffer->GapStart, GapDelta);
+internal void gbuff_ShiftGapToCursor(gbuff *Buff, u32 Cursor) {
+    u32 GapSize = gbuff_GetGapSize(Buff);
+    if (Cursor < Buff->GapStart) {
+        u32 GapDelta = Buff->GapStart - Cursor;
+        Buff->GapStart -= GapDelta;
+        Buff->GapEnd   -= GapDelta;
+        MoveMemory(Buff->Data + Buff->GapEnd, Buff->Data + Buff->GapStart, GapDelta);
     }
     else
-    if (Cursor > Buffer->GapStart) {
-        u32 GapDelta = Cursor - Buffer->GapStart;
-        MoveMemory(Buffer->Data + Buffer->GapStart, Buffer->Data + Buffer->GapEnd, GapDelta);
-        Buffer->GapStart += GapDelta;
-        Buffer->GapEnd   += GapDelta;
+    if (Cursor > Buff->GapStart) {
+        u32 GapDelta = Cursor - Buff->GapStart;
+        MoveMemory(Buff->Data + Buff->GapStart, Buff->Data + Buff->GapEnd, GapDelta);
+        Buff->GapStart += GapDelta;
+        Buff->GapEnd   += GapDelta;
     }
-    Assert(gbuff_GetGapSize(Buffer) == GapSize);
-    AssertBufferInvariants(Buffer);
+    Assert(gbuff_GetGapSize(Buff) == GapSize);
+    // AssertBuffInvariants(Buff);
 }
 
-internal void gbuff_EnsureGapSize(platform_api *Api, gbuff *Buffer, u32 Min) {
-    if (gbuff_GetGapSize(Buffer) < Min) {
-        gbuff_ShiftGapToCursor(Buffer, GetBufferLen(Buffer));
-        u32 NewEnd = Max(2 * Buffer->End, Buffer->End + Min - gbuff_GetGapSize(Buffer));
-        void *Temp     = GlobalPlatformApi.AllocateMemory(NewEnd);
-        CopyMemory(Temp, Buffer->Data, Buffer->End);
-        GlobalPlatformApi.FreeMemory(Buffer->Data);
-        Buffer->Data   = Temp;
-        Buffer->GapEnd = NewEnd;
-        Buffer->End    = NewEnd; 
+internal void gbuff_EnsureGapSize(platform_api *Api, gbuff *Buff, u32 Min) {
+    if (gbuff_GetGapSize(Buff) < Min) {
+        gbuff_ShiftGapToCursor(Buff, gbuff_GetLen(Buff));
+        u32 NewEnd = Max(2 * Buff->Size, Buff->Size + Min - gbuff_GetGapSize(Buff));
+        void *Temp = Api->AllocateMemory(NewEnd);
+        CopyMemory(Temp, Buff->Data, Buff->Size);
+        Api->FreeMemory(Buff->Data);
+        Buff->Data   = Temp;
+        Buff->GapEnd = NewEnd;
+        Buff->Size   = NewEnd; 
     }
-    Assert(gbuff_GetGapSize(Buffer) >= Min);
+    Assert(gbuff_GetGapSize(Buff) >= Min);
 }
 
-internal b32 gbuff_ReplaceChar(gbuff *Buffer, u32 Cursor, c8 Char) {
-    AssertCursorInvariants(Buffer, Cursor);
-    if (Cursor < GetBufferLen(Buffer)) {
-        SetBufferChar(Buffer, Cursor, Char);
+internal b32 gbuff_ReplaceChar(gbuff *Buff, u32 Cursor, c8 Char) {
+    // AssertCursorInvariants(Buff, Cursor);
+    if (Cursor < gbuff_GetLen(Buff)) {
+        // SetBuffChar(Buff, Cursor, Char);
         return 1;
     }
     else {
@@ -102,21 +113,21 @@ internal b32 gbuff_ReplaceChar(gbuff *Buffer, u32 Cursor, c8 Char) {
     }
 }
 
-internal void gbuff_InsertChar(platform_api *Api, gbuff *Buffer, u32 Cursor, c8 Char) {
-    AssertCursorInvariants(Buffer, Cursor);
-    gbuff_EnsureGapSize(Api, Buffer, 1);
-    gbuff_ShiftGapToCursor(Buffer, Cursor);
-    Buffer->Data[Buffer->GapStart] = Char;
-    Buffer->GapStart++;
-    if (Buffer->Point >= Cursor) Buffer->Point++;
+internal void gbuff_InsertChar(platform_api *Api, gbuff *Buff, u32 Cursor, c8 Char) {
+    // AssertCursorInvariants(Buff, Cursor);
+    gbuff_EnsureGapSize(Api, Buff, 1);
+    gbuff_ShiftGapToCursor(Buff, Cursor);
+    Buff->Data[Buff->GapStart] = Char;
+    Buff->GapStart++;
+    if (Buff->Point >= Cursor) Buff->Point++;
 }
 
-internal b32 gbuff_DeleteBackwardChar(gbuff *Buffer, u32 Cursor) {
-    AssertCursorInvariants(Buffer, Cursor);
+internal b32 gbuff_DeleteBackwardChar(gbuff *Buff, u32 Cursor) {
+    // AssertCursorInvariants(Buff, Cursor);
     if (Cursor > 0) {
-        gbuff_ShiftGapToCursor(Buffer, Cursor);
-        Buffer->GapStart--;
-        if (Buffer->Point >= Cursor) Buffer->Point--;
+        gbuff_ShiftGapToCursor(Buff, Cursor);
+        Buff->GapStart--;
+        if (Buff->Point >= Cursor) Buff->Point--;
         return 1;
     }
     else {
@@ -124,12 +135,12 @@ internal b32 gbuff_DeleteBackwardChar(gbuff *Buffer, u32 Cursor) {
     }
 }
 
-internal b32 gbuff_DeleteFowardChar(gbuff *Buffer, u32 Cursor) {
-    AssertCursorInvariants(Buffer, Cursor);
-    if (Cursor < GetBufferLen(Buffer)) {
-        gbuff_ShiftGapToCursor(Buffer, Cursor);
-        Buffer->GapEnd++;
-        if (Buffer->Point > Cursor) Buffer->Point--;
+internal b32 gbuff_DeleteFowardChar(gbuff *Buff, u32 Cursor) {
+    // AssertCursorInvariants(Buff, Cursor);
+    if (Cursor < gbuff_GetLen(Buff)) {
+        gbuff_ShiftGapToCursor(Buff, Cursor);
+        Buff->GapEnd++;
+        if (Buff->Point > Cursor) Buff->Point--;
         return 1;
     }
     else {
@@ -137,20 +148,53 @@ internal b32 gbuff_DeleteFowardChar(gbuff *Buffer, u32 Cursor) {
     }
 }
 
-internal void gbuff_Save(gbuff *Buffer, c8 *Filename) {
-    GlobalPlatformApi.WriteFile(Buffer->Data, Buffer->GapStart, Filename, 0);
-    GlobalPlatformApi.WriteFile(Buffer->Data + Buffer->GapEnd, Buffer->End - Buffer->GapEnd, Filename, 1);
+internal void gbuff_Save(platform_api *Api, gbuff *Buff, c8 *Filename) {
+    Api->WriteFile(Buff->Data, Buff->GapStart, Filename, 0);
+    Api->WriteFile(Buff->Data + Buff->GapEnd, Buff->Size - Buff->GapEnd, Filename, 1);
 }
 
-internal void gbuff_Load(platform_api *Api, gbuff *Buffer, c8 *Filename) {
+internal void gbuff_Load(platform_api *Api, gbuff *Buff, c8 *Filename) {
     if (Filename) {
         file File = Api->LoadFile(Filename);
-        DeleteBuffer(Buffer);
-        gbuff_EnsureGapSize(Api, Buffer, File.Size);
+        gbuff_Free(Api, Buff);
+        gbuff_EnsureGapSize(Api, Buff, File.Size);
         //todo: unecessary CopyMemory?
-        CopyMemory(Buffer->Data, File.Data, File.Size);
-        Buffer->GapStart = File.Size;
-        GlobalPlatformApi.FreeFile(File);
+        CopyMemory(Buff->Data, File.Data, File.Size);
+        Buff->GapStart = File.Size;
+        Api->FreeFile(File);
+    }
+}
+
+internal void gbuff_Render(renderer *Renderer, platform_graphics_api *gApi, gbuff *Buff) {
+    rv2   Result = {-100000, -100000};
+    font *Font = &Renderer->Fonts[0];
+    r32   ScaleFactor = Font->Height/Font->Height;
+    rv2   Pos = rv2_(16, 800);
+
+    for (u32 Cursor = 0; Cursor < gbuff_GetLen(Buff); Cursor++)
+    {
+        c8  CharQuartet[4];
+        CharQuartet[0] = gbuff_GetCursorChar(Buff, Cursor+0);
+        CharQuartet[1] = gbuff_GetCursorChar(Buff, Cursor+1);
+        CharQuartet[2] = gbuff_GetCursorChar(Buff, Cursor+2);
+        CharQuartet[3] = gbuff_GetCursorChar(Buff, Cursor+3);
+        u32 NoCodepointBytes = 0;
+        u32 Codepoint = GetNextCodepoint(CharQuartet, &NoCodepointBytes);
+        u32 Index = GetGlyphIndex(Font, Codepoint);//(*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        if (Codepoint == 0x3f) NoCodepointBytes = 1;
+
+        r32 Advance = Font->Advances[Index];
+        rv2 Bearing = rv2_(Font->Bearings[Index].x * ScaleFactor,
+                           Font->Bearings[Index].y * ScaleFactor);
+        rect Rect = rect_(Font->Rects[Index].x * ScaleFactor, Font->Rects[Index].y * ScaleFactor,
+                          Font->Rects[Index].w * ScaleFactor, Font->Rects[Index].h * ScaleFactor);
+
+        rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y));
+        DrawGlyph(Renderer, 0, Index, GlyphPos, GREY_50/*, ScaleFactor*/);
+
+        Pos.x += (i32)Advance * ScaleFactor;
+
+        Cursor += (NoCodepointBytes - 1);
     }
 }
 

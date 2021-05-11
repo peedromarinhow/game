@@ -85,7 +85,7 @@ typedef struct _renderer {
 
 internal void DEBUG_DrawFontAtlas(texture Texture) {
     rect Rect = rect_(0, 0, Texture.w, Texture.h);
-    rv2 Pos = rv2_(400, -400);
+    rv2 Pos = rv2_(400, 0);
     glBindTexture(GL_TEXTURE_2D, Texture.Id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
@@ -249,7 +249,7 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     Api->WriteFile(Font.Advances,   NoChars * sizeof(rv2),  "test.save_font", 1);
     Api->WriteFile(Font.Bearings,   NoChars * sizeof(rv2),  "test.save_font", 1);
     Api->WriteFile(Font.Rects,      NoChars * sizeof(rect), "test.save_font", 1);
-    Api->WriteFile(AtlasImage.Data, sizeof(ImageSize * ImageSize * sizeof(u32)), "test.save_font", 1);
+    Api->WriteFile(AtlasImage.Data, sizeof(ImageSize * ImageSize * sizeof(u32)), "test.save_font", 0);
 
     gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
     Api->FreeMemory(AtlasImage.Data);

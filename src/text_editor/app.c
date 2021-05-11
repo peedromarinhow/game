@@ -2,6 +2,7 @@
 #include "platform.h"
 #include "renderer.h"
 #include "colors.h"
+#include "gbuff.h"
 
 //note: inspired by github.com/rxi/microui
 
@@ -266,6 +267,7 @@ typedef struct _app_state {
     memory_arena Arena;
     renderer     Renderer;
     ui_context ui_Context;
+    gbuff Buff;
 } app_state;
 
 external APP_INIT(Init) {
@@ -284,6 +286,23 @@ external APP_INIT(Init) {
     s->ui_Context.Current = -1;
 
     Renderer->Fonts[0] = LoadFont(gApi, Api, Arena, "roboto.ttf", 16);
+    s->Buff  = gbuff_Create(Api, 2);
+
+    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
+    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
 
     gApi->Enable(GL_BLEND);
     gApi->BlendFunc();
@@ -292,6 +311,8 @@ external APP_INIT(Init) {
 external APP_UPDATE(Update) {
     app_state *s = (app_state *)p->Memory.Contents;
 
+    platform_api           *Api = &p->Api;
+    platform_graphics_api *gApi = &p->gApi;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
@@ -333,8 +354,10 @@ external APP_UPDATE(Update) {
         ui_Snackbar(Renderer, &s->ui_Context, "SIMILIAR TO GREEK ISN'T IT?", 0);
     ui_NextRow(&s->ui_Context);
 
-    Render(&p->gApi, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
-    // DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
+    gbuff_Render(Renderer, gApi, &s->Buff);
+
+    Render(gApi, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
+    DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
 }
 
 external APP_RELOAD(Reload) {
