@@ -22,6 +22,25 @@ typedef struct _memory_arena {
     void *Base;
 } memory_arena;
 
+typedef struct _file_group {
+    c8 **Filenames;
+    u32  NoFiles;
+} file_group;
+
+typedef struct _image {
+    void *Data;
+    i32 w;
+    i32 h;
+    i32 Format;
+} image;
+
+typedef struct _texture {
+    u32 Id;
+    i32 w;
+    i32 h;
+    i32 Format;
+} texture;
+
 internal memory_arena InitializeArena(u64 MaxSize, void *Base) {
     memory_arena Arena = {0};
     Arena.MaxSize = MaxSize;
@@ -71,11 +90,6 @@ typedef PLATFORM_FREE_FILE_FROM_ARENA(platform_free_file_from_arena_callback);
 #define PLATFORM_WRITE_FILE(Name) void Name(void *Data, u32 Size, c8 *Filename, b32 Append)
 typedef PLATFORM_WRITE_FILE(platform_write_file_callback);
 
-typedef struct _file_group {
-    c8 **Filenames;
-    u32  NoFiles;
-} file_group;
-
 #define PLATFORM_GET_DIR_FILENAMES(Name) file_group Name(c8 *Dir)
 typedef PLATFORM_GET_DIR_FILENAMES(platform_get_dir_filenames);
 
@@ -84,43 +98,6 @@ typedef PLATFORM_REPORT_ERROR(platform_report_error_callback);
 
 #define PLATFORM_REPORT_ERROR_AND_DIE(Name) void Name(c8 *Title, c8 *ErrorMessage)
 typedef PLATFORM_REPORT_ERROR_AND_DIE(platform_report_error_and_die_callback);
-
-typedef struct _button_state {
-    i32 HalfTransitionCount;
-    b32 EndedDown;
-} button_state;
-
-typedef struct _event_state {
-    i32 HalfTransitionCount;
-    b32 EndedHappening;
-} event_state;
-
-typedef struct _platform_api {
-    platform_allocate_memory_callback      *AllocateMemory;
-    platform_free_memory_callback          *FreeMemory;
-    platform_load_file_callback            *LoadFile;
-    platform_free_file_callback            *FreeFile;
-    platform_load_file_to_arena_callback   *LoadFileToArena;
-    platform_free_file_from_arena_callback *FreeFileFromArena;
-    platform_write_file_callback           *WriteFile;
-    platform_get_dir_filenames             *GetDirFilenames;
-    platform_report_error_callback         *ReportError;
-    platform_report_error_and_die_callback *ReportErrorAndDie;
-} platform_api;
-
-typedef struct _image {
-    void *Data;
-    i32 w;
-    i32 h;
-    i32 Format;
-} image;
-
-typedef struct _texture {
-    u32 Id;
-    i32 w;
-    i32 h;
-    i32 Format;
-} texture;
 
 #define PLATFORM_GRAPHICS_CLEAR(Name) void Name(rv2 TargetDim, color Color)
 typedef PLATFORM_GRAPHICS_CLEAR(platform_graphics_clear_callback);
@@ -146,7 +123,18 @@ typedef PLATFORM_GRAPHICS_GEN_AND_BIND_AND_LOAD_TEXTURE(platform_graphics_gen_an
 #define PLATFORM_GRAPHICS_BLEND_FUNC(Name) void Name(void)
 typedef PLATFORM_GRAPHICS_BLEND_FUNC(platform_graphics_blend_func_callback);
 
-typedef struct _platform_graphics_api {
+typedef struct _platform_api {
+    platform_allocate_memory_callback *AllocateMemory;
+    platform_free_memory_callback *FreeMemory;
+    platform_load_file_callback *LoadFile;
+    platform_free_file_callback *FreeFile;
+    platform_load_file_to_arena_callback *LoadFileToArena;
+    platform_free_file_from_arena_callback *FreeFileFromArena;
+    platform_write_file_callback *WriteFile;
+    platform_get_dir_filenames *GetDirFilenames;
+    platform_report_error_callback *ReportError;
+    platform_report_error_and_die_callback *ReportErrorAndDie;
+
     platform_graphics_clear_callback *Clear;
     platform_graphics_clip_callback *Clip;
     platform_graphics_raster_rect_callback *RasterRect;
@@ -155,57 +143,58 @@ typedef struct _platform_graphics_api {
     platform_graphics_disable_callback *Disable;
     platform_graphics_gen_and_bind_and_load_texture_callback *GenAndBindAndLoadTexture;
     platform_graphics_blend_func_callback *BlendFunc;
-} platform_graphics_api;
+} platform_api;
+
+typedef struct _button_state {
+    i32 HalfTransitionCount;
+    b32 EndedDown;
+} button_state;
+
+enum plat_key {
+    plat_KEYBEV_CHAR = 0,
+    plat_KEYB_UP,
+    plat_KEYB_DOWN,
+    plat_KEYB_LEFT,
+    plat_KEYB_RIGHT,
+    plat_KEYB_HOME,
+    plat_KEYB_END,
+    plat_KEYB_PG_UP,
+    plat_KEYB_PG_DOWN,
+    plat_KEYB_BACK,
+    plat_KEYB_DELETE,
+    plat_KEYB_TAB,
+    plat_KEYB_RETURN,
+    plat_KEYB_CTRL,
+    plat_KEYB_SHIFT,
+    plat_KEYB_ALT,
+    plat_KEYMEV_MOVED,
+    plat_KEYM_RIGHT,
+    plat_KEYM_LEFT,
+    plat_KEYM_MIDDLE,
+    plat_NO_KEYS = plat_KEYM_MIDDLE
+};
 
 //note: this is how the platform and the app communicate with each other.
-#define KEYBOARD_MAX_KEYS 17
-#define MOUSE_MAX_BUTTONS  3
 typedef struct _platform {
-    /* metadata */
+    // metadata
     c8 *ExecutablePath;
     c8 *WorkingDirectoryPath;
-
-    /* options */
+    // options
     b32 Fullscreen;
     b32 Running;
-    b32 WindowResized;
+// b32 WindowResized;
     iv2 WindowDim;
     r32 dtForFrame;
-
-    /* mouse input */
-    b32 mMoved;
-    rv2 mPos;
-    b32 mLeft, mRight, mMiddle;
-    i16 dmWheel;
-
-    /* keyboard input */
-    union {
-        b32 kKeys[KEYBOARD_MAX_KEYS];
-        struct {
-            b32 kUp, kDown, kLeft, kRight;
-            b32 kHome, kEnd;
-            b32 kPgUp, kPgDown;
-            b32 kBack, kDelete, kTab, kReturn;
-            b32 kCtrl, kShift,  kAlt;
-            b32 kChar;
-            c8  Char;
-        };
-    };
-
-    /* gamepad */
-    //todo
-    
-    /* sound */
-    // i16 *Samples;
-    // i32  SamplesPerSecond;
-    // i32  SampleCount;
-
-    /* memory */
+    // mouse input
+    rv2  MousePos;
+    i16 dMouseWheel;
+    // mouse and keyboard buttons
+    button_state Buttons[plat_NO_KEYS];
+    u32 Char; //todo: unicode
+    // memory
     app_memory Memory;
-
-    /* functions */
-    platform_api           Api;
-    platform_graphics_api gApi;
+    // functions
+    platform_api Api;
 } platform;
 
 #define APP_INIT(Name) void Name(platform *p)

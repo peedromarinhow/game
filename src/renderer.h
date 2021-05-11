@@ -118,37 +118,37 @@ internal void PushPiece(renderer *Renderer, render_piece Piece) {
         Renderer->UsedPieces++;
 }
 
-internal void Render(platform_graphics_api *gApi, renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
+internal void Render(platform_api *Api, renderer *Renderer, iv2 TargetDim, colorb ClearColor) {
     Renderer->TargetClipRect.Dim = rv2_(TargetDim.x, TargetDim.y);
     Renderer->ClearColor         = ClearColor;
 
     rect ClipRect = Renderer->TargetClipRect;
-    gApi->Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
+    Api->Clear(Renderer->TargetClipRect.Dim, HexToColor(Renderer->ClearColor.rgba));
 
     for (u32 PieceIndex = 0; PieceIndex < Renderer->UsedPieces; PieceIndex++) {
         render_piece Piece = Renderer->Pieces[PieceIndex];
         rv2 Pos = Piece.Rect.Pos;
         rv2 Dim = Piece.Rect.Dim;
 
-        gApi->Clip(ClipRect);
+        Api->Clip(ClipRect);
 
         if (Piece.Type == PIECE_RECT) {
-            gApi->RasterRect(rect_(GetVecComps(Pos), GetVecComps(Dim)), HexToColor(Piece.Color.rgba));
+            Api->RasterRect(rect_(GetVecComps(Pos), GetVecComps(Dim)), HexToColor(Piece.Color.rgba));
         }
         else
         if (Piece.Type == PIECE_CLIP) {
-            gApi->Enable(GL_SCISSOR_TEST);
+            Api->Enable(GL_SCISSOR_TEST);
             ClipRect = Piece.Rect;
         }
         else
         if (Piece.Type == PIECE_UNCLIP) {
-            gApi->Disable(GL_SCISSOR_TEST);
+            Api->Disable(GL_SCISSOR_TEST);
             ClipRect = Renderer->TargetClipRect;
         }
         else
         if (Piece.Type == PIECE_GLYPH) {
             render_piece_glyph Glyph = Piece.Glyph;
-            gApi->RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].Rects[Glyph.Index],
+            Api->RasterTextureRect(Pos, Renderer->Fonts[Glyph.FontId].Rects[Glyph.Index],
                                     Renderer->Fonts[Glyph.FontId].Atlas, HexToColor(Piece.Color.rgba));
         }
     }
@@ -162,7 +162,7 @@ internal void Render(platform_graphics_api *gApi, renderer *Renderer, iv2 Target
 //     (similar to handmade's asset builder)
 //note: can quality be improved?
 
-internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_arena *Arena, c8 *Filename, i32 Height) {
+internal font LoadFont(platform_api *Api, memory_arena *Arena, c8 *Filename, i32 Height) {
     FT_Library FreeTypeLib;
     FT_Init_FreeType(&FreeTypeLib);
 
@@ -251,7 +251,7 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     Api->WriteFile(Font.Rects,      NoChars * sizeof(rect), "test.save_font", 1);
     Api->WriteFile(AtlasImage.Data, sizeof(ImageSize * ImageSize * sizeof(u32)), "test.save_font", 0);
 
-    gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
+    Api->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
     Api->FreeMemory(AtlasImage.Data);
     
     FT_Done_Face(Face);
@@ -260,7 +260,7 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     return Font;
 }
 
-/*internal font LoadIconsFont(platform_graphics_api *gApi, platform_api *Api, c8 *Filename) {
+/*internal font LoadIconsFont(platform_graphics_api *Api, platform_api *Api, c8 *Filename) {
     FT_Library FreeTypeLib;
     FT_Init_FreeType(&FreeTypeLib);
 
@@ -344,7 +344,7 @@ internal font LoadFont(platform_graphics_api *gApi, platform_api *Api, memory_ar
     Font.Atlas.w = AtlasImage.w;
     Font.Atlas.h = AtlasImage.h;
 
-    gApi->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
+    Api->GenAndBindAndLoadTexture(&AtlasImage, &Font.Atlas);
     
     FT_Done_Face(Face);
     FT_Done_FreeType(FreeTypeLib);

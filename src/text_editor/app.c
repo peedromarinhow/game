@@ -276,7 +276,6 @@ external APP_INIT(Init) {
     s->Arena = InitializeArena(p->Memory.Size - sizeof(app_state), (u8 *)p->Memory.Contents + sizeof(app_state));
 
     platform_api           *Api = &p->Api;
-    platform_graphics_api *gApi = &p->gApi;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
@@ -285,7 +284,7 @@ external APP_INIT(Init) {
     s->ui_Context.LastId  =  0;
     s->ui_Context.Current = -1;
 
-    Renderer->Fonts[0] = LoadFont(gApi, Api, Arena, "roboto.ttf", 16);
+    Renderer->Fonts[0] = LoadFont(Api, Arena, "roboto.ttf", 16);
     s->Buff  = gbuff_Create(Api, 2);
 
     gbuff_InsertChar(Api, &s->Buff, 0, 'o');
@@ -304,23 +303,25 @@ external APP_INIT(Init) {
     gbuff_InsertChar(Api, &s->Buff, 0, 'e');
     gbuff_InsertChar(Api, &s->Buff, 0, 'h');
 
-    gApi->Enable(GL_BLEND);
-    gApi->BlendFunc();
+    Api->Enable(GL_BLEND);
+    Api->BlendFunc();
 }
 
 external APP_UPDATE(Update) {
     app_state *s = (app_state *)p->Memory.Contents;
 
-    platform_api           *Api = &p->Api;
-    platform_graphics_api *gApi = &p->gApi;
+    platform_api *Api      = &p->Api;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    s->ui_Context.MouseDown = p->mLeft || p->mRight || p->mMiddle;
-    s->ui_Context.MouseWich = p->mLeft? ui_MOUSE_BUTTON_LEFT : 0;
-    s->ui_Context.KeyDown = p->kBack || p->kReturn;
-    s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
-    s->ui_Context.MousePos = p->mPos;
+    s->ui_Context.MouseDown = p->Buttons[plat_KEYM_LEFT].EndedDown ||
+                              p->Buttons[plat_KEYM_LEFT].EndedDown ||
+                              p->Buttons[plat_KEYM_LEFT].EndedDown;
+    s->ui_Context.MouseWich = p->Buttons[plat_KEYM_LEFT].EndedDown?  ui_MOUSE_BUTTON_LEFT  :
+                              p->Buttons[plat_KEYM_RIGHT].EndedDown? ui_MOUSE_BUTTON_RIGHT : 0;
+    // s->ui_Context.KeyDown = p->kBack || p->kReturn;
+    // s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
+    s->ui_Context.MousePos = p->MousePos;
 
     s->ui_Context.Style.Padding = 16;
     s->ui_Context.Style.Font    = 0;
@@ -354,9 +355,20 @@ external APP_UPDATE(Update) {
         ui_Snackbar(Renderer, &s->ui_Context, "SIMILIAR TO GREEK ISN'T IT?", 0);
     ui_NextRow(&s->ui_Context);
 
-    gbuff_Render(Renderer, gApi, &s->Buff);
+    gbuff_Render(Renderer, Api, &s->Buff);
 
-    Render(gApi, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
+    if (p->Buttons[plat_KEYBEV_CHAR].EndedDown) {
+        if (!p->Char)
+            gbuff_InsertChar(Api, &s->Buff, 0, p->Char);
+        
+    }
+
+    c8 a[8];
+    a[0] = 0xC3;
+    a[0] = 0xA7;
+    DrawText(Renderer, a, 0, rv2_(50, 600), GREY_50);
+
+    Render(Api, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
     DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
 }
 

@@ -41,7 +41,7 @@ inline u32 gbuff_GetCursorIndex(gbuff *Buff, u32 Cursor) {
      return Result;
 }
 
-inline c8 gbuff_GetCursorChar(gbuff *Buff, u32 Cursor) {
+inline c8 gbuff_GetChar(gbuff *Buff, u32 Cursor) {
     return Buff->Data[gbuff_GetCursorIndex(Buff, Cursor)];
 }
 
@@ -165,7 +165,82 @@ internal void gbuff_Load(platform_api *Api, gbuff *Buff, c8 *Filename) {
     }
 }
 
-internal void gbuff_Render(renderer *Renderer, platform_graphics_api *gApi, gbuff *Buff) {
+inline u32 gbuff_GetNextCharCursor(gbuff *Buff, u32 Cursor) {
+    if (Cursor < gbuff_GetLen(Buff)) {
+        Cursor++;
+        if (gbuff_GetChar(Buff, Cursor) == '\r')
+            Cursor++;
+    }
+    return Cursor;
+}
+
+inline u32 gbuff_GetPrevCharCursor(gbuff *Buff, u32 Cursor) {
+    if (Cursor > 0) {
+        Cursor--;
+        if (gbuff_GetChar(Buff, Cursor) == '\r')
+            Cursor--;
+    }
+    return Cursor;
+}
+
+inline u32 gbuff_GetBeginningOfLineCursor(gbuff *Buff, u32 Cursor) {
+    // AssertCursorInvariants(Buff, Cursor);
+    Cursor = gbuff_GetPrevCharCursor(Buff, Cursor);
+    while (Cursor > 0) {
+        c8  Char = gbuff_GetChar(Buff, Cursor);
+        if (Char == '\n') {
+            return gbuff_GetNextCharCursor(Buff, Cursor);
+        }
+        Cursor = gbuff_GetPrevCharCursor(Buff, Cursor);
+    }
+    return 0;
+}
+
+inline u32 gbuff_GetEndOfLineCursor(gbuff *Buff, u32 Cursor) {
+    // AssertCursorInvariants(Buff, Cursor);
+    while (Cursor < gbuff_GetLen(Buff)) {
+        c8  Char = gbuff_GetChar(Buff, Cursor);
+        if (Char == '\n') {
+            return Cursor;
+        }
+        Cursor = gbuff_GetNextCharCursor(Buff, Cursor);
+    }
+    return gbuff_GetLen(Buff);
+}
+
+inline u32 gbuff_GetBeginningOfNextLineCursor(gbuff *Buff, u32 Cursor) {
+    return gbuff_GetNextCharCursor(Buff, gbuff_GetEndOfLineCursor(Buff, Cursor));
+}
+
+inline u32 gbuff_GetEndOfPrevLineCursor(gbuff *Buff, u32 Cursor) {
+    return gbuff_GetPrevCharCursor(Buff, gbuff_GetBeginningOfLineCursor(Buff, Cursor));
+}
+
+inline u32 gbuff_GetBeginningOfPrevLineCursor(gbuff *Buff, u32 Cursor) {
+    return gbuff_GetBeginningOfLineCursor(Buff, gbuff_GetPrevCharCursor(Buff, gbuff_GetBeginningOfLineCursor(Buff, Cursor)));
+}
+
+inline u32 gbuff_GetCursorColumn(gbuff *Buff, u32 Cursor) {
+    return Cursor - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
+}
+
+inline u32 gbuff_GetLineLen(gbuff *Buff, u32 Cursor) {
+    return gbuff_GetEndOfLineCursor(Buff, Cursor) - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
+}
+
+inline u32 gbuff_GetBegginingCursor(gbuff *Buff, u32 Cursor) {
+    return 0;
+}
+
+inline u32 gbuff_GetEndCursor(gbuff *Buff, u32 Cursor) {
+    return gbuff_GetLen(Buff);
+}
+
+inline u32 gbuff_GetColumn(gbuff *Buff, u32 Cursor) {
+    return Cursor - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
+}
+
+internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff) {
     rv2   Result = {-100000, -100000};
     font *Font = &Renderer->Fonts[0];
     r32   ScaleFactor = Font->Height/Font->Height;
@@ -174,10 +249,10 @@ internal void gbuff_Render(renderer *Renderer, platform_graphics_api *gApi, gbuf
     for (u32 Cursor = 0; Cursor < gbuff_GetLen(Buff); Cursor++)
     {
         c8  CharQuartet[4];
-        CharQuartet[0] = gbuff_GetCursorChar(Buff, Cursor+0);
-        CharQuartet[1] = gbuff_GetCursorChar(Buff, Cursor+1);
-        CharQuartet[2] = gbuff_GetCursorChar(Buff, Cursor+2);
-        CharQuartet[3] = gbuff_GetCursorChar(Buff, Cursor+3);
+        CharQuartet[0] = gbuff_GetChar(Buff, Cursor+0);
+        CharQuartet[1] = gbuff_GetChar(Buff, Cursor+1);
+        CharQuartet[2] = gbuff_GetChar(Buff, Cursor+2);
+        CharQuartet[3] = gbuff_GetChar(Buff, Cursor+3);
         u32 NoCodepointBytes = 0;
         u32 Codepoint = GetNextCodepoint(CharQuartet, &NoCodepointBytes);
         u32 Index = GetGlyphIndex(Font, Codepoint);//(*Char - 32 >= 0)? *Char - 32 : '?' - 32;

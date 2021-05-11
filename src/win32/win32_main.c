@@ -105,19 +105,17 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.Api.ReportError       = Win32ReportError;
         Platform.Api.ReportErrorAndDie = Win32ReportErrorAndDie;
 
-        GL_BLEND;
-        
-        Platform.gApi.Clear             = Win32Clear;
-        Platform.gApi.Clip              = Win32Clip;
-        Platform.gApi.RasterRect        = Win32RasterRect;
-        Platform.gApi.RasterTextureRect = Win32RasterTextureRect;
-        Platform.gApi.Enable            = Win32Enable;
-        Platform.gApi.Disable           = Win32Disable;
-        Platform.gApi.GenAndBindAndLoadTexture = Win32GenAndBindAndLoadTexture;
-        Platform.gApi.BlendFunc         = Win32BlendFunc;
+        Platform.Api.Clear             = Win32Clear;
+        Platform.Api.Clip              = Win32Clip;
+        Platform.Api.RasterRect        = Win32RasterRect;
+        Platform.Api.RasterTextureRect = Win32RasterTextureRect;
+        Platform.Api.Enable            = Win32Enable;
+        Platform.Api.Disable           = Win32Disable;
+        Platform.Api.GenAndBindAndLoadTexture = Win32GenAndBindAndLoadTexture;
+        Platform.Api.BlendFunc         = Win32BlendFunc;
 
         Platform.WindowDim = Win32GetWindowDim(Window);
-        Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);
+        Platform.MousePos  = Win32GetMousePos(Window, Platform.WindowDim);
     };
 
     /* load app code */
@@ -168,8 +166,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
             // if it acually did, then update
             MSG Message;
             i16 dmWheel = 0;
-            Win32ProcessEventMessage(&Platform.mMoved, 0);
-            Win32ProcessEventMessage(&Platform.kChar,  0);
+            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYMEV_MOVED], 0);
+            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR],  0);
             while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
                 //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
                 /* mouse */
@@ -178,26 +176,26 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 }
                 else
                 if (Message.message == WM_MOUSEMOVE){
-                    Win32ProcessEventMessage(&Platform.mMoved, 1);
+                    Win32ProcessEventMessage(&Platform.Buttons[plat_KEYMEV_MOVED], 1);
                 }
                 else
                 if (Message.message == WM_LBUTTONDOWN)
-                    Win32ProcessButtonMessage(&Platform.mLeft, 1);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_LEFT], 1);
                 else
                 if (Message.message == WM_LBUTTONUP)
-                    Win32ProcessButtonMessage(&Platform.mLeft, 0);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_LEFT], 0);
                 else
                 if (Message.message == WM_RBUTTONDOWN)
-                    Win32ProcessButtonMessage(&Platform.mRight, 1);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_RIGHT], 1);
                 else
                 if (Message.message == WM_RBUTTONUP)
-                    Win32ProcessButtonMessage(&Platform.mRight, 0);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_RIGHT], 0);
                 else
                 if (Message.message == WM_MBUTTONDOWN)
-                    Win32ProcessButtonMessage(&Platform.mMiddle, 1);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_MIDDLE], 1);
                 else
                 if (Message.message == WM_MBUTTONUP)
-                    Win32ProcessButtonMessage(&Platform.mMiddle, 0);
+                    Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYM_MIDDLE], 0);
                 else
                 if (Message.message == WM_SETCURSOR)
                     SetCursor(LoadCursorA(0, IDC_ARROW));
@@ -206,8 +204,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 b32 AltKeyWasDown =  Message.lParam & (1 << 29);
                 b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
                 b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
-                if (//Message.message == WM_SYSKEYDOWN ||
-                    //Message.message == WM_SYSKEYUP   ||
+                if (Message.message == WM_SYSKEYDOWN ||
+                    Message.message == WM_SYSKEYUP   ||
                     Message.message == WM_KEYDOWN    ||
                     Message.message == WM_KEYUP)
                 {
@@ -222,83 +220,62 @@ int CALLBACK WinMain(HINSTANCE Instance,
                         }
                         else
                         if (VKCode == VK_UP)
-                            Win32ProcessButtonMessage(&Platform.kUp, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_UP], IsDown);
                         else
                         if (VKCode == VK_DOWN)
-                            Win32ProcessButtonMessage(&Platform.kDown, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DOWN], IsDown);
                         else
                         if (VKCode == VK_LEFT)
-                            Win32ProcessButtonMessage(&Platform.kLeft, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_LEFT], IsDown);
                         else
                         if (VKCode == VK_RIGHT)
-                            Win32ProcessButtonMessage(&Platform.kRight, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RIGHT], IsDown);
                         else
                         if (VKCode == VK_HOME)
-                            Win32ProcessButtonMessage(&Platform.kHome, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_HOME], IsDown);
                         else
                         if (VKCode == VK_END)
-                            Win32ProcessButtonMessage(&Platform.kEnd, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_END], IsDown);
                         else
                         if (VKCode == VK_PRIOR)
-                            Win32ProcessButtonMessage(&Platform.kPgUp, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_UP], IsDown);
                         else
                         if (VKCode == VK_NEXT)
-                            Win32ProcessButtonMessage(&Platform.kPgDown, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_DOWN], IsDown);
                         else
                         if (VKCode == VK_BACK)
-                            Win32ProcessButtonMessage(&Platform.kBack, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_BACK], IsDown);
                         else
                         if (VKCode == VK_DELETE)
-                            Win32ProcessButtonMessage(&Platform.kDelete, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DELETE], IsDown);
                         else
                         if (VKCode == VK_RETURN)
-                            Win32ProcessButtonMessage(&Platform.kReturn, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_TAB], IsDown);
                         else
                         if (VKCode == VK_TAB)
-                            Win32ProcessButtonMessage(&Platform.kTab, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RETURN], IsDown);
                         else
                         if (VKCode == VK_CONTROL)
-                            Win32ProcessButtonMessage(&Platform.kCtrl, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_CTRL], IsDown);
                         else
                         if (VKCode == VK_SHIFT)
-                            Win32ProcessButtonMessage(&Platform.kShift, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_SHIFT], IsDown);
                         else
                         if (VKCode == VK_MENU)
-                            Win32ProcessButtonMessage(&Platform.kAlt, IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_ALT], IsDown);
                         else
                         if (VKCode == VK_F4) {
                             if (AltKeyWasDown) Platform.Running = 0;
                         }
                     }
 
-                    if (Message.message == WM_SYSKEYDOWN ||
-                        Message.message == WM_KEYDOWN)
-                    {
-                        BYTE KeyboardState[256];
-                        GetKeyboardState(KeyboardState);
-                        WORD Chars;
-                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
-                            Platform.Char = (u8)Chars;
-                            Win32ProcessEventMessage(&Platform.kChar, 1);
-                        }
-                        else {
-                            Platform.Char = 0;
-                        }
-
-                        if (!IsPrintableChar(Platform.Char))
-                            Platform.Char = Message.wParam;
-                    }
-
                     TranslateMessage(&Message);
                 }
-                // else
-                // if (Message.message == WM_CHAR) {
-                //     WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
-                //                        &Platform.Char, 1, 0, 0);
-                // }
                 else
-                if (Message.message == WM_SIZE)
-                    Win32ProcessEventMessage(&Platform.WindowResized, 1);
+                if (Message.message == WM_CHAR)
+                    Platform.Char = Message.wParam;
+                if (Message.message == WM_UNICHAR)
+                    Platform.Char = Message.wParam;
 
                 /* windows' stuff */
                 else
@@ -311,7 +288,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                     TranslateMessage(&Message);
                     DispatchMessage(&Message);
                 }
-                Platform.dmWheel = dmWheel;
+                Platform.dMouseWheel = dmWheel;
             }
         }
 
@@ -319,7 +296,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
         /* update */ {
             Platform.WindowDim = Win32GetWindowDim(Window);
-            Platform.mPos      = Win32GetMousePos(Window, Platform.WindowDim);
+            Platform.MousePos  = Win32GetMousePos(Window, Platform.WindowDim);
 
             AppCode.Update(&Platform);
 
