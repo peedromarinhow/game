@@ -235,7 +235,7 @@ inline u32 gbuff_GetLineLen(gbuff *Buff, u32 Cursor) {
     return gbuff_GetEndOfLineCursor(Buff, Cursor) - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
 }
 
-inline u32 gbuff_GetBegginingCursor(gbuff *Buff, u32 Cursor) {
+inline u32 gbuff_GetBeginningCursor(gbuff *Buff, u32 Cursor) {
     return 0;
 }
 

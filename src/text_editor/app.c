@@ -269,6 +269,8 @@ typedef struct _app_state {
     ui_context ui_Context;
     gbuff Buff;
     rect  Caret;
+    u32 Col;
+    u32 Line;
 } app_state;
 
 external APP_INIT(Init) {
@@ -288,6 +290,8 @@ external APP_INIT(Init) {
     Renderer->Fonts[0] = LoadFont(Api, Arena, "roboto.ttf", 16);
     s->Buff  = gbuff_Create(Api, 2);
     s->Caret = rect_(-100000, -100000, -100000, -100000);
+    s->Col   = 0;
+    s->Line  = 0;
 
     Api->Enable(GL_BLEND);
     Api->BlendFunc();
@@ -353,12 +357,36 @@ external APP_UPDATE(Update) {
             gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, p->Char);
     }
 
-    if (p->Buttons[plat_KEYB_LEFT].EndedDown)
+    if (p->Buttons[plat_KEYB_LEFT].EndedDown) {
         s->Buff.Point = gbuff_GetPrevCharCursor(&s->Buff, s->Buff.Point);
-    if (p->Buttons[plat_KEYB_RIGHT].EndedDown)
+        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
+    }
+    if (p->Buttons[plat_KEYB_RIGHT].EndedDown) {
         s->Buff.Point = gbuff_GetNextCharCursor(&s->Buff, s->Buff.Point);
+        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
+    }
+    if (p->Buttons[plat_KEYB_UP].EndedDown) {
+        gbuff *Buff = &s->Buff;
+        u32 BeginningOfPrevLine = gbuff_GetBeginningOfPrevLineCursor(Buff, Buff->Point);
+        u32 PrevLineLen         = gbuff_GetLineLen(Buff, BeginningOfPrevLine);
+        Buff->Point = BeginningOfPrevLine + Min(PrevLineLen, s->Col);
+        s->Line = s->Line > 0? s->Line - 1 : 0;
+    }
+    if (p->Buttons[plat_KEYB_DOWN].EndedDown) {
+        gbuff *Buff = &s->Buff;
+        u32 BeginningOfNextLine = gbuff_GetBeginningOfNextLineCursor(Buff, Buff->Point);
+        u32 NextLineLen         = gbuff_GetLineLen(Buff, BeginningOfNextLine);
+        Buff->Point = BeginningOfNextLine + Min(NextLineLen, s->Col);
+        s->Line++;
+    }
+    if (p->Buttons[plat_KEYB_HOME].EndedDown)
+        s->Buff.Point = gbuff_GetBeginningOfLineCursor(&s->Buff, s->Buff.Point);
+    if (p->Buttons[plat_KEYB_END].EndedDown)
+        s->Buff.Point = gbuff_GetEndOfLineCursor(&s->Buff, s->Buff.Point);
     if (p->Buttons[plat_KEYB_BACK].EndedDown)
         gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
+    if (p->Buttons[plat_KEYB_DELETE].EndedDown)
+        gbuff_DeleteFowardChar(&s->Buff, s->Buff.Point);
     if (p->Buttons[plat_KEYB_RETURN].EndedDown)
         gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, '\n');
 
