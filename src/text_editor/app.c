@@ -287,21 +287,11 @@ external APP_INIT(Init) {
     Renderer->Fonts[0] = LoadFont(Api, Arena, "roboto.ttf", 16);
     s->Buff  = gbuff_Create(Api, 2);
 
-    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'o');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'l');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'e');
-    gbuff_InsertChar(Api, &s->Buff, 0, 'h');
+    gbuff_InsertChar(Api, &s->Buff, 0, 0xA7);
+    gbuff_InsertChar(Api, &s->Buff, 0, 0xC3);
+    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
+    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
+    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
 
     Api->Enable(GL_BLEND);
     Api->BlendFunc();
@@ -358,15 +348,16 @@ external APP_UPDATE(Update) {
     gbuff_Render(Renderer, Api, &s->Buff);
 
     if (p->Buttons[plat_KEYBEV_CHAR].EndedDown) {
-        if (!p->Char)
-            gbuff_InsertChar(Api, &s->Buff, 0, p->Char);
-        
+        if (p->Char == '\b')
+            gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
+        else
+            gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, p->Char);
     }
 
-    c8 a[8];
-    a[0] = 0xC3;
-    a[0] = 0xA7;
-    DrawText(Renderer, a, 0, rv2_(50, 600), GREY_50);
+    if (p->Buttons[plat_KEYB_LEFT].EndedDown)
+        s->Buff.Point = gbuff_GetCursorIndex(&s->Buff, s->Buff.Point-1);
+    if (p->Buttons[plat_KEYB_RIGHT].EndedDown)
+        s->Buff.Point = gbuff_GetCursorIndex(&s->Buff, s->Buff.Point+1);
 
     Render(Api, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
     DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);

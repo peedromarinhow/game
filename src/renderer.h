@@ -534,7 +534,7 @@ internal rv2 DoTextOp(text_op Op, renderer *Renderer, c8 *Text, id FontId, rv2 P
     for (c8 *Char = Text; *Char; Char++) {
         u32 NoCodepointBytes = 0;
         u32 Codepoint = GetNextCodepoint(Char, &NoCodepointBytes);
-        u32 Index = GetGlyphIndex(Font, Codepoint);//(*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        u32 Index = GetGlyphIndex(Font, Codepoint);
         if (Codepoint == 0x3f) NoCodepointBytes = 1;
 
         r32 Advance = Font->Advances[Index];

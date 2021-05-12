@@ -200,7 +200,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 if (Message.message == WM_SETCURSOR)
                     SetCursor(LoadCursorA(0, IDC_ARROW));
 
-                /* keyboard */
                 b32 AltKeyWasDown =  Message.lParam & (1 << 29);
                 b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
                 b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
@@ -268,17 +267,16 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             if (AltKeyWasDown) Platform.Running = 0;
                         }
                     }
-
                     TranslateMessage(&Message);
                 }
                 else
-                if (Message.message == WM_CHAR)
-                    Platform.Char = Message.wParam;
-                if (Message.message == WM_UNICHAR)
-                    Platform.Char = Message.wParam;
-
+                if (Message.message == WM_CHAR || Message.message == WM_UNICHAR) {
+                    Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
+                    Platform.Char = Message.wParam;// WideCharToMultiByte(CP_UTF8, 0, (WCHAR *)Message.wParam, 1, Platform.Chars, 8, 0, 0);
+                    //note: i give up trying to get utf8 characters from windows
+                }
                 /* windows' stuff */
-                else
+
                 if (Message.message == WM_PAINT) {
                     PAINTSTRUCT Paint;
                     BeginPaint(Window, &Paint);

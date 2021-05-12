@@ -190,7 +190,7 @@ typedef struct _platform {
     i16 dMouseWheel;
     // mouse and keyboard buttons
     button_state Buttons[plat_NO_KEYS];
-    u32 Char; //todo: unicode
+    c8 Char; //todo: unicode
     // memory
     app_memory Memory;
     // functions

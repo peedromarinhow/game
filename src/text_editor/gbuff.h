@@ -30,19 +30,24 @@ inline u32 gbuff_GetLen(gbuff *Buff) {
 }
 
 inline u32 gbuff_GetCursorIndex(gbuff *Buff, u32 Cursor) {
-    u32 Result = 0;
     if (Cursor < Buff->GapStart)
-        Result = Cursor;
+        return Cursor;
     else
-        Result = Cursor + gbuff_GetGapSize(Buff);
-
-    if (Result > gbuff_GetLen(Buff))
-        return 0;
-     return Result;
+    if (Cursor < gbuff_GetLen(Buff))
+        return Cursor + gbuff_GetGapSize(Buff);
+    else
+        return gbuff_GetLen(Buff);
 }
 
 inline c8 gbuff_GetChar(gbuff *Buff, u32 Cursor) {
     return Buff->Data[gbuff_GetCursorIndex(Buff, Cursor)];
+}
+
+inline u32 gbuff_GetUtf32Char(gbuff *Buff, u32 Cursor) {
+    return (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 0)] >>  0) |
+           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 1)] >>  8) |
+           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 2)] >> 16) |
+           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 3)] >> 24);
 }
 
 internal gbuff gbuff_Create(platform_api *Api, u32 InitialGapSize) {
@@ -246,18 +251,17 @@ internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff) {
     r32   ScaleFactor = Font->Height/Font->Height;
     rv2   Pos = rv2_(16, 800);
 
-    for (u32 Cursor = 0; Cursor < gbuff_GetLen(Buff); Cursor++)
-    {
-        c8  CharQuartet[4];
-        CharQuartet[0] = gbuff_GetChar(Buff, Cursor+0);
-        CharQuartet[1] = gbuff_GetChar(Buff, Cursor+1);
-        CharQuartet[2] = gbuff_GetChar(Buff, Cursor+2);
-        CharQuartet[3] = gbuff_GetChar(Buff, Cursor+3);
+    for (u32 Cursor = 0; Cursor < gbuff_GetLen(Buff); Cursor++) {
+        c8 Utf8Quartet[4];
+        Utf8Quartet[0] = gbuff_GetChar(Buff, Cursor + 0);
+        Utf8Quartet[1] = gbuff_GetChar(Buff, Cursor + 1);
+        Utf8Quartet[2] = gbuff_GetChar(Buff, Cursor + 2);
+        Utf8Quartet[3] = gbuff_GetChar(Buff, Cursor + 3);
         u32 NoCodepointBytes = 0;
-        u32 Codepoint = GetNextCodepoint(CharQuartet, &NoCodepointBytes);
-        u32 Index = GetGlyphIndex(Font, Codepoint);//(*Char - 32 >= 0)? *Char - 32 : '?' - 32;
+        u32 Codepoint = GetNextCodepoint(Utf8Quartet, &NoCodepointBytes);
+        u32 Index = GetGlyphIndex(Font, Codepoint);
         if (Codepoint == 0x3f) NoCodepointBytes = 1;
-
+    
         r32 Advance = Font->Advances[Index];
         rv2 Bearing = rv2_(Font->Bearings[Index].x * ScaleFactor,
                            Font->Bearings[Index].y * ScaleFactor);
@@ -265,10 +269,12 @@ internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff) {
                           Font->Rects[Index].w * ScaleFactor, Font->Rects[Index].h * ScaleFactor);
 
         rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y));
+
+        if (Cursor == Buff->Point-1)
+            DrawRect(Renderer, rect_(GlyphPos.x, GlyphPos.y, Rect.w, Rect.h), GREY_500);
         DrawGlyph(Renderer, 0, Index, GlyphPos, GREY_50/*, ScaleFactor*/);
 
-        Pos.x += (i32)Advance * ScaleFactor;
-
+        Pos.x  += (i32)Advance * ScaleFactor;
         Cursor += (NoCodepointBytes - 1);
     }
 }
