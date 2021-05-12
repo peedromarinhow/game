@@ -267,14 +267,27 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             if (AltKeyWasDown) Platform.Running = 0;
                         }
                     }
+                    if (Message.message == WM_KEYDOWN || Message.message == WM_SYSKEYDOWN) {
+                        BYTE KeyboardState[256];
+                        GetKeyboardState(KeyboardState);
+                        WORD Chars;
+                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
+                            Platform.Char = (u8)Chars;
+                            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
+                        }
+
+                        if (Platform.Buttons[plat_KEYB_CTRL].EndedDown)
+                            Platform.Char = Message.wParam;
+                    }
+
                     TranslateMessage(&Message);
                 }
-                else
-                if (Message.message == WM_CHAR || Message.message == WM_UNICHAR) {
-                    Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
-                    Platform.Char = Message.wParam;// WideCharToMultiByte(CP_UTF8, 0, (WCHAR *)Message.wParam, 1, Platform.Chars, 8, 0, 0);
-                    //note: i give up trying to get utf8 characters from windows
-                }
+                // else
+                // if (Message.message == WM_CHAR || Message.message == WM_UNICHAR) {
+                //     Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
+                //     Platform.Char = Message.wParam;// WideCharToMultiByte(CP_UTF8, 0, (WCHAR *)Message.wParam, 1, Platform.Chars, 8, 0, 0);
+                //     //note: i give up trying to get utf8 characters from windows
+                // }
                 /* windows' stuff */
 
                 if (Message.message == WM_PAINT) {

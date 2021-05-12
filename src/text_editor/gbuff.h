@@ -68,6 +68,12 @@ internal void gbuff_Free(platform_api *Api, gbuff *Buff) {
     Api->FreeMemory(Buff->Data);
 }
 
+internal void gbuff_Delete(gbuff *Buff) {
+    Buff->GapStart = 0;
+    Buff->GapEnd   = Buff->Size;
+    Buff->Point    = 0;    
+}
+
 internal u32 gbuff_MovePosFoward(gbuff *Buff, u32 Pos) {
     if (Pos != Buff->Size)
         Pos++;
@@ -161,9 +167,10 @@ internal void gbuff_Save(platform_api *Api, gbuff *Buff, c8 *Filename) {
 }
 
 internal void gbuff_Load(platform_api *Api, gbuff *Buff, c8 *Filename) {
+    gbuff_Free(Api, Buff);
     if (Filename) {
         file File = Api->LoadFile(Filename);
-        gbuff_Free(Api, Buff);
+        gbuff_Delete(Buff);
         gbuff_EnsureGapSize(Api, Buff, File.Size);
         //todo: unecessary CopyMemory?
         CopyMemory(Buff->Data, File.Data, File.Size);
@@ -278,6 +285,8 @@ internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff, r
             Pos = rv2_(16, Pos.y - Font->Height);
             continue;
         }
+        if (Utf8Quartet[0] == '\r')
+            continue;
     
         if (Cursor == gbuff_GetLen(Buff))
             break;
