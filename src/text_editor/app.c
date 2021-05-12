@@ -268,6 +268,7 @@ typedef struct _app_state {
     renderer     Renderer;
     ui_context ui_Context;
     gbuff Buff;
+    rect  Caret;
 } app_state;
 
 external APP_INIT(Init) {
@@ -286,12 +287,7 @@ external APP_INIT(Init) {
 
     Renderer->Fonts[0] = LoadFont(Api, Arena, "roboto.ttf", 16);
     s->Buff  = gbuff_Create(Api, 2);
-
-    gbuff_InsertChar(Api, &s->Buff, 0, 0xA7);
-    gbuff_InsertChar(Api, &s->Buff, 0, 0xC3);
-    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
-    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
-    gbuff_InsertChar(Api, &s->Buff, 0, ' ');
+    s->Caret = rect_(-100000, -100000, -100000, -100000);
 
     Api->Enable(GL_BLEND);
     Api->BlendFunc();
@@ -327,8 +323,10 @@ external APP_UPDATE(Update) {
     s->ui_Context.Layout.Dim  = s->ui_Context.Layout.Body.Dim;
     s->ui_Context.Layout.ItemWidth  = 64;
     s->ui_Context.Layout.ItemHeight = 36;
-    
-    // DrawRect(Renderer, s->ui_Context.Layout.Body, GREY_800);
+
+    DrawRect(Renderer, rect_(16, s->Caret.y, 800, s->Caret.h), GREY_800);
+    DrawRect(Renderer, s->Caret, ORANGE_700);
+    gbuff_Render(Renderer, Api, &s->Buff, rv2_(16, p->WindowDim.y - 16), &s->Caret);
 
     ui_Label(Renderer, &s->ui_Context, "δένδρον", 0);
     if (ui_Button(Renderer, &s->ui_Context, "GREEK", 0))
@@ -345,19 +343,24 @@ external APP_UPDATE(Update) {
         ui_Snackbar(Renderer, &s->ui_Context, "SIMILIAR TO GREEK ISN'T IT?", 0);
     ui_NextRow(&s->ui_Context);
 
-    gbuff_Render(Renderer, Api, &s->Buff);
-
     if (p->Buttons[plat_KEYBEV_CHAR].EndedDown) {
-        if (p->Char == '\b')
-            gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
-        else
+        // if (p->Char == '\b')
+        //     gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
+        // else
+        // if (p->Char == '\r')
+        //     gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, '\n');
+        if (p->Char != '\b' && p->Char != '\r')
             gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, p->Char);
     }
 
     if (p->Buttons[plat_KEYB_LEFT].EndedDown)
-        s->Buff.Point = gbuff_GetCursorIndex(&s->Buff, s->Buff.Point-1);
+        s->Buff.Point = gbuff_GetPrevCharCursor(&s->Buff, s->Buff.Point);
     if (p->Buttons[plat_KEYB_RIGHT].EndedDown)
-        s->Buff.Point = gbuff_GetCursorIndex(&s->Buff, s->Buff.Point+1);
+        s->Buff.Point = gbuff_GetNextCharCursor(&s->Buff, s->Buff.Point);
+    if (p->Buttons[plat_KEYB_BACK].EndedDown)
+        gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
+    if (p->Buttons[plat_KEYB_RETURN].EndedDown)
+        gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, '\n');
 
     Render(Api, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
     DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);

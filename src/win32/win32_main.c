@@ -249,10 +249,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DELETE], IsDown);
                         else
                         if (VKCode == VK_RETURN)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_TAB], IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RETURN], IsDown);
                         else
                         if (VKCode == VK_TAB)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RETURN], IsDown);
+                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_TAB], IsDown);
                         else
                         if (VKCode == VK_CONTROL)
                             Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_CTRL], IsDown);

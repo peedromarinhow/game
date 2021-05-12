@@ -53,11 +53,13 @@ inline u32 gbuff_GetUtf32Char(gbuff *Buff, u32 Cursor) {
 internal gbuff gbuff_Create(platform_api *Api, u32 InitialGapSize) {
     gbuff Result = {0};
 
-    Result.Data     = Api->AllocateMemory(InitialGapSize);
+    Result.Data     = Api->AllocateMemory(InitialGapSize + 1);
     Result.Size     = InitialGapSize;
     Result.GapStart = 0;
     Result.GapEnd   = InitialGapSize;
     Result.Point    = 0;
+
+    Result.Data[InitialGapSize] = '\0';
 
     return Result;
 }
@@ -245,13 +247,12 @@ inline u32 gbuff_GetColumn(gbuff *Buff, u32 Cursor) {
     return Cursor - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
 }
 
-internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff) {
+internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff, rv2 Pos, rect *Caret) {
     rv2   Result = {-100000, -100000};
     font *Font = &Renderer->Fonts[0];
     r32   ScaleFactor = Font->Height/Font->Height;
-    rv2   Pos = rv2_(16, 800);
 
-    for (u32 Cursor = 0; Cursor < gbuff_GetLen(Buff); Cursor++) {
+    for (u32 Cursor = 0; Cursor <= gbuff_GetLen(Buff); Cursor++) {
         c8 Utf8Quartet[4];
         Utf8Quartet[0] = gbuff_GetChar(Buff, Cursor + 0);
         Utf8Quartet[1] = gbuff_GetChar(Buff, Cursor + 1);
@@ -268,10 +269,18 @@ internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff) {
         rect Rect = rect_(Font->Rects[Index].x * ScaleFactor, Font->Rects[Index].y * ScaleFactor,
                           Font->Rects[Index].w * ScaleFactor, Font->Rects[Index].h * ScaleFactor);
 
-        rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y));
+        rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y) - ((Font->Ascender>>6) + (Font->Descender>>6))/4);
+        
+        if (Cursor == Buff->Point)
+           *Caret = rect_(Pos.x, Pos.y - Font->Height/2, 2, Font->Height);
 
-        if (Cursor == Buff->Point-1)
-            DrawRect(Renderer, rect_(GlyphPos.x, GlyphPos.y, Rect.w, Rect.h), GREY_500);
+        if (Utf8Quartet[0] == '\n') {
+            Pos = rv2_(16, Pos.y - Font->Height);
+            continue;
+        }
+    
+        if (Cursor == gbuff_GetLen(Buff))
+            break;
         DrawGlyph(Renderer, 0, Index, GlyphPos, GREY_50/*, ScaleFactor*/);
 
         Pos.x  += (i32)Advance * ScaleFactor;
