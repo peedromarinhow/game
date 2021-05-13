@@ -5,11 +5,47 @@
 #include "gbuff.h"
 #include "ui.h"
 
-typedef struct _kbind_context {
+typedef struct _keybind_command_context {
     gbuff *CurrentBuff;
-    u32 BuffCol;
-    u32 BuffLine;
-} kbind_context;
+    platform_api *Api;
+    u32 Col;
+    u32 Line;
+    c8 Char;
+} keybind_command_context;
+
+#define KEYBIND_COMMAND(Name) void keybind_command_##Name(keybind_command_context *Ctx)
+typedef KEYBIND_COMMAND(callback);
+
+typedef struct _keybind_command {
+    keybind_command_callback *Proc;
+} keybind_command;
+#define keybind_command_(Proc) (keybind_command){(keybind_command_##Proc)}
+
+typedef enum _keybind_keys {
+    keybind_KEY_NONE = 0, //note:
+    keybind_KEY_CHAR = 1, //note:
+    keybind_KEY_DEL,
+    keybind_KEY_BACK,
+    keybind_KEY_TAB,
+    keybind_KEY_LEFT,
+    keybind_KEY_RIGHT,
+    keybind_KEY_UP,
+    keybind_KEY_DOWN,
+    keybind_KEY_PG_UP,
+    keybind_KEY_PG_DOWN,
+    keybind_KEY_HOME,
+    keybind_KEY_END,
+    keybind_KEY_RETURN,
+    keybind_KEY_CTRL  = 1 << 8,
+    keybind_KEY_ALT   = 1 << 9,
+    keybind_KEY_SHIFT = 1 << 10
+} keybind_keys;
+
+#define KeyComb(Base, Ctrl, Alt, Shift) \
+    (u16)(Base)        |                \
+   ((u16)(Ctrl)  << 8) |                \
+   ((u16)(Alt)   << 9) |                \
+   ((u16)(Shift) << 10)
 
 typedef struct _app_state {
     memory_arena Arena;
@@ -19,7 +55,84 @@ typedef struct _app_state {
     rect  Caret;
     u32 Col;
     u32 Line;
+    keybind_command Keymap[1024];
 } app_state;
+
+KEYBIND_COMMAND(DoNothing) {
+    return;
+}
+
+KEYBIND_COMMAND(BuffInsertChar) {
+    if (Ctx->Char != '\b' && Ctx->Char != '\r')
+        gbuff_InsertChar(Ctx->Api, Ctx->CurrentBuff, Ctx->CurrentBuff->Point, Ctx->Char);
+}
+
+KEYBIND_COMMAND(BuffMoveCursorLeft) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    Buff->Point = gbuff_GetPrevCharCursor(Buff, Buff->Point);
+    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffMoveCursorRight) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    Buff->Point = gbuff_GetNextCharCursor(Buff, Buff->Point);
+    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffMoveCursorUp) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    u32 BeginningOfPrevLine = gbuff_GetBeginningOfPrevLineCursor(Buff, Buff->Point);
+    u32 PrevLineLen         = gbuff_GetLineLen(Buff, BeginningOfPrevLine);
+    Buff->Point = BeginningOfPrevLine + Min(PrevLineLen,  Ctx->Col);
+    Ctx->Line =  Ctx->Line > 0?  Ctx->Line - 1 : 0;
+}
+
+KEYBIND_COMMAND(BuffMoveCursorDown) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    u32 BeginningOfNextLine = gbuff_GetBeginningOfNextLineCursor(Buff, Buff->Point);
+    u32 NextLineLen         = gbuff_GetLineLen(Buff, BeginningOfNextLine);
+    Buff->Point = BeginningOfNextLine + Min(NextLineLen,  Ctx->Col);
+    Ctx->Line++;
+}
+
+KEYBIND_COMMAND(BuffMoveCursorToLineStart) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    Buff->Point = gbuff_GetBeginningOfLineCursor(Buff, Buff->Point);
+    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffMoveCursorToLineEnd) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    Buff->Point = gbuff_GetEndOfLineCursor(Buff, Buff->Point);
+    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffDeleteFowardChar) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    gbuff_DeleteBackwardChar(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffDeleteBackwardChar) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    gbuff_DeleteFowardChar(Buff, Buff->Point);
+}
+
+KEYBIND_COMMAND(BuffNewline) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    gbuff_InsertChar(Ctx->Api, Buff, Buff->Point, '\n');
+    Ctx->Line++;
+}
+
+KEYBIND_COMMAND(BuffOpen) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    gbuff_Load(Ctx->Api, Buff, "a.c");
+}
+
+KEYBIND_COMMAND(BuffSave) {
+    gbuff *Buff = Ctx->CurrentBuff;
+    gbuff_Save(Ctx->Api, Buff, "a.c");
+}
+
 
 external APP_INIT(Init) {
     app_state *s = (app_state *)p->Memory.Contents;
@@ -41,6 +154,20 @@ external APP_INIT(Init) {
     s->Col   = 0;
     s->Line  = 0;
 
+    s->Keymap[keybind_KEY_NONE] = keybind_command_(DoNothing);
+    s->Keymap[keybind_KEY_CHAR] = keybind_command_(BuffInsertChar);
+    s->Keymap[keybind_KEY_LEFT]  = keybind_command_(BuffMoveCursorLeft);
+    s->Keymap[keybind_KEY_RIGHT] = keybind_command_(BuffMoveCursorRight);
+    s->Keymap[keybind_KEY_UP]   = keybind_command_(BuffMoveCursorUp);
+    s->Keymap[keybind_KEY_DOWN] = keybind_command_(BuffMoveCursorDown);
+    s->Keymap[keybind_KEY_HOME] = keybind_command_(BuffMoveCursorToLineStart);
+    s->Keymap[keybind_KEY_END]  = keybind_command_(BuffMoveCursorToLineEnd);
+    s->Keymap[keybind_KEY_BACK] = keybind_command_(BuffDeleteFowardChar);
+    s->Keymap[keybind_KEY_DEL]  = keybind_command_(BuffDeleteBackwardChar);
+    s->Keymap[keybind_KEY_RETURN] = keybind_command_(BuffNewline);
+    s->Keymap[keybind_KEY_CTRL | 'S'] = keybind_command_(BuffOpen);
+    s->Keymap[keybind_KEY_CTRL | 'O'] = keybind_command_(BuffSave);
+
     Api->Enable(GL_BLEND);
     Api->BlendFunc();
 }
@@ -57,8 +184,6 @@ external APP_UPDATE(Update) {
                               p->Buttons[plat_KEYM_LEFT].EndedDown;
     s->ui_Context.MouseWich = p->Buttons[plat_KEYM_LEFT].EndedDown?  ui_MOUSE_BUTTON_LEFT  :
                               p->Buttons[plat_KEYM_RIGHT].EndedDown? ui_MOUSE_BUTTON_RIGHT : 0;
-    // s->ui_Context.KeyDown = p->kBack || p->kReturn;
-    // s->ui_Context.KeyWich = p->kBack? ui_KEY_BACKSPACE : 0;
     s->ui_Context.MousePos = p->MousePos;
 
     s->ui_Context.Style.Padding = 16;
@@ -92,58 +217,56 @@ external APP_UPDATE(Update) {
     if (ui_Button(Renderer, &s->ui_Context, "RUSSIAN", 0));
     ui_NextRow(&s->ui_Context);
 
-    if (p->Buttons[plat_KEYBEV_CHAR].EndedDown) {
-        // if (p->Char == '\b')
-        //     gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
-        // else
-        // if (p->Char == '\r')
-        //     gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, '\n');
-        if (p->Char != '\b' && p->Char != '\r')
-            gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, p->Char);
-    }
+    keybind_command_context CommandContext;
+    CommandContext.CurrentBuff = &s->Buff;
+    CommandContext.Api = Api;
+    CommandContext.Col = 0;
+    CommandContext.Line = 0;
+    CommandContext.Char = p->Char;
 
-    if (p->Buttons[plat_KEYB_LEFT].EndedDown) {
-        s->Buff.Point = gbuff_GetPrevCharCursor(&s->Buff, s->Buff.Point);
-        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
-    }
-    if (p->Buttons[plat_KEYB_RIGHT].EndedDown) {
-        s->Buff.Point = gbuff_GetNextCharCursor(&s->Buff, s->Buff.Point);
-        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
-    }
-    if (p->Buttons[plat_KEYB_UP].EndedDown) {
-        gbuff *Buff = &s->Buff;
-        u32 BeginningOfPrevLine = gbuff_GetBeginningOfPrevLineCursor(Buff, Buff->Point);
-        u32 PrevLineLen         = gbuff_GetLineLen(Buff, BeginningOfPrevLine);
-        Buff->Point = BeginningOfPrevLine + Min(PrevLineLen, s->Col);
-        s->Line = s->Line > 0? s->Line - 1 : 0;
-    }
-    if (p->Buttons[plat_KEYB_DOWN].EndedDown) {
-        gbuff *Buff = &s->Buff;
-        u32 BeginningOfNextLine = gbuff_GetBeginningOfNextLineCursor(Buff, Buff->Point);
-        u32 NextLineLen         = gbuff_GetLineLen(Buff, BeginningOfNextLine);
-        Buff->Point = BeginningOfNextLine + Min(NextLineLen, s->Col);
-        s->Line++;
-    }
-    if (p->Buttons[plat_KEYB_HOME].EndedDown) {
-        s->Buff.Point = gbuff_GetBeginningOfLineCursor(&s->Buff, s->Buff.Point);
-        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
-    }
-    if (p->Buttons[plat_KEYB_END].EndedDown) {
-        s->Buff.Point = gbuff_GetEndOfLineCursor(&s->Buff, s->Buff.Point);
-        s->Col = gbuff_GetColumn(&s->Buff, s->Buff.Point);
-    }
+    u16 Key = keybind_KEY_NONE;
+    b32 Ctrl  = p->Buttons[plat_KEYB_CTRL].EndedDown;
+    b32 Alt   = p->Buttons[plat_KEYB_ALT].EndedDown;
+    b32 Shift = p->Buttons[plat_KEYB_SHIFT].EndedDown;
+
+    if (p->Buttons[plat_KEYBEV_CHAR].EndedDown)
+        Key = KeyComb(keybind_KEY_CHAR, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_LEFT].EndedDown)
+        Key = KeyComb(keybind_KEY_LEFT, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_RIGHT].EndedDown)
+        Key = KeyComb(keybind_KEY_RIGHT, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_UP].EndedDown)
+        Key = KeyComb(keybind_KEY_UP, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_DOWN].EndedDown)
+        Key = KeyComb(keybind_KEY_DOWN, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_HOME].EndedDown)
+        Key = KeyComb(keybind_KEY_HOME, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_END].EndedDown)
+        Key = KeyComb(keybind_KEY_END, Ctrl, Alt, Shift);
+    else
     if (p->Buttons[plat_KEYB_BACK].EndedDown)
-        gbuff_DeleteBackwardChar(&s->Buff, s->Buff.Point);
+        Key = KeyComb(keybind_KEY_BACK, Ctrl, Alt, Shift);
+    else
     if (p->Buttons[plat_KEYB_DELETE].EndedDown)
-        gbuff_DeleteFowardChar(&s->Buff, s->Buff.Point);
-    if (p->Buttons[plat_KEYB_RETURN].EndedDown) {
-        gbuff_InsertChar(Api, &s->Buff, s->Buff.Point, '\n');
-        s->Line++;
-    }
+        Key = KeyComb(keybind_KEY_DEL, Ctrl, Alt, Shift);
+    else
+    if (p->Buttons[plat_KEYB_RETURN].EndedDown)
+        Key = KeyComb(keybind_KEY_RETURN, Ctrl, Alt, Shift);
+    else
     if (p->Buttons[plat_KEYB_CTRL].EndedDown && p->Char == 'O')
-        gbuff_Load(Api, &s->Buff, "a.c");
+        Key = keybind_KEY_CTRL | 'S';
+    else
     if (p->Buttons[plat_KEYB_CTRL].EndedDown && p->Char == 'S')
-        gbuff_Save(Api, &s->Buff, "a.c");
+        Key = keybind_KEY_CTRL | 'O';
+
+    if (s->Keymap[Key].Proc)
+        s->Keymap[Key].Proc(&CommandContext);
 
     Render(Api, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
     DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
