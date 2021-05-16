@@ -108,11 +108,11 @@ external APP_UPDATE(Update) {
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
-    s->ui_Context.MouseDown = p->Buttons[plat_KEYM_LEFT].EndedDown ||
-                              p->Buttons[plat_KEYM_LEFT].EndedDown ||
-                              p->Buttons[plat_KEYM_LEFT].EndedDown;
-    s->ui_Context.MouseWich = p->Buttons[plat_KEYM_LEFT].EndedDown?  ui_MOUSE_BUTTON_LEFT  :
-                              p->Buttons[plat_KEYM_RIGHT].EndedDown? ui_MOUSE_BUTTON_RIGHT : 0;
+    s->ui_Context.MouseDown = p->Buttons[plat_KEYM_LEFT] ||
+                              p->Buttons[plat_KEYM_LEFT] ||
+                              p->Buttons[plat_KEYM_LEFT];
+    s->ui_Context.MouseWich = p->Buttons[plat_KEYM_LEFT]?  ui_MOUSE_BUTTON_LEFT  :
+                              p->Buttons[plat_KEYM_RIGHT]? ui_MOUSE_BUTTON_RIGHT : 0;
     s->ui_Context.MousePos = p->MousePos;
 
     s->ui_Context.Style.Padding = 16;
@@ -146,44 +146,44 @@ external APP_UPDATE(Update) {
     ui_NextRow(&s->ui_Context);
 
     u16 Key = keybind_KEY_NONE;
-    b32 Ctrl  = p->Buttons[plat_KEYB_CTRL].EndedDown;
-    b32 Alt   = p->Buttons[plat_KEYB_ALT].EndedDown;
-    b32 Shift = p->Buttons[plat_KEYB_SHIFT].EndedDown;
+    b32 Ctrl  = p->Buttons[plat_KEYB_CTRL];
+    b32 Alt   = p->Buttons[plat_KEYB_ALT];
+    b32 Shift = p->Buttons[plat_KEYB_SHIFT];
 
-    if (p->Buttons[plat_KEYBEV_CHAR].EndedDown)
+    if (p->Buttons[plat_KEYBEV_CHAR])
         Key = KeyComb(keybind_KEY_CHAR, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_LEFT].EndedDown)
+    if (p->Buttons[plat_KEYB_LEFT])
         Key = KeyComb(keybind_KEY_LEFT, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_RIGHT].EndedDown)
+    if (p->Buttons[plat_KEYB_RIGHT])
         Key = KeyComb(keybind_KEY_RIGHT, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_UP].EndedDown)
+    if (p->Buttons[plat_KEYB_UP])
         Key = KeyComb(keybind_KEY_UP, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_DOWN].EndedDown)
+    if (p->Buttons[plat_KEYB_DOWN])
         Key = KeyComb(keybind_KEY_DOWN, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_HOME].EndedDown)
+    if (p->Buttons[plat_KEYB_HOME])
         Key = KeyComb(keybind_KEY_HOME, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_END].EndedDown)
+    if (p->Buttons[plat_KEYB_END])
         Key = KeyComb(keybind_KEY_END, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_BACK].EndedDown)
+    if (p->Buttons[plat_KEYB_BACK])
         Key = KeyComb(keybind_KEY_BACK, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_DELETE].EndedDown)
+    if (p->Buttons[plat_KEYB_DELETE])
         Key = KeyComb(keybind_KEY_DEL, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_RETURN].EndedDown)
+    if (p->Buttons[plat_KEYB_RETURN])
         Key = KeyComb(keybind_KEY_RETURN, Ctrl, Alt, Shift);
     else
-    if (p->Buttons[plat_KEYB_CTRL].EndedDown && p->Char == 'O')
+    if (p->Buttons[plat_KEYB_CTRL] && p->Char == 'O')
         Key = keybind_KEY_CTRL | 'S';
     else
-    if (p->Buttons[plat_KEYB_CTRL].EndedDown && p->Char == 'S')
+    if (p->Buttons[plat_KEYB_CTRL] && p->Char == 'S')
         Key = keybind_KEY_CTRL | 'O';
 
     s->CommandContext.Char = p->Char;

@@ -151,7 +151,8 @@ typedef struct _button_state {
 } button_state;
 
 enum plat_key {
-    plat_KEYBEV_CHAR = 0,
+    plat_KEY_NONE = 0,
+    plat_KEYBEV_CHAR,
     plat_KEYB_UP,
     plat_KEYB_DOWN,
     plat_KEYB_LEFT,
@@ -189,7 +190,7 @@ typedef struct _platform {
     rv2  MousePos;
     i16 dMouseWheel;
     // mouse and keyboard buttons
-    button_state Buttons[plat_NO_KEYS];
+    b8 Buttons[plat_NO_KEYS];
     c8 Char; //todo: unicode
     // memory
     app_memory Memory;
