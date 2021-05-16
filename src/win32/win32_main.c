@@ -166,8 +166,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
             // if it acually did, then update
             MSG Message;
             i16 dmWheel = 0;
-            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYMEV_MOVED], 0);
-            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR],  0);
+            for (u32 NoKeys = 0; NoKeys < plat_NO_KEYS; NoKeys++) {
+                Win32ProcessButtonMessage(&Platform.Buttons[NoKeys], 0);
+            }
             while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
                 //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
                 /* mouse */
@@ -204,81 +205,76 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
                 b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
                 if (Message.message == WM_SYSKEYDOWN ||
-                    Message.message == WM_SYSKEYUP   ||
-                    Message.message == WM_KEYDOWN    ||
-                    Message.message == WM_KEYUP)
+                    Message.message == WM_KEYDOWN)
                 {
                     u64 VKCode = Message.wParam;
-                    if (WasDown != IsDown) {
-                        if (VKCode == VK_F11) {
-                            if (IsDown && Window)
-                                Win32ToggleFullScreen(Window);
-                                //note:
-                                // send this to the platform and let it decide how to handle
-                                // fullscreen switching?
-                        }
-                        else
-                        if (VKCode == VK_UP)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_UP], IsDown);
-                        else
-                        if (VKCode == VK_DOWN)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DOWN], IsDown);
-                        else
-                        if (VKCode == VK_LEFT)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_LEFT], IsDown);
-                        else
-                        if (VKCode == VK_RIGHT)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RIGHT], IsDown);
-                        else
-                        if (VKCode == VK_HOME)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_HOME], IsDown);
-                        else
-                        if (VKCode == VK_END)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_END], IsDown);
-                        else
-                        if (VKCode == VK_PRIOR)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_UP], IsDown);
-                        else
-                        if (VKCode == VK_NEXT)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_DOWN], IsDown);
-                        else
-                        if (VKCode == VK_BACK)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_BACK], IsDown);
-                        else
-                        if (VKCode == VK_DELETE)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DELETE], IsDown);
-                        else
-                        if (VKCode == VK_RETURN)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RETURN], IsDown);
-                        else
-                        if (VKCode == VK_TAB)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_TAB], IsDown);
-                        else
-                        if (VKCode == VK_CONTROL)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_CTRL], IsDown);
-                        else
-                        if (VKCode == VK_SHIFT)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_SHIFT], IsDown);
-                        else
-                        if (VKCode == VK_MENU)
-                            Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_ALT], IsDown);
-                        else
-                        if (VKCode == VK_F4) {
-                            if (AltKeyWasDown) Platform.Running = 0;
-                        }
+                    if (VKCode == VK_F11) {
+                        if (IsDown && Window)
+                            Win32ToggleFullScreen(Window);
+                            //note:
+                            // send this to the platform and let it decide how to handle
+                            // fullscreen switching?
                     }
-                    if (Message.message == WM_KEYDOWN || Message.message == WM_SYSKEYDOWN) {
-                        BYTE KeyboardState[256];
-                        GetKeyboardState(KeyboardState);
-                        WORD Chars;
-                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
-                            Platform.Char = (u8)Chars;
-                            Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
-                        }
+                    else
+                    if (VKCode == VK_UP)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_UP], 1);
+                    else
+                    if (VKCode == VK_DOWN)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DOWN], 1);
+                    else
+                    if (VKCode == VK_LEFT)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_LEFT], 1);
+                    else
+                    if (VKCode == VK_RIGHT)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RIGHT], 1);
+                    else
+                    if (VKCode == VK_HOME)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_HOME], 1);
+                    else
+                    if (VKCode == VK_END)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_END], 1);
+                    else
+                    if (VKCode == VK_PRIOR)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_UP], 1);
+                    else
+                    if (VKCode == VK_NEXT)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_PG_DOWN], 1);
+                    else
+                    if (VKCode == VK_BACK)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_BACK], 1);
+                    else
+                    if (VKCode == VK_DELETE)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_DELETE], 1);
+                    else
+                    if (VKCode == VK_RETURN)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_RETURN], 1);
+                    else
+                    if (VKCode == VK_TAB)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_TAB], 1);
+                    else
+                    if (VKCode == VK_CONTROL)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_CTRL], 1);
+                    else
+                    if (VKCode == VK_SHIFT)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_SHIFT], 1);
+                    else
+                    if (VKCode == VK_MENU)
+                        Win32ProcessButtonMessage(&Platform.Buttons[plat_KEYB_ALT], 1);
+                    else
+                    if (VKCode == VK_F4) {
+                        if (AltKeyWasDown) Platform.Running = 0;
+                    }
 
-                        if (Platform.Buttons[plat_KEYB_CTRL].EndedDown)
-                            Platform.Char = Message.wParam;
+                    BYTE KeyboardState[256];
+                    GetKeyboardState(KeyboardState);
+                    WORD Chars;
+                    if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
+                        Platform.Char = (u8)Chars;
+                        Win32ProcessEventMessage(&Platform.Buttons[plat_KEYBEV_CHAR], 1);
                     }
+
+                    if (Platform.Buttons[plat_KEYB_CTRL].EndedDown)
+                        Platform.Char = Message.wParam;
 
                     TranslateMessage(&Message);
                 }
@@ -328,151 +324,3 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     return 0;
 }
-
-#if 0
-//note: inline yer functionne
-internal void Win32ProcessPendingMessages(HWND Window, platform *Platform) {
-    //note:
-    // since there is no "WM_MOUSE_DID_NOT_MOVE" message, assume that it didn't and
-    // if it acually did, then update
-    MSG Message;
-    i16 dmWheel = 0;
-    Win32ProcessEventMessage(&Platform->mMoved, 0);
-    Win32ProcessEventMessage(&Platform->kChar,      0);
-    while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-        //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
-        /* mouse */
-        if (Message.message == WM_MOUSEWHEEL) {
-            dmWheel = HIWORD(Message.wParam);
-        }
-        else
-        if (Message.message == WM_MOUSEMOVE){
-            Platform->mPos = Win32GetMousePos(Window, Platform->WindowDim);
-            Win32ProcessEventMessage(&Platform->mMoved, 1);
-        }
-        else
-        if (Message.message == WM_LBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->mLeft, 1);
-        else
-        if (Message.message == WM_LBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->mLeft, 0);
-        else
-        if (Message.message == WM_RBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->mRight, 1);
-        else
-        if (Message.message == WM_RBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->mRight, 0);
-        else
-        if (Message.message == WM_MBUTTONDOWN)
-            Win32ProcessButtonMessage(&Platform->mMiddle, 1);
-        else
-        if (Message.message == WM_MBUTTONUP)
-            Win32ProcessButtonMessage(&Platform->mMiddle, 0);
-        else
-        if (Message.message == WM_SETCURSOR)
-            SetCursor(LoadCursorA(0, IDC_ARROW));
-
-        /* keyboard */
-        b32 AltKeyWasDown =  Message.lParam & (1 << 29);
-        b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
-        b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
-        if (Message.message == WM_SYSKEYDOWN ||
-            Message.message == WM_SYSKEYUP   ||
-            Message.message == WM_KEYDOWN    ||
-            Message.message == WM_KEYUP)
-        {
-            u64 VKCode = Message.wParam;
-            if (WasDown != IsDown) {
-                if (VKCode == VK_F11) {
-                    if (IsDown && Window)
-                        Win32ToggleFullScreen(Window);
-                        //note:
-                        // send this to the platform and let it decide how to handle
-                        // fullscreen switching?
-                }
-                else
-                if (VKCode == VK_UP)
-                    Win32ProcessButtonMessage(&Platform->kUp, IsDown);
-                else
-                if (VKCode == VK_DOWN)
-                    Win32ProcessButtonMessage(&Platform->kDown, IsDown);
-                else
-                if (VKCode == VK_LEFT)
-                    Win32ProcessButtonMessage(&Platform->kLeft, IsDown);
-                else
-                if (VKCode == VK_RIGHT)
-                    Win32ProcessButtonMessage(&Platform->kRight, IsDown);
-                else
-                if (VKCode == VK_HOME)
-                    Win32ProcessButtonMessage(&Platform->kHome, IsDown);
-                else
-                if (VKCode == VK_END)
-                    Win32ProcessButtonMessage(&Platform->kEnd, IsDown);
-                else
-                if (VKCode == VK_BACK)
-                    Win32ProcessButtonMessage(&Platform->kBack, IsDown);
-                else
-                if (VKCode == VK_DELETE)
-                    Win32ProcessButtonMessage(&Platform->kDelete, IsDown);
-                else
-                if (VKCode == VK_RETURN)
-                    Win32ProcessButtonMessage(&Platform->kReturn, IsDown);
-                else
-                if (VKCode == VK_CONTROL)
-                    Win32ProcessButtonMessage(&Platform->kCtrl, IsDown);
-                else
-                if (VKCode == VK_SHIFT)
-                    Win32ProcessButtonMessage(&Platform->kShift, IsDown);
-                else
-                if (VKCode == VK_MENU)
-                    Win32ProcessButtonMessage(&Platform->kAlt, IsDown);
-                else
-                if (VKCode == VK_F4) {
-                    if (AltKeyWasDown) Platform->Running = 0;
-                }
-            }
-
-            if (Message.message == WM_SYSKEYDOWN ||
-                Message.message == WM_KEYDOWN)
-            {
-                BYTE KeyboardState[256];
-				GetKeyboardState(KeyboardState);
-				WORD Chars;
-				if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {     
-					Platform->Char = (u8)Chars;
-                    Win32ProcessEventMessage(&Platform->kChar, 1);
-				}else {
-					Platform->Char = 0;
-				}
-                if (!IsPrintableChar(Platform->Char))
-                    Platform->Char = Message.wParam;
-            }
-
-            TranslateMessage(&Message);
-        }
-        // else
-        // if (Message.message == WM_CHAR) {
-        //     WideCharToMultiByte(CP_UTF8, 0, (WCHAR*)&Message.wParam, 1,
-        //                        &Platform->Char, 1, 0, 0);
-        // }
-        else
-        if (Message.message == WM_SIZE)
-            Win32ProcessEventMessage(&Platform->WindowResized, 1);
-
-        /* windows' stuff */
-        else
-        if (Message.message == WM_PAINT) {
-            PAINTSTRUCT Paint;
-            BeginPaint(Window, &Paint);
-            EndPaint(Window, &Paint);
-        }
-        else {
-            TranslateMessage(&Message);
-            DispatchMessage(&Message);
-        }
-        Platform->dmWheel = dmWheel;
-        Platform->WasDown     = WasDown;
-        Platform->IsDown      = IsDown;
-    }
-}
-#endif

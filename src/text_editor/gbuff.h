@@ -43,11 +43,20 @@ inline c8 gbuff_GetChar(gbuff *Buff, u32 Cursor) {
     return Buff->Data[gbuff_GetCursorIndex(Buff, Cursor)];
 }
 
-inline u32 gbuff_GetUtf32Char(gbuff *Buff, u32 Cursor) {
-    return (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 0)] >>  0) |
-           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 1)] >>  8) |
-           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 2)] >> 16) |
-           (Buff->Data[gbuff_GetCursorIndex(Buff, Cursor + 3)] >> 24);
+typedef union _utf8_quartet {
+    u32 Utf32;
+    struct {
+        c8 Utf8_0, Utf8_1, Utf8_2, Utf8_3;
+    };
+} utf8_quartet;
+
+inline utf8_quartet gbuff_GetUtf8Quartet(gbuff *Buff, u32 Cursor) {
+    utf8_quartet Utf8Quartet;
+    Utf8Quartet.Utf8_0 = gbuff_GetChar(Buff, Cursor + 0);
+    Utf8Quartet.Utf8_1 = gbuff_GetChar(Buff, Cursor + 1);
+    Utf8Quartet.Utf8_2 = gbuff_GetChar(Buff, Cursor + 2);
+    Utf8Quartet.Utf8_3 = gbuff_GetChar(Buff, Cursor + 3);
+    return Utf8Quartet;
 }
 
 internal gbuff gbuff_Create(platform_api *Api, u32 InitialGapSize) {
@@ -252,49 +261,6 @@ inline u32 gbuff_GetEndCursor(gbuff *Buff, u32 Cursor) {
 
 inline u32 gbuff_GetColumn(gbuff *Buff, u32 Cursor) {
     return Cursor - gbuff_GetBeginningOfLineCursor(Buff, Cursor);
-}
-
-internal void gbuff_Render(renderer *Renderer, platform_api *Api, gbuff *Buff, rv2 Pos, rect *Caret) {
-    rv2   Result = {-100000, -100000};
-    font *Font = &Renderer->Fonts[0];
-    r32   ScaleFactor = Font->Height/Font->Height;
-
-    for (u32 Cursor = 0; Cursor <= gbuff_GetLen(Buff); Cursor++) {
-        c8 Utf8Quartet[4];
-        Utf8Quartet[0] = gbuff_GetChar(Buff, Cursor + 0);
-        Utf8Quartet[1] = gbuff_GetChar(Buff, Cursor + 1);
-        Utf8Quartet[2] = gbuff_GetChar(Buff, Cursor + 2);
-        Utf8Quartet[3] = gbuff_GetChar(Buff, Cursor + 3);
-        u32 NoCodepointBytes = 0;
-        u32 Codepoint = GetNextCodepoint(Utf8Quartet, &NoCodepointBytes);
-        u32 Index = GetGlyphIndex(Font, Codepoint);
-        if (Codepoint == 0x3f) NoCodepointBytes = 1;
-    
-        r32 Advance = Font->Advances[Index];
-        rv2 Bearing = rv2_(Font->Bearings[Index].x * ScaleFactor,
-                           Font->Bearings[Index].y * ScaleFactor);
-        rect Rect = rect_(Font->Rects[Index].x * ScaleFactor, Font->Rects[Index].y * ScaleFactor,
-                          Font->Rects[Index].w * ScaleFactor, Font->Rects[Index].h * ScaleFactor);
-
-        rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y) - ((Font->Ascender>>6) + (Font->Descender>>6))/4);
-        
-        if (Cursor == Buff->Point)
-           *Caret = rect_(Pos.x, Pos.y - Font->Height/2, 2, Font->Height);
-
-        if (Utf8Quartet[0] == '\n') {
-            Pos = rv2_(16, Pos.y - Font->Height);
-            continue;
-        }
-        if (Utf8Quartet[0] == '\r')
-            continue;
-    
-        if (Cursor == gbuff_GetLen(Buff))
-            break;
-        DrawGlyph(Renderer, 0, Index, GlyphPos, GREY_50/*, ScaleFactor*/);
-
-        Pos.x  += (i32)Advance * ScaleFactor;
-        Cursor += (NoCodepointBytes - 1);
-    }
 }
 
 #endif//GBUFF_h

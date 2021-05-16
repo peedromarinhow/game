@@ -4,142 +4,66 @@
 #include "colors.h"
 #include "gbuff.h"
 #include "ui.h"
+#include "keybinding.h"
 
-typedef struct _keybind_command_context {
-    gbuff *CurrentBuff;
-    platform_api *Api;
-    u32 Col;
-    u32 Line;
-    c8 Char;
-} keybind_command_context;
+internal void gbuff_Render(renderer *Renderer, platform_api *Api, ui_context *ui_Ctx,
+                           gbuff *Buff, rv2 Pos, rv2 *Caret) {
+    ui_style *Style = &ui_Ctx->Style;
+    font *Font = &Renderer->Fonts[Style->MonoFont];
 
-#define KEYBIND_COMMAND(Name) void keybind_command_##Name(keybind_command_context *Ctx)
-typedef KEYBIND_COMMAND(callback);
+    DrawRect(Renderer, rect_(Style->Padding, Caret->y, 800, Font->Height), GREY_800);
+    DrawRect(Renderer, rect_(Caret->x, Caret->y, 2, Font->Height), ORANGE_700);
 
-typedef struct _keybind_command {
-    keybind_command_callback *Proc;
-} keybind_command;
-#define keybind_command_(Proc) (keybind_command){(keybind_command_##Proc)}
+    for (u32 Cursor = 0; Cursor <= gbuff_GetLen(Buff); Cursor++) {
+        utf8_quartet Utf8Quartet = gbuff_GetUtf8Quartet(Buff, Cursor);
+        u32 NoCodepointBytes = 0;
+        u32 Codepoint = GetNextCodepoint(&Utf8Quartet.Utf8_0, &NoCodepointBytes);
+        u32 Index = GetGlyphIndex(Font, Codepoint);
+        if (Codepoint == 0x3f) NoCodepointBytes = 1;
+    
+        r32 Advance = Font->Advances[Index];
+        rv2 Bearing = rv2_(Font->Bearings[Index].x,
+                           Font->Bearings[Index].y);
+        rect Rect = rect_(Font->Rects[Index].x, Font->Rects[Index].y,
+                          Font->Rects[Index].w, Font->Rects[Index].h);
+        rv2 GlyphPos = rv2_(Pos.x + Bearing.x, Pos.y - (Rect.h - Bearing.y) - ((Font->Ascender) + (Font->Descender))/4);
+        
+        if (Cursor == Buff->Point)
+           *Caret = rv2_(Pos.x, Pos.y - Font->Height/2);
 
-typedef enum _keybind_keys {
-    keybind_KEY_NONE = 0, //note:
-    keybind_KEY_CHAR = 1, //note:
-    keybind_KEY_DEL,
-    keybind_KEY_BACK,
-    keybind_KEY_TAB,
-    keybind_KEY_LEFT,
-    keybind_KEY_RIGHT,
-    keybind_KEY_UP,
-    keybind_KEY_DOWN,
-    keybind_KEY_PG_UP,
-    keybind_KEY_PG_DOWN,
-    keybind_KEY_HOME,
-    keybind_KEY_END,
-    keybind_KEY_RETURN,
-    keybind_KEY_CTRL  = 1 << 8,
-    keybind_KEY_ALT   = 1 << 9,
-    keybind_KEY_SHIFT = 1 << 10
-} keybind_keys;
+        if (Utf8Quartet.Utf8_0 == '\n') {
+            Pos = rv2_(Style->Padding, Pos.y - Font->Height);
+            continue;
+        }
+        if (Utf8Quartet.Utf8_0 == '\r')
+            continue;
+    
+        if (Cursor == gbuff_GetLen(Buff))
+            break;  //note: dumb
 
-#define KeyComb(Base, Ctrl, Alt, Shift) \
-    (u16)(Base)        |                \
-   ((u16)(Ctrl)  << 8) |                \
-   ((u16)(Alt)   << 9) |                \
-   ((u16)(Shift) << 10)
+        DrawGlyph(Renderer, Style->MonoFont, Index, GlyphPos, Style->Colors[ui_COLOR_TEXT]/*, ScaleFactor*/);
+
+        Pos.x  += (i32)Advance;
+        Cursor += (NoCodepointBytes - 1);
+    }
+}
 
 typedef struct _app_state {
     memory_arena Arena;
     renderer   Renderer;
     ui_context ui_Context;
     gbuff Buff;
-    rect  Caret;
-    u32 Col;
-    u32 Line;
+    rv2 CaretPos;
     keybind_command Keymap[1024];
+    keybind_command_context CommandContext;
 } app_state;
-
-KEYBIND_COMMAND(DoNothing) {
-    return;
-}
-
-KEYBIND_COMMAND(BuffInsertChar) {
-    if (Ctx->Char != '\b' && Ctx->Char != '\r')
-        gbuff_InsertChar(Ctx->Api, Ctx->CurrentBuff, Ctx->CurrentBuff->Point, Ctx->Char);
-}
-
-KEYBIND_COMMAND(BuffMoveCursorLeft) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    Buff->Point = gbuff_GetPrevCharCursor(Buff, Buff->Point);
-    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffMoveCursorRight) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    Buff->Point = gbuff_GetNextCharCursor(Buff, Buff->Point);
-    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffMoveCursorUp) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    u32 BeginningOfPrevLine = gbuff_GetBeginningOfPrevLineCursor(Buff, Buff->Point);
-    u32 PrevLineLen         = gbuff_GetLineLen(Buff, BeginningOfPrevLine);
-    Buff->Point = BeginningOfPrevLine + Min(PrevLineLen,  Ctx->Col);
-    Ctx->Line =  Ctx->Line > 0?  Ctx->Line - 1 : 0;
-}
-
-KEYBIND_COMMAND(BuffMoveCursorDown) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    u32 BeginningOfNextLine = gbuff_GetBeginningOfNextLineCursor(Buff, Buff->Point);
-    u32 NextLineLen         = gbuff_GetLineLen(Buff, BeginningOfNextLine);
-    Buff->Point = BeginningOfNextLine + Min(NextLineLen,  Ctx->Col);
-    Ctx->Line++;
-}
-
-KEYBIND_COMMAND(BuffMoveCursorToLineStart) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    Buff->Point = gbuff_GetBeginningOfLineCursor(Buff, Buff->Point);
-    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffMoveCursorToLineEnd) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    Buff->Point = gbuff_GetEndOfLineCursor(Buff, Buff->Point);
-    Ctx->Col = gbuff_GetColumn(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffDeleteFowardChar) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    gbuff_DeleteBackwardChar(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffDeleteBackwardChar) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    gbuff_DeleteFowardChar(Buff, Buff->Point);
-}
-
-KEYBIND_COMMAND(BuffNewline) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    gbuff_InsertChar(Ctx->Api, Buff, Buff->Point, '\n');
-    Ctx->Line++;
-}
-
-KEYBIND_COMMAND(BuffOpen) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    gbuff_Load(Ctx->Api, Buff, "a.c");
-}
-
-KEYBIND_COMMAND(BuffSave) {
-    gbuff *Buff = Ctx->CurrentBuff;
-    gbuff_Save(Ctx->Api, Buff, "a.c");
-}
-
 
 external APP_INIT(Init) {
     app_state *s = (app_state *)p->Memory.Contents;
 
     s->Arena = InitializeArena(p->Memory.Size - sizeof(app_state), (u8 *)p->Memory.Contents + sizeof(app_state));
 
-    platform_api           *Api = &p->Api;
+    platform_api *Api      = &p->Api;
     memory_arena *Arena    = &s->Arena;
     renderer     *Renderer = &s->Renderer;
 
@@ -149,10 +73,9 @@ external APP_INIT(Init) {
     s->ui_Context.Current = -1;
 
     Renderer->Fonts[0] = LoadFont(Api, Arena, "roboto.ttf", 16);
-    s->Buff  = gbuff_Create(Api, 2);
-    s->Caret = rect_(-100000, -100000, -100000, -100000);
-    s->Col   = 0;
-    s->Line  = 0;
+    Renderer->Fonts[1] = LoadFont(Api, Arena, "roboto_mono.ttf", 16);
+    s->Buff     = gbuff_Create(Api, 2);
+    s->CaretPos = rv2_(-100000, -100000);
 
     s->Keymap[keybind_KEY_NONE] = keybind_command_(DoNothing);
     s->Keymap[keybind_KEY_CHAR] = keybind_command_(BuffInsertChar);
@@ -167,6 +90,12 @@ external APP_INIT(Init) {
     s->Keymap[keybind_KEY_RETURN] = keybind_command_(BuffNewline);
     s->Keymap[keybind_KEY_CTRL | 'S'] = keybind_command_(BuffOpen);
     s->Keymap[keybind_KEY_CTRL | 'O'] = keybind_command_(BuffSave);
+
+    s->CommandContext.CurrentBuff = &s->Buff;
+    s->CommandContext.Api = Api;
+    s->CommandContext.Col = 0;
+    s->CommandContext.Line = 0;
+    s->CommandContext.Char = p->Char;
 
     Api->Enable(GL_BLEND);
     Api->BlendFunc();
@@ -187,23 +116,22 @@ external APP_UPDATE(Update) {
     s->ui_Context.MousePos = p->MousePos;
 
     s->ui_Context.Style.Padding = 16;
-    s->ui_Context.Style.Font    = 0;
-    s->ui_Context.Style.Colors[ui_COLOR_TEXT]         = GREY_100;
+    s->ui_Context.Style.Font     = 0;
+    s->ui_Context.Style.MonoFont = 1;
+    s->ui_Context.Style.Colors[ui_COLOR_TEXT]         = GREY_50;
     s->ui_Context.Style.Colors[ui_COLOR_BACK]         = GREY_900;
     s->ui_Context.Style.Colors[ui_COLOR_BUTTON]       = INDIGO_500;
     s->ui_Context.Style.Colors[ui_COLOR_BUTTON_HOVER] = INDIGO_600;
     s->ui_Context.Style.Colors[ui_COLOR_BUTTON_FOCUS] = INDIGO_700;
 
-    s->ui_Context.Layout.Body = rect_(100, 100, 200, 200);
+    s->ui_Context.Layout.Body = rect_(0, 0, 200, 200);
     s->ui_Context.Layout.Max  = rv2_(-0x1000000, -0x1000000);
     s->ui_Context.Layout.Pos  = s->ui_Context.Layout.Body.Pos;
     s->ui_Context.Layout.Dim  = s->ui_Context.Layout.Body.Dim;
     s->ui_Context.Layout.ItemWidth  = 64;
     s->ui_Context.Layout.ItemHeight = 36;
 
-    DrawRect(Renderer, rect_(16, s->Caret.y, 800, s->Caret.h), GREY_800);
-    DrawRect(Renderer, s->Caret, ORANGE_700);
-    gbuff_Render(Renderer, Api, &s->Buff, rv2_(16, p->WindowDim.y - 16), &s->Caret);
+    gbuff_Render(Renderer, Api, &s->ui_Context, &s->Buff, rv2_(16, p->WindowDim.y - 16), &s->CaretPos);
 
     ui_Label(Renderer, &s->ui_Context, "δένδρον", 0);
     if (ui_Button(Renderer, &s->ui_Context, "GREEK", 0));
@@ -216,13 +144,6 @@ external APP_UPDATE(Update) {
     ui_Label(Renderer, &s->ui_Context, "дерево", 0);
     if (ui_Button(Renderer, &s->ui_Context, "RUSSIAN", 0));
     ui_NextRow(&s->ui_Context);
-
-    keybind_command_context CommandContext;
-    CommandContext.CurrentBuff = &s->Buff;
-    CommandContext.Api = Api;
-    CommandContext.Col = 0;
-    CommandContext.Line = 0;
-    CommandContext.Char = p->Char;
 
     u16 Key = keybind_KEY_NONE;
     b32 Ctrl  = p->Buttons[plat_KEYB_CTRL].EndedDown;
@@ -265,11 +186,12 @@ external APP_UPDATE(Update) {
     if (p->Buttons[plat_KEYB_CTRL].EndedDown && p->Char == 'S')
         Key = keybind_KEY_CTRL | 'O';
 
+    s->CommandContext.Char = p->Char;
+
     if (s->Keymap[Key].Proc)
-        s->Keymap[Key].Proc(&CommandContext);
+        s->Keymap[Key].Proc(&s->CommandContext);
 
     Render(Api, Renderer, p->WindowDim, s->ui_Context.Style.Colors[ui_COLOR_BACK]);
-    DEBUG_DrawFontAtlas(s->Renderer.Fonts[0].Atlas);
 }
 
 external APP_RELOAD(Reload) {

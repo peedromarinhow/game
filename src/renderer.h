@@ -179,8 +179,8 @@ internal font LoadFont(platform_api *Api, memory_arena *Arena, c8 *Filename, i32
 
     Font.NoChars = NoChars;
     Font.Height    = Height;
-    Font.Ascender  = Face->ascender;
-    Font.Descender = Face->descender;
+    Font.Ascender  = Face->ascender  >> 6;
+    Font.Descender = Face->descender >> 6;
     Font.LineGap   = 0;
     Font.Codepoints = PushToArena(Arena, NoChars * sizeof(u32));
     Font.Advances   = PushToArena(Arena, NoChars * sizeof(rv2));

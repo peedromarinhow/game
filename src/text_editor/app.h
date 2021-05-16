@@ -389,7 +389,7 @@ inline cursor GetBufferLine(buffer *Buffer, cursor CurrentCursor) {
 
 
 
-#if 0//#ifndef STRETCHY_BUFFER_H
+#ifndef STRETCHY_BUFFER_H
 ///////////////////////////////////////////////////////////
 //// STRETCHY_BUFFER_H
 #define STRETCHY_BUFFER_H

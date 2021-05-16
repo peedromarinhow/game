@@ -17,6 +17,18 @@ enum layout_type {
     ui_LAYOUT_RELATIVE
 };
 
+enum ui_color {
+    ui_COLOR_BACK,
+    ui_COLOR_BASE,
+    ui_COLOR_TEXT,
+    ui_COLOR_TEXT_INCATIVE,
+    ui_COLOR_TEXT_FOCUS,
+    ui_COLOR_BUTTON,
+    ui_COLOR_BUTTON_HOVER, 
+    ui_COLOR_BUTTON_FOCUS,
+    ui_NO_COLORS = ui_COLOR_BUTTON_FOCUS + 1
+};
+
 typedef struct _ui_layout {
     rect Body;
     i32 ItemWidth;
@@ -27,9 +39,10 @@ typedef struct _ui_layout {
 } ui_layout;
 
 typedef struct _ui_style {
-    id  Font;
+    id Font;
+    id MonoFont;
     i32 Padding;
-    colorb Colors[16];
+    colorb Colors[ui_NO_COLORS];
 } ui_style;
 
 typedef struct _ui_context {
@@ -58,17 +71,6 @@ enum ui_opt {
 enum ui_result {
     ui_RESULT_CHANGE = 0b1,
     ui_RESULT_SUBMIT = 0b10
-};
-
-enum ui_color {
-    ui_COLOR_BACK,
-    ui_COLOR_BASE,
-    ui_COLOR_TEXT,
-    ui_COLOR_TEXT_INCATIVE,
-    ui_COLOR_TEXT_FOCUS,
-    ui_COLOR_BUTTON,
-    ui_COLOR_BUTTON_HOVER, 
-    ui_COLOR_BUTTON_FOCUS
 };
 
 enum ui_min_dims {
