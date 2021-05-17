@@ -201,23 +201,21 @@ int CALLBACK WinMain(HINSTANCE Instance,
                             Platform.Running = 0;
                     }
 
-                    LastButton = VKCodeTable[VKCode];
-
                     if (WasDown != IsDown) {
-                        Platform.Buttons[LastButton] = IsDown;
+                        Platform.Buttons[VKCodeTable[VKCode]] = IsDown;
                     }
-                }
 
-                if (Message.message == WM_CHAR) {
-                    u64 CharInput = Message.wParam;
-                    if (CharInput >= 32        &&
-                        CharInput != VK_RETURN &&
-                        CharInput != VK_ESCAPE &&
-                        CharInput != 127)
-                    {
-                        Platform.Char = Message.wParam;
+                    BYTE KeyboardState[256];
+                    GetKeyboardState(KeyboardState);
+                    WORD Chars;
+                    if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
+                        Platform.Char = (u8)Chars;
                         Platform.Buttons[plat_KEYBEV_CHAR] = 1;
+                        if (Platform.Buttons[plat_KEYB_CTRL])
+                            Platform.Char = Message.wParam;    
                     }
+                    
+                    TranslateMessage(&Message);
                 }
                 else // windows' stuff
                 if (Message.message == WM_PAINT) {
