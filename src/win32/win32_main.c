@@ -12,10 +12,7 @@
 #include "lingo.h"
 #include "platform.h"
 
-#include "win32_internal.c"
 #include "win32_utils.c"
-#include "win32_code.c"
-#include "win32_opengl.c"
 
 global b32 *GlobalRunning;
 
@@ -41,13 +38,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
                      HINSTANCE PrevInstance,
                      LPSTR CmdLine, i32 CmdShow)
 {
-    /* get paths for dlls filename for executable and working directory */
+    // get paths for dlls filename for executable and working directory
     c8 ExecutablePath  [256];
     c8 WorkingDirectory[256];
     c8 AppDLLPath      [256];
     c8 TempAppDLLPath  [256];
     {
-        /* get path of the executable */
+        // get path of the executable
         DWORD SizeofFileName = GetModuleFileNameA(0, ExecutablePath, sizeof(ExecutablePath));
         c8 *OnePastLastSlash = ExecutablePath;
         for (c8 *Scan = ExecutablePath; *Scan; ++Scan) {
@@ -55,13 +52,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 OnePastLastSlash = Scan + 1;
         }
 
-        /* get paths for the dll's */
+        // get paths for the dll's
         Win32BuildEXEPathFilename(AppDLLPath, sizeof(AppDLLPath), "app.dll",
                                   OnePastLastSlash, ExecutablePath);
         Win32BuildEXEPathFilename(TempAppDLLPath, sizeof(TempAppDLLPath), "temp_app.dll",
                                   OnePastLastSlash, ExecutablePath);
 
-        /* get working dir */ 
+        // get working dir
         GetCurrentDirectoryA(sizeof(WorkingDirectory), WorkingDirectory);
     }
 
@@ -84,7 +81,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     if (!Window)
          Win32ReportErrorAndDie("ERROR!!", "Window failed to be created");
 
-    /* initializing paltform */
+    // initializing paltform
     platform Platform = {0}; {
         Platform.ExecutablePath       = ExecutablePath;
         Platform.WorkingDirectoryPath = WorkingDirectory;
@@ -93,7 +90,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         if (!Platform.Memory.Contents)
             Win32ReportErrorAndDie("ERROR!!", "Could not allocate memory for the app");
 
-        /* functions provided by platform */
+        // functions provided by platform
         Platform.Api.AllocateMemory    = Win32AllocateMemory;
         Platform.Api.FreeMemory        = Win32FreeMemory;
         Platform.Api.LoadFile          = Win32LoadFile;
@@ -118,13 +115,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
         Platform.MousePos  = Win32GetMousePos(Window, Platform.WindowDim);
     };
 
-    /* load app code */
+    // load app code
     win32_app_code AppCode = {0}; {
         if (!Win32LoadAppCode(&AppCode, AppDLLPath, TempAppDLLPath))
             Win32ReportErrorAndDie("ERROR!!", "App code failed to load");
     }
 
-    /* get refresh rate */
+    // get refresh rate
     f32 MonitorRefreshRate = 60.0f; {
         DEVMODEA DeviceMode = {0};
         if(EnumDisplaySettingsA(0, ENUM_CURRENT_SETTINGS, &DeviceMode)) {
@@ -159,7 +156,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
         .FrameDuration    = 0
     };
 
-    u64 VKCodeTable[256] = {
+    u64 VKCodeTable[] = {
         [VK_UP] = plat_KEYB_UP,
         [VK_DOWN] = plat_KEYB_DOWN,
         [VK_LEFT] = plat_KEYB_LEFT,
@@ -180,44 +177,77 @@ int CALLBACK WinMain(HINSTANCE Instance,
     while (Platform.Running) {
         /* Process pending messages */ {
             MSG Message;
-            u32 LastButton = plat_KEY_NONE;
-            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
-                Platform.Buttons[plat_KEYBEV_CHAR] = 0;
+            i16 dmWheel = 0;
 
-                b8  WasDown =  (Message.lParam & (1 << 30)) != 0;
-                b8  IsDown  = !(Message.lParam & (1 << 31));
-                u64 VKCode  =   Message.wParam;
+            Platform.Buttons[plat_KEYMEV_MOVED] = 0;
+            Platform.Buttons[plat_KEYBEV_CHAR]  = 0;
+            Platform.Buttons[plat_KEYM_LEFT]    = 0;
+            Platform.Buttons[plat_KEYM_RIGHT]   = 0;
+            Platform.Buttons[plat_KEYM_MIDDLE]  = 0;
+            
+            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) { //note: WM_QUIT WM_CLOSE WM_DESTROY are caught in WindowProc
 
-                if (Message.message == WM_KEYDOWN ||
-                    Message.message == WM_KEYUP)
+                b32 AltKeyWasDown =  Message.lParam & (1 << 29);
+                b32 WasDown       = (Message.lParam & (1 << 30)) != 0;
+                b32 IsDown        = (Message.lParam & (1 << 31)) == 0;
+
+                // mouse
+                if (Message.message == WM_MOUSEWHEEL)
+                    dmWheel = HIWORD(Message.wParam);
+                else
+                if (Message.message == WM_MOUSEMOVE)
+                    Platform.Buttons[plat_KEYMEV_MOVED] = 1;
+                else
+                if (Message.message == WM_LBUTTONDOWN)
+                    Platform.Buttons[plat_KEYM_LEFT] = 1;
+                else
+                if (Message.message == WM_RBUTTONDOWN)
+                    Platform.Buttons[plat_KEYM_RIGHT] = 1;
+                else
+                if (Message.message == WM_MBUTTONDOWN)
+                    Platform.Buttons[plat_KEYM_MIDDLE] = 1;
+                else
+                if (Message.message == WM_SETCURSOR)
+                    SetCursor(LoadCursorA(0, IDC_ARROW));
+
+                // keyboard
+                if (Message.message == WM_KEYDOWN    ||
+                    Message.message == WM_KEYUP      ||
+                    Message.message == WM_SYSKEYDOWN ||
+                    Message.message == WM_SYSKEYUP)
                 {
-                    if (VKCode == VK_F11) {
-                        if (IsDown && Window)
-                            Win32ToggleFullScreen(Window); //note: send this to the platform?
-                    }
-
-                    if (VKCode == VK_F4) {
-                        if (Message.lParam & (1 << 29))
-                            Platform.Running = 0;
-                    }
-
+                    u64 VKCode = Message.wParam;
                     if (WasDown != IsDown) {
-                        Platform.Buttons[VKCodeTable[VKCode]] = IsDown;
+                        if (VKCode == VK_F11) //note: send this to the platform?
+                            if (IsDown && Window) Win32ToggleFullScreen(Window);
+
+                        if (VKCode == VK_F4)
+                            if (AltKeyWasDown) Platform.Running = 0;
+
+                        if (VKCodeTable[VKCode] < plat_NO_KEYS)
+                            Platform.Buttons[VKCodeTable[VKCode]] = IsDown;
                     }
 
-                    BYTE KeyboardState[256];
-                    GetKeyboardState(KeyboardState);
-                    WORD Chars;
-                    if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
-                        Platform.Char = (u8)Chars;
-                        Platform.Buttons[plat_KEYBEV_CHAR] = 1;
+                    if (Message.message == WM_KEYDOWN || Message.message == WM_SYSKEYDOWN) {
+                        BYTE KeyboardState[256];
+                        GetKeyboardState(KeyboardState);
+                        WORD Chars;
+                        if (ToAscii(Message.wParam, (Message.lParam >> 16) & 0xFF, KeyboardState, &Chars, 0) == 1) {
+                            Platform.Buttons[plat_KEYBEV_CHAR] = 1;
+                            Platform.Char = (u16)Chars;
+                        }
+
                         if (Platform.Buttons[plat_KEYB_CTRL])
-                            Platform.Char = Message.wParam;    
+                            Platform.Char = Message.wParam;
+
+                        if (Platform.Buttons[plat_KEYB_SHIFT])
+                            Platform.Char = Message.wParam;
                     }
-                    
+
                     TranslateMessage(&Message);
                 }
-                else // windows' stuff
+
+                // windows' stuff
                 if (Message.message == WM_PAINT) {
                     PAINTSTRUCT Paint;
                     BeginPaint(Window, &Paint);
@@ -227,10 +257,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
                     TranslateMessage(&Message);
                     DispatchMessage(&Message);
                 }
+                Platform.dMouseWheel = dmWheel;
             }
         }
-
-        //todo: sound
 
         /* update */ {
             Platform.WindowDim = Win32GetWindowDim(Window);

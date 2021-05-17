@@ -190,8 +190,8 @@ typedef struct _platform {
     rv2  MousePos;
     i16 dMouseWheel;
     // mouse and keyboard buttons
-    b8 Buttons[plat_NO_KEYS];
-    c8 Char; //todo: unicode
+    b8  Buttons[plat_NO_KEYS];
+    u16 Char;
     // memory
     app_memory Memory;
     // functions
