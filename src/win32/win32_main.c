@@ -210,7 +210,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
                 if (Message.message == WM_SETCURSOR)
                     SetCursor(LoadCursorA(0, IDC_ARROW));
 
-                // keyboard
+                // keyboard 
                 if (Message.message == WM_KEYDOWN    ||
                     Message.message == WM_KEYUP      ||
                     Message.message == WM_SYSKEYDOWN ||
