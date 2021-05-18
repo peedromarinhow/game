@@ -239,9 +239,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
                         if (Platform.Buttons[plat_KEYB_CTRL])
                             Platform.Char = Message.wParam;
-
-                        if (Platform.Buttons[plat_KEYB_SHIFT])
-                            Platform.Char = Message.wParam;
                     }
 
                     TranslateMessage(&Message);

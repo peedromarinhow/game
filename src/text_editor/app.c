@@ -79,6 +79,7 @@ external APP_INIT(Init) {
 
     s->Keymap[keybind_KEY_NONE] = keybind_command_(DoNothing);
     s->Keymap[keybind_KEY_CHAR] = keybind_command_(BuffInsertChar);
+    s->Keymap[keybind_KEY_CHAR] = keybind_command_(BuffInsertChar);
     s->Keymap[keybind_KEY_LEFT]  = keybind_command_(BuffMoveCursorLeft);
     s->Keymap[keybind_KEY_RIGHT] = keybind_command_(BuffMoveCursorRight);
     s->Keymap[keybind_KEY_UP]   = keybind_command_(BuffMoveCursorUp);
@@ -88,8 +89,8 @@ external APP_INIT(Init) {
     s->Keymap[keybind_KEY_BACK] = keybind_command_(BuffDeleteFowardChar);
     s->Keymap[keybind_KEY_DEL]  = keybind_command_(BuffDeleteBackwardChar);
     s->Keymap[keybind_KEY_RETURN] = keybind_command_(BuffNewline);
-    s->Keymap[keybind_KEY_CTRL | 'S'] = keybind_command_(BuffOpen);
-    s->Keymap[keybind_KEY_CTRL | 'O'] = keybind_command_(BuffSave);
+    s->Keymap[keybind_KEY_CTRL | 'O'] = keybind_command_(BuffOpen);
+    s->Keymap[keybind_KEY_CTRL | 'S'] = keybind_command_(BuffSave);
 
     s->CommandContext.CurrentBuff = &s->Buff;
     s->CommandContext.Api = Api;
@@ -145,13 +146,13 @@ external APP_UPDATE(Update) {
     if (ui_Button(Renderer, &s->ui_Context, "RUSSIAN", 0));
     ui_NextRow(&s->ui_Context);
 
-    u16 Key = keybind_KEY_NONE;
+    u32 Key = keybind_KEY_NONE;
     b32 Ctrl  = p->Buttons[plat_KEYB_CTRL];
     b32 Alt   = p->Buttons[plat_KEYB_ALT];
     b32 Shift = p->Buttons[plat_KEYB_SHIFT];
 
     if (p->Buttons[plat_KEYBEV_CHAR])
-        Key = KeyComb(keybind_KEY_CHAR, Ctrl, Alt, Shift);
+        Key = KeyComb(keybind_KEY_CHAR, 0, 0, 0);
     else
     if (p->Buttons[plat_KEYB_LEFT])
         Key = KeyComb(keybind_KEY_LEFT, Ctrl, Alt, Shift);
@@ -179,12 +180,12 @@ external APP_UPDATE(Update) {
     else
     if (p->Buttons[plat_KEYB_RETURN])
         Key = KeyComb(keybind_KEY_RETURN, Ctrl, Alt, Shift);
-    else
+
     if (p->Buttons[plat_KEYB_CTRL] && p->Char == 'O')
-        Key = keybind_KEY_CTRL | 'S';
+        Key = keybind_KEY_CTRL | 'O';
     else
     if (p->Buttons[plat_KEYB_CTRL] && p->Char == 'S')
-        Key = keybind_KEY_CTRL | 'O';
+        Key = keybind_KEY_CTRL | 'S';
 
     s->CommandContext.Char = p->Char;
 
